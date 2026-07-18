@@ -1,0 +1,280 @@
+/* ============================
+   CompanyPage — Premium Design
+   ============================ */
+
+.cp-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+}
+
+/* --- Loading --- */
+.cp-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.cp-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- Error --- */
+.cp-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: 1rem;
+}
+
+.cp-error p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.cp-error button {
+  padding: 0.5rem 1.5rem;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s var(--ease-out);
+}
+
+.cp-error button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* --- Header --- */
+.cp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cp-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface-0);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.cp-back:hover {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  transform: translateX(-2px);
+}
+
+.cp-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cp-header-top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cp-ticker {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cp-price-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.cp-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-top: 0.1rem;
+}
+
+.cp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.5rem;
+}
+
+.cp-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* --- Year Bar --- */
+.cp-year-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 2rem;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cp-year-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cp-year-pills {
+  display: flex;
+  gap: 0.3rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cp-year-pill {
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface-0);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+  white-space: nowrap;
+}
+
+.cp-year-pill:hover {
+  background: var(--surface-1);
+  border-color: var(--border-strong);
+}
+
+.cp-year-pill--active {
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  border-color: var(--text-primary);
+}
+
+.cp-year-pill--active:hover {
+  background: #1e293b;
+}
+
+/* --- Tab Bar --- */
+.cp-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 2rem;
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.cp-tabs::-webkit-scrollbar { display: none; }
+
+.cp-tab {
+  padding: 0.75rem 1.1rem;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s var(--ease-out);
+  position: relative;
+}
+
+.cp-tab:hover {
+  color: var(--text-secondary);
+}
+
+.cp-tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* --- Content --- */
+.cp-content {
+  flex: 1;
+  padding: 1.5rem 2rem 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* --- Footer --- */
+.cp-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 2rem;
+  border-top: 1px solid var(--border-light);
+  background: var(--surface-0);
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* --- Tab Empty --- */
+.tab-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30vh;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+/* --- Mobile --- */
+@media (max-width: 768px) {
+  .cp-header { padding: 1rem; }
+  .cp-year-bar { padding: 0.5rem 1rem; }
+  .cp-tabs { padding: 0 1rem; }
+  .cp-tab { padding: 0.65rem 0.75rem; font-size: 0.75rem; }
+  .cp-content { padding: 1rem; }
+  .cp-ticker { font-size: 1.5rem; }
+  .cp-footer { padding: 0.6rem 1rem; }
+}

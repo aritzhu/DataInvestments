@@ -1,0 +1,41 @@
+{
+  "name": "datainvestments-backend",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:generate": "prisma generate --schema=src/infrastructure/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=src/infrastructure/prisma/schema.prisma",
+    "db:push": "prisma db push --schema=src/infrastructure/prisma/schema.prisma",
+    "db:studio": "prisma studio --schema=src/infrastructure/prisma/schema.prisma",
+    "db:seed": "tsx src/infrastructure/prisma/seed.ts",
+    "db:migrate:deploy": "prisma migrate deploy --schema=src/infrastructure/prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.7.9",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-session": "^1.19.0",
+    "node-cron": "^4.6.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/node": "^22.10.10",
+    "@types/node-cron": "^3.0.11",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

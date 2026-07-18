@@ -1,0 +1,164 @@
+/* ============================
+   ShareTab (Per Share) — Premium
+   (classes match ShareTab.tsx)
+   ============================ */
+.share-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- Hero --- */
+.share-hero {
+  text-align: center;
+}
+
+.share-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.share-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+/* --- Per Share Cards Grid --- */
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+}
+
+@media (min-width: 768px) {
+  .share-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.share-card {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-top: 3px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.25s var(--ease-out);
+}
+
+.share-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.share-card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.share-card-sublabel {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.25rem;
+}
+
+.share-card-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* --- EV Composition Section --- */
+.share-section {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.share-section-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.share-comp-bar {
+  height: 32px;
+  display: flex;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.share-comp-segment {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.6s var(--ease-out);
+}
+
+.share-comp-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.share-comp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.share-comp-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.share-comp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* --- Empty --- */
+.share-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+/* --- Card color variants (accent border-top) --- */
+.share-card--blue { border-top-color: #2563eb; }
+.share-card--green { border-top-color: #10b981; }
+.share-card--red { border-top-color: #ef4444; }
+.share-card--purple { border-top-color: #8b5cf6; }
+.share-card--amber { border-top-color: #f59e0b; }
+.share-card--cyan { border-top-color: #06b6d4; }
+
+/* --- EV segment colors --- */
+.share-comp-segment--cash { background: #10b981; }
+.share-comp-segment--debt { background: #ef4444; }
+.share-comp-segment--equity { background: #2563eb; }
+
+/* --- Legend dot colors --- */
+.share-comp-dot--cash { background: #10b981; }
+.share-comp-dot--debt { background: #ef4444; }
+.share-comp-dot--equity { background: #2563eb; }

@@ -1,0 +1,387 @@
+/* ============================
+   Dashboard Tab — Premium Design
+   ============================ */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+/* Base card */
+.dash-card {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s var(--ease-out);
+}
+
+.dash-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-default);
+}
+
+/* Hero card (price) */
+.dash-card--hero {
+  grid-column: 1 / -1;
+  background: var(--gradient-dark);
+  border: none;
+  color: white;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-card--hero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.dash-card--hero:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Wide card */
+.dash-card--wide {
+  grid-column: 1 / -1;
+}
+
+/* Verdict card */
+.dash-card--verdict {
+  border: 1.5px solid;
+}
+
+.dash-verdict-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dash-verdict-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-verdict-label {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dash-verdict-pct {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.dash-verdict-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dash-verdict-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.dash-verdict-row-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dash-verdict-row-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Icon */
+.dash-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.dash-card-icon--blue { background: #eff6ff; color: #2563eb; }
+.dash-card-icon--emerald { background: #ecfdf5; color: #10b981; }
+.dash-card-icon--violet { background: #f5f3ff; color: #8b5cf6; }
+.dash-card-icon--amber { background: #fffbeb; color: #f59e0b; }
+.dash-card-icon--rose { background: #fff1f2; color: #ef4444; }
+.dash-card-icon--cyan { background: #ecfeff; color: #06b6d4; }
+
+.dash-card--hero .dash-card-icon {
+  background: rgba(255, 255, 255, 0.1);
+  color: #60a5fa;
+}
+
+/* Body */
+.dash-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-card-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+}
+
+.dash-card--hero .dash-card-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.dash-card-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.dash-card--hero .dash-card-value {
+  color: white;
+  font-size: 2rem;
+}
+
+.dash-card-sub {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.dash-card-subtitle {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+/* Margins */
+.dash-margins {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.dash-margin-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dash-margin-label {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-margin-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Ratios */
+.dash-ratios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.dash-ratio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.dash-ratio-label {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-ratio-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Info grid */
+.dash-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.dash-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.dash-info-label {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-info-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dash-info-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.dash-info-link:hover {
+  opacity: 0.8;
+}
+
+.dash-description {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.dash-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30vh;
+  color: var(--text-tertiary);
+}
+
+/* ============================
+   Market Comparison Chart
+   ============================ */
+.mkt-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mkt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.mkt-row-label {
+  width: 80px;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-top: 0.15rem;
+}
+
+.mkt-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.mkt-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mkt-bar-label {
+  width: 60px;
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.mkt-bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mkt-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mkt-bar--company.mkt-bar--green { background: var(--color-success, #10b981); }
+.mkt-bar--company.mkt-bar--red { background: var(--color-error, #ef4444); }
+.mkt-bar--sector { background: var(--color-primary, #2563eb); opacity: 0.7; }
+.mkt-bar--market { background: var(--text-tertiary); opacity: 0.4; }
+
+.mkt-bar-value {
+  width: 60px;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mkt-source {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-card--hero { padding: 1.25rem; }
+  .dash-card--hero .dash-card-value { font-size: 1.5rem; }
+  .dash-margins { gap: 0.75rem; }
+}

@@ -1,0 +1,1 @@
+{"root":["./src/server.ts","./src/infrastructure/prisma/seed.ts","./src/routes/admin.ts","./src/services/dataAggregator.ts","./src/services/finnhub.ts","./src/services/fmp.ts","./src/services/marketAverages.ts","./src/services/sec.ts","./src/services/yahoo.ts"],"version":"5.9.3"}

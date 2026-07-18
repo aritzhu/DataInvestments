@@ -1,0 +1,234 @@
+/* ============================
+   StatementsTab — Premium
+   (classes match StatementsTab.tsx)
+   ============================ */
+.stmt-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stmt-section {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+  overflow-x: auto;
+}
+
+.stmt-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+/* --- Income Statement Table --- */
+.stmt-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stmt-header-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 80px;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--border-light);
+}
+
+.stmt-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 80px;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s ease;
+}
+
+.stmt-row:last-child { border-bottom: none; }
+.stmt-row:hover { background: var(--surface-1); }
+
+.stmt-row--level-1 { padding-left: 1.5rem; }
+
+.stmt-row--bold .stmt-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stmt-row--bold {
+  border-top: 1px solid var(--border-default);
+}
+
+.stmt-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.stmt-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stmt-pct {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Balance Sheet --- */
+.stmt-bs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .stmt-bs-grid { grid-template-columns: 1fr; }
+}
+
+.stmt-bs-col {
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.stmt-bs-subtitle {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.stmt-bs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stmt-bs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.stmt-bs-row:last-child { border-bottom: none; }
+
+.stmt-bs-row span:first-child { font-weight: 400; }
+.stmt-bs-row span:last-child {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stmt-bs-row--sub {
+  padding-left: 0.75rem;
+  border-top: 1px solid var(--border-default);
+  font-weight: 600;
+}
+
+.stmt-bs-row--sub span:first-child { color: var(--text-primary); }
+
+.stmt-bs-row--total {
+  border-top: 2px solid var(--border-default);
+  padding-top: 0.5rem;
+  font-weight: 700;
+}
+
+.stmt-bs-row--total span:first-child { color: var(--text-primary); font-weight: 700; }
+.stmt-bs-row--total span:last-child { font-weight: 800; }
+
+/* --- Empty --- */
+.stmt-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .stmt-header-row,
+  .stmt-row { grid-template-columns: 1fr 90px 60px; gap: 0.35rem; font-size: 0.7rem; }
+}
+
+/* --- Earnings Verdict --- */
+.fs-verdict-card {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.fs-verdict-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.fs-verdict-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.6rem;
+}
+
+.fs-verdict-metric {
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 0.7rem;
+  text-align: center;
+}
+
+.fs-verdict-metric-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.15rem;
+}
+
+.fs-verdict-metric-value {
+  display: block;
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.fs-verdict-signal {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-sm);
+}
+
+.fs-verdict-signal--buy { background: #ecfdf5; color: #059669; }
+.fs-verdict-signal--hold { background: #fffbeb; color: #d97706; }
+.fs-verdict-signal--sell { background: #fef2f2; color: #dc2626; }
+.fs-verdict-signal--info { background: var(--surface-2); color: var(--text-secondary); }

@@ -1,0 +1,119 @@
+/* ============================
+   RevenueTab (Segments) — Premium
+   (classes match RevenueTab.tsx)
+   ============================ */
+.rev-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- Hero --- */
+.rev-hero {
+  text-align: center;
+}
+
+.rev-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.rev-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+/* --- Section --- */
+.rev-section {
+  background: var(--surface-0);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.rev-section-title {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+/* --- Bar Chart --- */
+.rev-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rev-bar-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 80px 50px;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rev-bar-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rev-bar-track {
+  height: 22px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.rev-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 0.6s var(--ease-out);
+}
+
+.rev-bar-value {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rev-bar-pct {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-align: right;
+}
+
+/* --- No Data --- */
+.rev-no-data {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.rev-no-data p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.rev-hint {
+  color: var(--text-tertiary) !important;
+  font-size: 0.75rem !important;
+}
+
+@media (max-width: 640px) {
+  .rev-bar-row { grid-template-columns: 90px 1fr 70px 40px; gap: 0.4rem; }
+  .rev-bar-label { font-size: 0.7rem; }
+}
