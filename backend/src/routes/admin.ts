@@ -1,8 +1,11 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { addCompanyFromTicker, syncCompanyData, bulkImportCompanies, getSP500StockList, batchResyncCompanies } from '../services/dataAggregator';
+import { buildCoverageReport } from '../services/coverageReporter';
+import { buildComprehensiveYearReport, getImportTimeline } from '../services/adminReporting';
 import { TICKER_SECTORS } from '../data/sectors';
 import { SP500_SECTORS } from '../data/sp500';
+import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
@@ -137,6 +140,94 @@ router.get('/sync/:ticker/status', async (req, res) => {
   }
 });
 
+// GET /api/admin/sync/:ticker/coverage — legacy coverage report for a sync (FinancialData only)
+router.get('/sync/:ticker/coverage', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+    const year = parseInt(req.query.year as string) || 0;
+
+    const company = await prisma.company.findUnique({ where: { ticker } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    // Find latest year if not specified
+    let reportYear = year;
+    if (reportYear === 0) {
+      const latest = await prisma.financialData.findFirst({
+        where: { companyId: company.id },
+        orderBy: { year: 'desc' },
+        select: { year: true },
+      });
+      if (!latest) {
+        res.status(404).json({ error: 'No financial data found for this company' });
+        return;
+      }
+      reportYear = latest.year;
+    }
+
+    const report = await buildCoverageReport(ticker, reportYear);
+    if (!report) {
+      res.status(404).json({ error: 'Could not build coverage report' });
+      return;
+    }
+
+    res.json(report);
+  } catch (error) {
+    console.error('[Coverage] Error:', error);
+    res.status(500).json({ error: 'Error building coverage report' });
+  }
+});
+
+// GET /api/admin/companies/:ticker/year-data — comprehensive yearly data report
+router.get('/companies/:ticker/year-data', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+
+    const company = await prisma.company.findUnique({ where: { ticker } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    const report = await buildComprehensiveYearReport(ticker);
+    if (!report) {
+      res.status(404).json({ error: 'Could not build comprehensive report' });
+      return;
+    }
+
+    res.json(report);
+  } catch (error) {
+    console.error('[Year Data] Error:', error);
+    res.status(500).json({ error: 'Error fetching year data' });
+  }
+});
+
+// GET /api/admin/companies/:ticker/import-timeline — import timeline for a company
+router.get('/companies/:ticker/import-timeline', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+
+    const company = await prisma.company.findUnique({ where: { ticker } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    const timeline = await getImportTimeline(ticker, company.id);
+    if (!timeline) {
+      res.status(404).json({ error: 'Could not fetch import timeline' });
+      return;
+    }
+
+    res.json(timeline);
+  } catch (error) {
+    console.error('[Import Timeline] Error:', error);
+    res.status(500).json({ error: 'Error fetching import timeline' });
+  }
+});
+
 // GET /api/admin/sp500-list — fetch S&P 500 stock list from FMP
 router.get('/sp500-list', async (req, res) => {
   try {
@@ -152,6 +243,11 @@ router.get('/sp500-list', async (req, res) => {
     console.error('[Admin] Error fetching S&P 500 list:', error);
     res.status(500).json({ error: 'Error fetching S&P 500 list' });
   }
+});
+
+// GET /api/admin/european-tickers — list European indices
+router.get('/european-tickers', (_req, res) => {
+  res.json({ indices: EUROPEAN_INDICES });
 });
 
 // POST /api/admin/companies/bulk-import — import multiple companies via SSE stream

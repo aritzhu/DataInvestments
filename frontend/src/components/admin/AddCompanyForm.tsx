@@ -24,7 +24,7 @@ export function AddCompanyForm({ onCompanyAdded }: Props) {
       const res = await fetch('/api/admin/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker: trimmed, fmpApiKey: localStorage.getItem('fmp_api_key') || undefined }),
+        body: JSON.stringify({ ticker: trimmed }),
       });
 
       const data = await res.json();

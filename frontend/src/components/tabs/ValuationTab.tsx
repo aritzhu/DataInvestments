@@ -181,7 +181,8 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         <div className="val-method-grid">
           {results.map((r) => {
             const isActive = activeMethod === r.id;
-            const isNA = r.fairValue == null || r.fairValue <= 0;
+            const isNA = r.fairValue == null;
+            const isNegative = r.fairValue != null && r.fairValue < 0;
             const isRecommended = r.id === recommendedModel;
             return (
               <button
@@ -194,8 +195,8 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   {isRecommended && <span className="val-recommended-badge">Recomendado</span>}
                   <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
                 </div>
-                <span className="val-method-card-value">
-                  {isNA ? 'N/D' : `$${r.fairValue!.toFixed(2)}`}
+                <span className={`val-method-card-value ${isNegative ? 'val-method-card-value--negative' : ''}`}>
+                  {isNA ? 'N/D' : `${isNegative ? '-' : ''}$${(isNegative ? -r.fairValue! : r.fairValue!).toFixed(2)}`}
                 </span>
               </button>
             );
@@ -235,14 +236,14 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                       $<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
                     </span>
                   </div>
-                  <div className="val-price-block val-price-block--intrinsic">
-                    <span className="val-price-label">Valor intrínseco</span>
-                    <span className="val-price-value val-price-value--green">
-                      {active.fairValue != null ? (
-                        <>$<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
-                      ) : '—'}
-                    </span>
-                  </div>
+<div className="val-price-block val-price-block--intrinsic">
+                     <span className="val-price-label">Valor intrínseco</span>
+                     <span className={`val-price-value ${active.fairValue != null && active.fairValue < 0 ? 'val-price-value--negative' : 'val-price-value--green'}`}>
+                       {active.fairValue != null ? (
+                         <>$<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
+                       ) : '—'}
+                     </span>
+                   </div>
                 </div>
                 {active.fairValue && stock.currentPrice > 0 && (
                   <div className="val-margin">
@@ -399,6 +400,13 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               </div>
             )}
 
+            {/* Warning for negative input */}
+            {active.negativeInputWarning && (
+              <div className="val-negative-warning">
+                <span className="val-negative-warning-icon">⚠️</span>
+                <span>{active.negativeInputWarning}</span>
+              </div>
+            )}
             {/* Confidence */}
             <div className="val-confidence-row">
               <span className="val-confidence-label">Confianza:</span>

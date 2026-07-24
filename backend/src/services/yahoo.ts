@@ -31,15 +31,70 @@ export async function fetchYahooQuote(ticker: string): Promise<YahooQuote | null
     const meta = result.meta;
     const quote: YahooQuote = {
       symbol: meta.symbol || ticker.toUpperCase(),
-      name: meta.shortName || meta.longName || ticker.toUpperCase(),
+      name: meta.longName || meta.shortName || ticker.toUpperCase(),
       currentPrice: meta.regularMarketPrice || 0,
       marketCap: meta.marketCap || 0,
-      sharesOutstanding: meta.sharesOutstanding || 0,
+      sharesOutstanding: meta.sharesOutstanding ?? 0,
       currency: meta.currency || 'USD',
       exchange: meta.exchangeName || '',
     };
 
+    if (quote.currentPrice > 0 && (quote.marketCap > 0 || quote.sharesOutstanding > 0)) {
+      return quote;
+    }
+
+    if (quote.currentPrice > 0) {
+      const fallback = await fetchYahooQuoteFallback(ticker);
+      if (fallback) {
+        quote.marketCap = fallback.marketCap;
+        quote.sharesOutstanding = fallback.sharesOutstanding;
+        quote.name = fallback.name;
+      }
+    }
+
     return quote.currentPrice > 0 ? quote : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchYahooQuoteFallback(ticker: string): Promise<YahooQuote | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
+    const response = await axios.get(url, {
+      params: { modules: 'defaultKeyStatistics,summaryDetail,assetProfile' },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      timeout: 15000,
+    });
+
+    const result = response.data?.quoteSummary?.result?.[0];
+    if (!result) return null;
+
+    const defaultStats = result.defaultKeyStatistics;
+    const summaryDetail = result.summaryDetail;
+    const assetProfile = result.assetProfile;
+
+    const sharesOutstanding =
+      defaultStats?.sharesOutstanding?.raw ??
+      defaultStats?.sharesShort ?? 0;
+
+    const marketCap =
+      defaultStats?.marketCap?.raw ??
+      summaryDetail?.marketCap?.raw ?? 0;
+
+    const name = assetProfile?.shortName || summaryDetail?.shortName?.raw || ticker;
+
+    return {
+      symbol: ticker.toUpperCase(),
+      name,
+      currentPrice: 0,
+      marketCap,
+      sharesOutstanding,
+      currency: 'USD',
+      exchange: '',
+    };
   } catch {
     return null;
   }

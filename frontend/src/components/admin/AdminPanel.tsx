@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, RefreshCw, Eye, EyeOff, Key, Upload, List, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
 import '../../styles/admin.css';
-
-interface SP500Stock {
-  ticker: string;
-  name: string;
-  sector: string;
-  marketCap: number;
-}
 
 interface ProgressUpdate {
   current: number;
@@ -51,46 +44,17 @@ export interface CompanyData {
 export function AdminPanel() {
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fmpKey, setFmpKey] = useState('');
-  const [fmpKeySaved, setFmpKeySaved] = useState(false);
-  const [showFmpKey, setShowFmpKey] = useState(false);
 
   const [bulkTickers, setBulkTickers] = useState('');
   const [bulkYears, setBulkYears] = useState(5);
   const [isImporting, setIsImporting] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<ProgressUpdate | null>(null);
   const [bulkComplete, setBulkComplete] = useState<ImportComplete | null>(null);
-  const [sp500Loading, setSp500Loading] = useState(false);
-  const [sp500List, setSp500List] = useState<SP500Stock[]>([]);
 
   const [isResyncing, setIsResyncing] = useState(false);
   const [resyncProgress, setResyncProgress] = useState<ProgressUpdate | null>(null);
   const [resyncComplete, setResyncComplete] = useState<{ succeeded: number; failed: number; errors: Array<{ ticker: string; error: string }> } | null>(null);
   const [companySearch, setCompanySearch] = useState('');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('fmp_api_key');
-    if (saved) {
-      setFmpKey(saved);
-      setFmpKeySaved(true);
-    }
-  }, []);
-
-  const saveFmpKey = () => {
-    if (fmpKey.trim()) {
-      localStorage.setItem('fmp_api_key', fmpKey.trim());
-      setFmpKeySaved(true);
-    } else {
-      localStorage.removeItem('fmp_api_key');
-      setFmpKeySaved(false);
-    }
-  };
-
-  const clearFmpKey = () => {
-    setFmpKey('');
-    setFmpKeySaved(false);
-    localStorage.removeItem('fmp_api_key');
-  };
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -112,22 +76,33 @@ export function AdminPanel() {
   const handleCompanyDeleted = () => fetchCompanies();
   const handleSyncComplete = () => fetchCompanies();
 
-  const fetchSP500List = async () => {
-    if (!fmpKey) return;
-    setSp500Loading(true);
-    try {
-      const res = await fetch('/api/admin/sp500-list', {
-        headers: { 'x-api-key': fmpKey },
-      });
-      const data = await res.json();
-      if (res.ok && data.stocks) {
-        setSp500List(data.stocks);
-        setBulkTickers(data.stocks.map((s: SP500Stock) => s.ticker).join('\n'));
-      }
-    } catch (err) {
-      console.error('Error fetching S&P 500 list:', err);
-    } finally {
-      setSp500Loading(false);
+  const EUROPEAN_PRESETS: Record<string, { name: string; tickers: string[] }> = {
+    dax: {
+      name: 'DAX 40 (Alemania)',
+      tickers: ['SAP.DE','SIE.DE','ALV.DE','BMW.DE','MBG.DE','VOW3.DE','BAS.DE','BAYN.DE','DTE.DE','DBK.DE','DB1.DE','MUV2.DE','ADS.DE','HEN3.DE','MRK.DE','SY1.DE','IFX.DE','RWE.DE','FRE.DE','CON.DE','HEI.DE','BEI.DE','PZI.DE','CBK.DE','QIA.DE','ZAL.DE','COV.DE','MPS.DE','HFG.DE','SCE.DE','GYC.DE','SHL.DE','ENR.DE','DWNI.DE','NDA.DE','HDD.DE','SRT3.DE','TKA.DE','TEG.DE','NEM.DE'],
+    },
+    cac40: {
+      name: 'CAC 40 (Francia)',
+      tickers: ['MC.PA','OR.PA','TTE.PA','SAN.PA','AIR.PA','BNP.PA','SU.PA','ACA.PA','ENGI.PA','VIE.PA','KER.PA','LR.PA','RMS.PA','SAF.PA','DG.PA','ATO.PA','STM.PA','CAP.PA','EL.PA','DSY.PA','SQ.PA','BOL.PA','SGO.PA','WLN.PA','HEX.PA','TEP.PA','RNO.PA','VIV.PA','PUB.PA','EN.PA','BN.PA','ACP.PA','SPIE.PA','FDJ.PA','NXI.PA','AM.PA','IPH.PA','CO.PA','ALO.PA','SW.PA'],
+    },
+    ibex35: {
+      name: 'IBEX 35 (España)',
+      tickers: ['SAN.MC','BBVA.MC','IBE.MC','TEF.MC','CABK.MC','ITX.MC','NG.MC','REP.MC','CLNX.MC','ANA.MC','MAP.MC','ACS.MC','ENG.MC','FER.MC','GRF.MC','IAG.MC','MTS.MC','MRL.MC','RED.MC','REE.MC','SAB.MC','SOL.MC','TRE.MC','UNI.MC','AENA.MC','BKT.MC','ELE.MC','FDR.MC','GBF.MC','IDR.MC','MEL.MC'],
+    },
+    ftse100: {
+      name: 'FTSE 100 (Reino Unido)',
+      tickers: ['SHEL.L','AZN.L','HSBA.L','ULVR.L','BP.L','BATS.L','GSK.L','DGE.L','RIO.L','LSEG.L','REL.L','LLOY.L','NWG.L','BRCB.L','PRU.L','AV.L','BA.L','HL.L','EXPN.L','STAN.L','NG.L','BT-A.L','SGRO.L','IMB.L','SSE.L','CCH.L','ENR.L','MNG.L','WPP.L','SMIN.L','SMT.L','BNZL.L','III.L','ADM.L','ABF.L','RMV.L','AHT.L','PSON.L','LAND.L','KAZ.L'],
+    },
+    aex: {
+      name: 'AEX (Países Bajos)',
+      tickers: ['ASML.AS','RAND.AS','AD.AS','INGA.AS','PRX.AS','UNA.AS','PHIA.AS','AKZA.AS','ABN.AS','KPN.AS','ASM.AS','HEIA.AS','WKL.AS','ADYEN.AS','DSM.AS','NN.AS','AGN.AS','AML.AS','SBMO.AS','IMCD.AS','TKWY.AS','VPK.AS','EXO.AS','JUST.AS','ARCELOR.AS'],
+    },
+  };
+
+  const handleEuropeanPreset = (presetId: string) => {
+    const preset = EUROPEAN_PRESETS[presetId];
+    if (preset) {
+      setBulkTickers(preset.tickers.join('\n'));
     }
   };
 
@@ -147,7 +122,7 @@ export function AdminPanel() {
       const res = await fetch('/api/admin/companies/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tickers, fmpApiKey: fmpKey || undefined, years: bulkYears }),
+        body: JSON.stringify({ tickers, years: bulkYears }),
       });
 
       const reader = res.body?.getReader();
@@ -204,7 +179,7 @@ export function AdminPanel() {
       const res = await fetch('/api/admin/companies/batch-resync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fmpApiKey: fmpKey || undefined, years: 5 }),
+        body: JSON.stringify({ years: 5 }),
       });
 
       const reader = res.body?.getReader();
@@ -278,58 +253,12 @@ export function AdminPanel() {
       <div className="admin-content-inner">
         {/* API Status */}
         <div className="admin-status-grid">
-          <div className="admin-status-card" style={{ flex: '1 1 100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div className={`admin-status-dot ${fmpKeySaved ? 'admin-status-dot--green' : 'admin-status-dot--yellow'}`} />
-                <span className="admin-status-name">Financial Modeling Prep</span>
-                {fmpKeySaved && (
-                  <span className="admin-status-badge admin-status-badge--green">
-                    <Key size={10} />
-                    Configurada
-                  </span>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 300px', maxWidth: '480px' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
-                  <input
-                    type={showFmpKey ? 'text' : 'password'}
-                    value={fmpKey}
-                    onChange={(e) => setFmpKey(e.target.value)}
-                    placeholder="API Key de FMP (opcional)"
-                    className="admin-form-input"
-                    style={{ paddingRight: '2.5rem' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowFmpKey(!showFmpKey)}
-                    style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '0.25rem' }}
-                  >
-                    {showFmpKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <button onClick={saveFmpKey} className="admin-form-btn" style={{ whiteSpace: 'nowrap' }}>
-                  Guardar
-                </button>
-                {fmpKeySaved && (
-                  <button onClick={clearFmpKey} className="admin-form-btn" style={{ background: '#f1f5f9', color: '#64748b', whiteSpace: 'nowrap' }}>
-                    Quitar
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="admin-status-desc" style={{ marginTop: '0.75rem' }}>
-              {fmpKeySaved
-                ? 'FMP activo — se usarán datos de FMP como fuente principal durante la sincronización'
-                : 'Introduce tu API key para usar FMP como fuente principal. Sin ella, se usa SEC EDGAR.'}
-            </p>
-          </div>
           <div className="admin-status-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div className="admin-status-dot admin-status-dot--green" />
               <span className="admin-status-name">SEC EDGAR</span>
             </div>
-            <p className="admin-status-desc">Datos XBRL oficiales (10-K, 10-Q)</p>
+            <p className="admin-status-desc">Datos XBRL oficiales (10-K, 10-Q) para empresas US</p>
             <span className="admin-status-badge admin-status-badge--green">
               <span className="admin-status-dot admin-status-dot--green" />
               Gratuito — Sin API key
@@ -338,9 +267,20 @@ export function AdminPanel() {
           <div className="admin-status-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div className="admin-status-dot admin-status-dot--green" />
+              <span className="admin-status-name">ESEF/XBRL (Europeo)</span>
+            </div>
+            <p className="admin-status-desc">Datos XBRL oficiales para empresas europeas</p>
+            <span className="admin-status-badge admin-status-badge--green">
+              <span className="admin-status-dot admin-status-dot--green" />
+              Gratuito — filings.xbrl.org
+            </span>
+          </div>
+          <div className="admin-status-card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="admin-status-dot admin-status-dot--green" />
               <span className="admin-status-name">Yahoo Finance</span>
             </div>
-            <p className="admin-status-desc">Precio actual, cotización en tiempo real</p>
+            <p className="admin-status-desc">Precio actual, cotización, market cap, shares outstanding</p>
             <span className="admin-status-badge admin-status-badge--green">
               <span className="admin-status-dot admin-status-dot--green" />
               Gratuito — Scraping
@@ -355,40 +295,39 @@ export function AdminPanel() {
         <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', padding: '1.5rem', marginBottom: '2rem' }}>
           <h2 className="admin-sources-title">Fuentes de Datos</h2>
           <div className="admin-sources-grid">
-            <div className="admin-source-card admin-source-card--blue">
-              <h3 className="admin-source-card-title admin-source-card-title--blue">
-                Financial Modeling Prep
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 500, marginBottom: '0.75rem' }}>Fuente principal - Estados financieros</p>
-              <ul className="admin-source-list">
-                <li><strong>Income Statement:</strong> revenue, netIncome, ebitda, grossProfit</li>
-                <li><strong>Balance Sheet:</strong> totalAssets, totalDebt, totalEquity, cash</li>
-                <li><strong>Cash Flow:</strong> freeCashFlow, operatingCashFlow, capex</li>
-                <li><strong>Profile:</strong> name, sector, industry, marketCap, price</li>
-                <li><strong>Key Ratios:</strong> peRatio, pbRatio, evToEbitda, roe</li>
-              </ul>
-            </div>
             <div className="admin-source-card admin-source-card--emerald">
               <h3 className="admin-source-card-title admin-source-card-title--emerald">
                 SEC EDGAR
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 500, marginBottom: '0.75rem' }}>Validación - Datos oficiales XBRL</p>
+              <p style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas US — Datos XBRL oficiales</p>
               <ul className="admin-source-list">
                 <li><strong>Company Facts:</strong> revenue, netIncome (10-K)</li>
                 <li><strong>CIK Mapping:</strong> identificador único SEC</li>
                 <li><strong>Forms:</strong> 10-K anual, 10-Q trimestral</li>
-                <li><strong>Validación:</strong> cross-check con FMP</li>
+                <li><strong>Cobertura:</strong> todas las empresas US</li>
+              </ul>
+            </div>
+            <div className="admin-source-card admin-source-card--blue">
+              <h3 className="admin-source-card-title admin-source-card-title--blue">
+                ESEF/XBRL (Europeo)
+              </h3>
+              <p style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas Europeas — Datos XBRL oficiales</p>
+              <ul className="admin-source-list">
+                <li><strong>Ingresos:</strong> revenue, netIncome, EBITDA</li>
+                <li><strong>Balance:</strong> assets, liabilities, equity</li>
+                <li><strong>Cash Flow:</strong> operating, investing, financing</li>
+                <li><strong>Fuente:</strong> filings.xbrl.org (ESEF)</li>
               </ul>
             </div>
             <div className="admin-source-card admin-source-card--purple">
               <h3 className="admin-source-card-title admin-source-card-title--purple">
                 Yahoo Finance
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 500, marginBottom: '0.75rem' }}>Tiempo real - Cotizaciones</p>
+              <p style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 500, marginBottom: '0.75rem' }}>Cotizaciones — Precio y métricas de mercado</p>
               <ul className="admin-source-list">
-                <li><strong>Chart API:</strong> regularMarketPrice</li>
+                <li><strong>Chart API:</strong> regularMarketPrice, marketCap</li>
                 <li><strong>Scraping:</strong> Sin autenticación requerida</li>
-                <li><strong>Datos:</strong> precio, moneda, exchange</li>
+                <li><strong>Datos:</strong> precio, sharesOutstanding, exchange</li>
               </ul>
             </div>
           </div>
@@ -412,46 +351,30 @@ export function AdminPanel() {
             </div>
           </div>
 
-          {/* S&P 500 Quick Import */}
+
+
+          {/* European Indices Quick Import */}
           <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <List size={16} style={{ color: '#6366f1' }} />
-                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>S&P 500 / NASDAQ + NYSE</span>
-                {sp500List.length > 0 && (
-                  <span className="bulk-badge bulk-badge--info">{sp500List.length} empresas</span>
-                )}
-              </div>
-              <button
-                onClick={fetchSP500List}
-                disabled={sp500Loading || !fmpKey}
-                className="admin-form-btn"
-                style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white' }}
-              >
-                {sp500Loading ? (
-                  <><Loader2 size={14} className="admin-spinner" /> Cargando...</>
-                ) : (
-                  <><Download size={14} /> Cargar lista</>
-                )}
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <Globe size={16} style={{ color: '#059669' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Índices Europeos (ESEF/XBRL)</span>
             </div>
-            {!fmpKey && (
-              <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '0.5rem' }}>
-                Necesitas configurar la API key de FMP arriba para cargar la lista
-              </p>
-            )}
-            {sp500List.length > 0 && (
-              <div style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.375rem', maxHeight: '5rem', overflow: 'auto' }}>
-                {sp500List.slice(0, 50).map((s) => (
-                  <span key={s.ticker} style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem', background: '#f1f5f9', borderRadius: '0.25rem', color: '#475569' }}>
-                    {s.ticker}
-                  </span>
-                ))}
-                {sp500List.length > 50 && (
-                  <span style={{ fontSize: '0.7rem', color: '#64748b' }}>+{sp500List.length - 50} mas...</span>
-                )}
-              </div>
-            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {Object.entries(EUROPEAN_PRESETS).map(([id, preset]) => (
+                <button
+                  key={id}
+                  onClick={() => handleEuropeanPreset(id)}
+                  className="admin-form-btn"
+                  style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: 'white', fontWeight: 500, fontSize: '0.75rem',
+                  }}
+                >
+                  <Download size={12} />
+                  {preset.name} ({preset.tickers.length})
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Ticker Input */}
@@ -531,8 +454,8 @@ export function AdminPanel() {
 
           <div style={{ padding: '0.75rem 1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
             <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0, lineHeight: 1.5 }}>
-              <strong>Que hace:</strong> Para cada empresa, intenta FMP primero (si hay API key), luego cae a SEC EDGAR con extraccion mejorada.
-              Anade datos faltantes: EBITDA, cash flows, balance sheet detallado, y ratios de mercado via Yahoo Finance.
+              <strong>Que hace:</strong> Vuelve a sincronizar cada empresa usando SEC EDGAR (US) o ESEF/XBRL (Europa) + Yahoo Finance para cotizaciones.
+              Anade datos faltantes: EBITDA, cash flows, balance sheet, y ratios de mercado.
             </p>
             <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
               ~200ms entre empresas para evitar rate limits. Para 200+ empresas puede tardar 5-10 minutos.

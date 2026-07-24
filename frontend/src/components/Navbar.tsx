@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, User } from 'lucide-react';
+import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/navbar.css';
 
@@ -48,6 +48,11 @@ export function Navbar() {
               <Link to="/favorites" className="navbar-icon-btn navbar-favorites-btn" title="Favoritos y Alarmas">
                 <Heart size={18} />
                 <Clock size={12} className="navbar-favorites-clock" />
+              </Link>
+            )}
+            {user && (
+              <Link to="/portfolios" className="navbar-icon-btn" title="Portfolios">
+                <Briefcase size={18} />
               </Link>
             )}
             {user?.role === 'admin' && (
@@ -121,6 +126,12 @@ export function Navbar() {
               <Link to="/favorites" className="navbar-mobile-link">
                 <Heart size={20} />
                 Favoritos y Alarmas
+              </Link>
+            )}
+            {user && (
+              <Link to="/portfolios" className="navbar-mobile-link">
+                <Briefcase size={20} />
+                Portfolios
               </Link>
             )}
             {user?.role === 'admin' && (

@@ -12,6 +12,8 @@ import authRoutes from './routes/auth';
 import favoritesRoutes from './routes/favorites';
 import alarmsRoutes, { checkAllAlarms } from './routes/alarms';
 import adminRoutes from './routes/admin';
+import fieldConfigRoutes from './routes/fieldConfig';
+import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote } from './services/yahoo';
 import { getCikForTicker, fetchCompanyFacts, extractSharesOutstanding } from './services/sec';
 import { getMarketAverages } from './services/marketAverages';
@@ -61,6 +63,12 @@ app.use('/api/alarms', alarmsRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
+
+// Field config + concept mapping routes
+app.use('/api/admin', fieldConfigRoutes);
+
+// Portfolio routes
+app.use('/api/portfolios', portfolioRoutes);
 
 // Companies endpoints
 app.get('/api/companies', async (_req, res) => {
@@ -365,7 +373,7 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       return;
     }
 
-    // Get shares outstanding from SEC EDGAR
+    // Get shares outstanding: try SEC → DB StockMetric → Yahoo
     let sharesOutstanding = 0;
     const cik = await getCikForTicker(company.ticker);
     if (cik) {
@@ -378,7 +386,31 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       }
     }
 
-    const marketCap = yahooQuote.currentPrice * sharesOutstanding;
+    // Fallback: try StockMetric from DB (populated by sync)
+    if (sharesOutstanding <= 0) {
+      const stockMetric = await prisma.stockMetric.findFirst({
+        where: { companyId: company.id },
+        orderBy: { date: 'desc' },
+      });
+      if (stockMetric && stockMetric.sharesOutstanding && stockMetric.sharesOutstanding > 0) {
+        sharesOutstanding = stockMetric.sharesOutstanding;
+      }
+    }
+
+    // Fallback: derive from Yahoo market cap
+    const marketCap = yahooQuote.marketCap > 0
+      ? yahooQuote.marketCap
+      : (sharesOutstanding > 0 ? yahooQuote.currentPrice * sharesOutstanding : null);
+
+    if (sharesOutstanding <= 0 && marketCap && marketCap > 0 && yahooQuote.currentPrice > 0) {
+      sharesOutstanding = Math.round(marketCap / yahooQuote.currentPrice);
+    }
+
+    // Get balance sheet for additional data
+    const latestBalance = await prisma.balanceSheet.findFirst({
+      where: { companyId: company.id },
+      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+    });
 
     // Calculate Free Cash Flow
     const fcf = latestFinancial.netIncome + latestFinancial.depreciation - latestFinancial.capex;
@@ -411,12 +443,18 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       ? (intrinsicValuePerShare - yahooQuote.currentPrice) / yahooQuote.currentPrice
       : 0;
 
+    // Enterprise value from balance sheet
+    const totalDebt = (latestBalance?.shortTermDebt ?? 0) + (latestBalance?.longTermDebt ?? 0);
+    const cash = latestBalance?.cashAndCashEquivalents ?? 0;
+    const ev = marketCap != null ? marketCap + totalDebt - cash : null;
+
     res.json({
       company: { ticker: company.ticker, name: company.name },
       market: {
         currentPrice: yahooQuote.currentPrice,
-        marketCap,
+        marketCap: marketCap ?? 0,
         sharesOutstanding,
+        enterpriseValue: ev,
         currency: yahooQuote.currency,
         exchange: yahooQuote.exchange,
       },

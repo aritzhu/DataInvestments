@@ -21,6 +21,7 @@ export interface ValuationResult {
   confidenceReason: string;
   configurable: boolean;
   inputs: ValuationInputData[];
+  negativeInputWarning?: string;
 }
 
 export interface ValuationInput {
@@ -72,9 +73,9 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   // Use average FCF across all available years (not just latest peak)
   const fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : 0)).filter((v) => v !== 0);
   const fcf = fcfValues.length > 0 ? fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length : 0;
-  if (fcf <= 0) {
-    return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'FCF promedio negativo o cero', configurable: true, inputs: [] };
-  }
+  const fcfWarning = fcf < 0
+    ? 'FCF promedio negativo: la empresa invierte más de lo que genera en efectivo. Esto es común en empresas de infraestructura en fase de inversión, pero un DCF con FCF negativo produce un valor intrínseco negativo, lo que indica que la empresa no genera suficiente caja libre para sostener su valoración actual.'
+    : undefined;
 
   const g = config.growthRate / 100;
   const r = config.discountRate / 100;
@@ -99,6 +100,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     fairValue, confidence: conf,
     confidenceReason: `FCF promedio: ${fmtB(fcf)} (${fcfValues.length} años)`,
     configurable: true,
+    negativeInputWarning: fcfWarning,
     inputs: [
       { label: 'FCF promedio', value: fmtB(fcf), rawValue: fcf },
       { label: 'Crecimiento anual', value: `${config.growthRate}%`, rawValue: config.growthRate },
@@ -117,13 +119,16 @@ export function computePER(input: ValuationInput, config: { targetPE: number }):
   const f = latest(input.financials);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0 || f.netIncome <= 0) {
-    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana $5 por acción y el P/E objetivo es 20x, el valor justo es $100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: f && f.netIncome <= 0 ? 'Beneficio negativo' : 'Datos insuficientes', configurable: true, inputs: [] };
+  if (!f || !stock || shares <= 0) {
+    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana $5 por acción y el P/E objetivo es 20x, el valor justo es $100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const eps = f.netIncome / shares;
   const fairValue = eps * config.targetPE;
   const currentPE = stock.peRatio ?? 0;
   const conf = currentPE > 0 && currentPE < 50 ? 'high' : currentPE > 0 ? 'medium' : 'low';
+  const perWarning = f.netIncome <= 0
+    ? 'Beneficio neto negativo: la empresa genera pérdidas. El PER no es un indicador válido para empresas con beneficios negativos.'
+    : undefined;
   return {
     id: 'per', name: 'PER (Precio/Beneficio)',
     description: 'Valor basado en el beneficio neto por acción y el ratio P/E',
@@ -132,6 +137,7 @@ export function computePER(input: ValuationInput, config: { targetPE: number }):
     fairValue, confidence: conf,
     confidenceReason: currentPE > 0 ? `PER actual: ${currentPE.toFixed(1)}` : 'Sin PER disponible',
     configurable: true,
+    negativeInputWarning: perWarning,
     inputs: [
       { label: 'Beneficio neto', value: `$${(f.netIncome / 1e9).toFixed(1)}B`, rawValue: f.netIncome },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -148,13 +154,16 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
   const { stock } = input;
   const shares = sharesOf(stock);
   const equity = bs?.totalStockholdersEquity;
-  if (!stock || shares <= 0 || !equity || equity <= 0) {
-    return { id: 'pb', name: 'P/B (Precio/Valor en Libro)', description: 'Patrimonio neto por acción multiplicado por P/B objetivo', explanation: 'Compara el precio de la acción con el valor contable de los activos netos (patrimonio). Un P/B de 1x significa que compras la empresa a precio de libros. Funciona mejor para bancos y empresas intensivas en activos. No es útil para empresas de servicios o tecnología donde los activos intangibles dominan.', formula: 'BVPS × Target P/B', fairValue: null, confidence: 'na', confidenceReason: 'Sin patrimonio neto', configurable: true, inputs: [] };
+  if (!stock || shares <= 0 || equity == null || equity === 0) {
+    return { id: 'pb', name: 'P/B (Precio/Valor en Libro)', description: 'Patrimonio neto por acción multiplicado por P/B objetivo', explanation: 'Compara el precio de la acción con el valor contable de los activos netos (patrimonio). Un P/B de 1x significa que compras la empresa a precio de libros. Funciona mejor para bancos y empresas intensivas en activos. No es útil para empresas de servicios o tecnología donde los activos intangibles dominan.', formula: 'BVPS × Target P/B', fairValue: null, confidence: 'na', confidenceReason: 'Sin patrimonio neto', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const bvps = equity / shares;
   const fairValue = bvps * config.targetPB;
   const currentPB = stock.pbRatio ?? 0;
   const conf = currentPB > 0 && currentPB < 10 ? 'high' : currentPB > 0 ? 'medium' : 'low';
+  const pbWarning = equity < 0
+    ? 'Patrimonio neto negativo: la empresa tiene más pasivos que activos. El P/B no es aplicable en este caso.'
+    : undefined;
   return {
     id: 'pb', name: 'P/B (Precio/Valor en Libro)',
     description: 'Patrimonio neto por acción multiplicado por P/B objetivo',
@@ -163,6 +172,7 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
     fairValue, confidence: conf,
     confidenceReason: currentPB > 0 ? `P/B actual: ${currentPB.toFixed(1)}` : 'Sin P/B disponible',
     configurable: true,
+    negativeInputWarning: pbWarning,
     inputs: [
       { label: 'Patrimonio total', value: `$${(equity / 1e9).toFixed(1)}B`, rawValue: equity },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -209,14 +219,17 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
   const bs = latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0 || !f.ebitda || f.ebitda <= 0) {
-    return { id: 'ev_ebitda', name: 'EV/EBITDA', description: 'Múltiplo de empresa sobre EBITDA', explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.', formula: '(EBITDA × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBITDA positivo', configurable: true, inputs: [] };
+  if (!f || !stock || shares <= 0 || !f.ebitda) {
+    return { id: 'ev_ebitda', name: 'EV/EBITDA', description: 'Múltiplo de empresa sobre EBITDA', explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.', formula: '(EBITDA × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBITDA', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const ev = f.ebitda * config.targetMultiple;
   const nd = netDebt(bs);
   const fairValue = (ev - nd) / shares;
   const currentMult = stock.enterpriseValue && f.ebitda ? stock.enterpriseValue / f.ebitda : 0;
   const conf = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
+  const evEbitdaWarning = f.ebitda < 0
+    ? 'EBITDA negativo: la operación no genera beneficio antes de intereses, impuestos y amortizaciones. El EV/EBITDA no es aplicable con EBITDA negativo.'
+    : undefined;
   return {
     id: 'ev_ebitda', name: 'EV/EBITDA',
     description: 'Múltiplo de empresa sobre EBITDA',
@@ -225,6 +238,7 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
     fairValue, confidence: conf,
     confidenceReason: currentMult > 0 ? `Múltiplo actual: ${currentMult.toFixed(1)}x` : 'Sin EV/EBITDA',
     configurable: true,
+    negativeInputWarning: evEbitdaWarning,
     inputs: [
       { label: 'EBITDA', value: `$${(f.ebitda / 1e9).toFixed(1)}B`, rawValue: f.ebitda },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
@@ -243,14 +257,17 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   const { stock } = input;
   const shares = sharesOf(stock);
   const ebit = f?.ebit ?? (f ? (f.grossProfit ?? (f.revenue - f.costOfRevenue)) - f.operatingExpenses : null);
-  if (!f || !stock || shares <= 0 || !ebit || ebit <= 0) {
-    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBIT positivo', configurable: true, inputs: [] };
+  if (!f || !stock || shares <= 0 || ebit == null) {
+    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
   const fairValue = (evEbit - ndEbit) / shares;
   const currentMultEbit = stock.enterpriseValue && ebit ? stock.enterpriseValue / ebit : 0;
   const conf = currentMultEbit > 0 && currentMultEbit < 50 ? 'high' : currentMultEbit > 0 ? 'medium' : 'low';
+  const evEbitWarning = ebit < 0
+    ? 'EBIT negativo: la empresa tiene pérdidas operativas. El EV/EBIT no es aplicable con EBIT negativo.'
+    : undefined;
   return {
     id: 'ev_ebit', name: 'EV/EBIT',
     description: 'Múltiplo de empresa sobre EBIT',
@@ -259,6 +276,7 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
     fairValue, confidence: conf,
     confidenceReason: currentMultEbit > 0 ? `Múltiplo actual: ${currentMultEbit.toFixed(1)}x` : 'Sin EV/EBIT',
     configurable: true,
+    negativeInputWarning: evEbitWarning,
     inputs: [
       { label: 'EBIT', value: `$${(ebit / 1e9).toFixed(1)}B`, rawValue: ebit },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
@@ -318,7 +336,7 @@ export function computeGrahamNumber(input: ValuationInput): ValuationResult {
   const equity = bs?.totalStockholdersEquity ?? f.totalEquity;
   const bvps = equity ? equity / shares : 0;
   if (eps <= 0 || bvps <= 0) {
-    return { id: 'graham', name: 'Número de Graham', description: 'Fórmula defensiva de Benjamin Graham', explanation: 'Fórmula defensiva creada por Benjamin Graham (mentor de Warren Buffett). Establece un tope máximo razonable para el precio de una acción basándose en su beneficio y patrimonio neto. Si la acción cuesta menos que el Número de Graham, se considera una ganga segura.', formula: '√(22.5 × EPS × BVPS)', fairValue: null, confidence: 'na', confidenceReason: eps <= 0 ? 'EPS negativo' : 'Book Value negativo', configurable: false, inputs: [] };
+    return { id: 'graham', name: 'Número de Graham', description: 'Fórmula defensiva de Benjamin Graham', explanation: 'Fórmula defensiva creada por Benjamin Graham (mentor de Warren Buffett). Establece un tope máximo razonable para el precio de una acción basándose en su beneficio y patrimonio neto. Si la acción cuesta menos que el Número de Graham, se considera una ganga segura.', formula: '√(22.5 × EPS × BVPS)', fairValue: null, confidence: 'na', confidenceReason: eps <= 0 ? 'EPS negativo' : 'Book Value negativo', configurable: false, inputs: [], negativeInputWarning: eps <= 0 ? 'El Número de Graham requiere beneficios positivos (EPS > 0). Con EPS negativo, la fórmula no aplica y el resultado no es significativo.' : 'El Número de Graham requiere patrimonio positivo (BVPS > 0).' };
   }
   const fairValue = Math.sqrt(22.5 * eps * bvps);
   return {
@@ -353,6 +371,9 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
   const fairValue = config.targetYield > 0 ? fcfPerShare / (config.targetYield / 100) : null;
   const currentYield = stock.currentPrice > 0 ? fcfPerShare / stock.currentPrice : 0;
   const conf = currentYield > 0.05 ? 'high' : currentYield > 0.02 ? 'medium' : currentYield > 0 ? 'low' : 'na';
+  const fcfYieldWarning = fcf < 0
+    ? 'FCF negativo: la empresa genera un flujo de caja libre negativo. Un yield negativo produce un valor intrínseco negativo, indicando que la empresa destruye valor en efectivo.'
+    : undefined;
   return {
     id: 'fcf_yield', name: 'FCF Yield',
     description: 'Precio implícito dado un rendimiento de FCF objetivo',
@@ -361,6 +382,7 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
     fairValue, confidence: conf,
     confidenceReason: currentYield > 0 ? `FCF yield actual: ${(currentYield * 100).toFixed(1)}%` : 'Sin FCF positivo',
     configurable: true,
+    negativeInputWarning: fcfYieldWarning,
     inputs: [
       { label: 'FCF total', value: `$${(fcf / 1e9).toFixed(1)}B`, rawValue: fcf },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -383,6 +405,9 @@ export function computeNetNet(input: ValuationInput): ValuationResult {
   const fairValue = ncav / shares;
   const conf = fairValue > stock.currentPrice ? 'high' : fairValue > 0 ? 'medium' : 'low';
   const fmtB = (n: number) => `$${(n / 1e9).toFixed(1)}B`;
+  const netnetWarning = ncav < 0
+    ? 'NCAV negativo: los pasivos totales superan los activos corrientes ajustados. El valor de liquidación neto es negativo, lo que indica que la empresa tiene más deudas que activos líquidos.'
+    : undefined;
   return {
     id: 'netnet', name: 'Net-Net (NCAV)',
     description: 'Net Current Asset Value de Benjamin Graham',
@@ -391,6 +416,7 @@ export function computeNetNet(input: ValuationInput): ValuationResult {
     fairValue, confidence: conf,
     confidenceReason: `NCAV: $${(ncav / 1e9).toFixed(1)}B`,
     configurable: false,
+    negativeInputWarning: netnetWarning,
     inputs: [
       { label: 'Cash & equivalents', value: fmtB(bs.cashAndCashEquivalents ?? 0), rawValue: bs.cashAndCashEquivalents ?? 0 },
       { label: 'Cuentas por cobrar', value: fmtB(bs.accountsReceivable ?? 0), rawValue: bs.accountsReceivable ?? 0 },
