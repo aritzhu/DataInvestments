@@ -32,6 +32,7 @@ model Company {
   dataSync       DataSync?
   favorites      Favorite[]
   alarms         Alarm[]
+  holdings       Holding[]
 }
 
 model FinancialData {
@@ -40,29 +41,23 @@ model FinancialData {
   year     Int
   quarter  Int?
 
-  // Ingresos
   revenue       Float
   costOfRevenue Float
   grossProfit   Float?
 
-  // Gastos operativos
   operatingExpenses Float
   sgaExpense        Float
   rdExpense         Float
 
-  // Otros gastos
   interestExpense Float
   taxExpense      Float
 
-  // EBITDA / EBIT
   ebitda Float?
   ebit   Float?
 
-  // Inversión y amortización
   capex        Float
   depreciation Float
 
-  // Cash flow
   operatingCashFlow  Float?
   investingCashFlow  Float?
   financingCashFlow  Float?
@@ -70,12 +65,10 @@ model FinancialData {
   dividendsPaid      Float?
   shareRepurchases   Float?
 
-  // Balance sheet basics
   totalAssets     Float?
   totalLiabilities Float?
   totalEquity     Float?
 
-  // Resultado
   netIncome Float
 
   createdAt DateTime @default(now())
@@ -90,31 +83,26 @@ model BalanceSheet {
   year     Int
   quarter  Int?
 
-  // Activos corrientes
   cashAndCashEquivalents Float?
   shortTermInvestments   Float?
   accountsReceivable     Float?
   inventory              Float?
   totalCurrentAssets     Float?
 
-  // Activos no corrientes
   propertyPlantEquipment Float?
   goodwill               Float?
   intangibleAssets       Float?
   totalNonCurrentAssets  Float?
   totalAssets            Float?
 
-  // Pasivos corrientes
   accountsPayable         Float?
   shortTermDebt           Float?
   totalCurrentLiabilities Float?
 
-  // Pasivos no corrientes
   longTermDebt              Float?
   totalNonCurrentLiabilities Float?
   totalLiabilities          Float?
 
-  // Patrimonio
   totalStockholdersEquity Float?
   retainedEarnings        Float?
   treasuryStock           Float?
@@ -132,7 +120,7 @@ model RevenueSegment {
   quarter  Int?
 
   segmentName String
-  segmentType String    // "product" | "geography"
+  segmentType String
   revenue     Float
   percentage  Float?
 
@@ -155,21 +143,17 @@ model StockMetric {
   marketCap       Float?
   enterpriseValue Float?
 
-  // Shares
   sharesOutstanding Float?
 
-  // Profitability
   roe   Float?
   roa   Float?
   roic  Float?
 
-  // Financial strength
   currentRatio   Float?
   debtToEquity   Float?
   altmanZ        Float?
   piotroskiScore Float?
 
-  // Valoración intrínseca
   intrinsicValue Float?
   marginOfSafety Float?
 
@@ -182,10 +166,12 @@ model DataSync {
   companyId    String   @unique
   lastSyncAt   DateTime
   yearsFetched Int
-  fmpSync      Boolean  @default(false)
-  secSync      Boolean  @default(false)
-  finnhubSync  Boolean  @default(false)
-  errorMessage String?
+  fmpSync       Boolean  @default(false)
+  secSync       Boolean  @default(false)
+  finnhubSync   Boolean  @default(false)
+  europeanSync  Boolean  @default(false)
+  errorMessage  String?
+  availableTags String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -200,9 +186,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  favorites Favorite[]
-  sessions  Session[]
-  alarms    Alarm[]
+  favorites  Favorite[]
+  sessions   Session[]
+  alarms     Alarm[]
+  portfolios Portfolio[]
 }
 
 model Session {
@@ -239,11 +226,64 @@ model Alarm {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
-  targetVerdict String    // 'buy' | 'hold' | 'sell'
-  lastVerdict   String?   // último veredicto computeado
-  lastPrice     Float?    // último precio checkeado
-  lastCheckedAt DateTime? // última verificación
+  targetVerdict String
+  lastVerdict   String?
+  lastPrice     Float?
+  lastCheckedAt DateTime?
   triggered     Boolean   @default(false)
 
   @@unique([userId, companyId])
+}
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  holdings Holding[]
+
+  @@index([userId])
+}
+
+model Holding {
+  id          String   @id @default(uuid())
+  portfolioId String
+  companyId   String
+  quantity    Decimal
+  averageCost Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, companyId])
+  @@index([portfolioId])
+  @@index([companyId])
+}
+
+model FieldConfig {
+  id         String   @id @default(uuid())
+  fieldName  String
+  source     String
+  customTags String[]
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([fieldName, source])
+}
+
+model ConceptMapping {
+  id          String   @id @default(uuid())
+  conceptName String   @unique
+  fieldName   String
+  source      String
+  confirmedBy String?
+  createdAt   DateTime @default(now())
 }

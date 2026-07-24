@@ -7,12 +7,11 @@ interface Props {
   financial: CompanyProfile['financials'][0] | undefined;
   balanceSheet: CompanyProfile['balanceSheets'][0] | null;
   stock: CompanyProfile['stockMetrics'][0] | null;
-  selectedYear: number | null;
 }
 
-export function EducationTab({ financial, balanceSheet, stock, selectedYear }: Props) {
+export function EducationTab({ financial, balanceSheet, stock }: Props) {
   if (!financial) {
-    return <div className="tab-empty">Sin datos para {selectedYear}</div>;
+    return <div className="tab-empty">Sin datos financieros disponibles</div>;
   }
 
   const f = financial;

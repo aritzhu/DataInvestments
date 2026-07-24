@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, Trash2, Loader2, ExternalLink, Clock, X } from 'lucide-react';
+import { RefreshCw, Trash2, Loader2, ExternalLink, Clock, X, BarChart3 } from 'lucide-react';
 import type { CompanyData } from './AdminPanel';
+import { FullCoverageReport } from './FullCoverageReport';
 
 interface Props {
   company: CompanyData;
@@ -14,6 +15,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [years, setYears] = useState(company.sync?.yearsFetched || 5);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [showCoverage, setShowCoverage] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -23,7 +25,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
       const res = await fetch(`/api/admin/sync/${company.ticker}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ years, fmpApiKey: localStorage.getItem('fmp_api_key') || undefined }),
+        body: JSON.stringify({ years }),
       });
 
       const data = await res.json();
@@ -75,6 +77,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
     : null;
 
   return (
+    <>
     <tr>
       {/* Company Info */}
       <td>
@@ -131,7 +134,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
               No sincronizado
             </span>
           )}
-        </div>
+</div>
       </td>
 
       {/* Actions */}
@@ -153,6 +156,10 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
             {syncing ? 'Sync...' : 'Sync'}
           </button>
 
+          <button onClick={() => setShowCoverage(true)} disabled={company.financialRecords === 0} className="admin-btn-sync" title="Ver cobertura detallada" style={{ background: '#e0e7ff', color: '#4338ca' }}>
+            <BarChart3 size={14} />
+          </button>
+
           <button onClick={handleDelete} disabled={deleting || syncing} className="admin-btn-delete" title="Eliminar">
             {deleting ? <Loader2 size={14} className="admin-spinner" /> : <Trash2 size={14} />}
           </button>
@@ -164,6 +171,12 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
           </div>
         )}
       </td>
+
+      {/* Close the tr and render modal separately */}
     </tr>
+    
+    {/* Render modal as sibling, not as child of tr */}
+    {showCoverage && <FullCoverageReport ticker={company.ticker} onClose={() => setShowCoverage(false)} />}
+  </>
   );
 }

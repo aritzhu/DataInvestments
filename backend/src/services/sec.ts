@@ -32,7 +32,13 @@ export async function getTickerToCikMap(): Promise<Record<string, string>> {
 
 export async function getCikForTicker(ticker: string): Promise<string | null> {
   const map = await getTickerToCikMap();
-  return map[ticker.toUpperCase()] || null;
+  const cik = map[ticker.toUpperCase()];
+  if (cik) return cik;
+  const baseTicker = ticker.split('.')[0];
+  if (baseTicker !== ticker) {
+    return map[baseTicker.toUpperCase()] || null;
+  }
+  return null;
 }
 
 export interface SECFact {
@@ -60,6 +66,13 @@ export interface SECCompanyFacts {
         shares?: SECFact[];
       };
     }>;
+    'ifrs-full'?: Record<string, {
+      label: string;
+      description: string;
+      units: {
+        USD?: SECFact[];
+      };
+    }>;
   };
 }
 
@@ -74,27 +87,33 @@ export async function fetchCompanyFacts(cik: string): Promise<SECCompanyFacts | 
   }
 }
 
-export function extractAnnualValues(facts: SECCompanyFacts, concept: string): { year: number; value: number }[] {
-  const gaap = facts.facts['us-gaap'];
-  if (!gaap?.[concept]?.units?.USD) return [];
+export function extractAnnualValues(facts: SECCompanyFacts, concept: string, namespaces: string[] = ['us-gaap', 'ifrs-full']): { year: number; value: number }[] {
+  for (const ns of namespaces) {
+    const nsFacts = facts.facts[ns as keyof typeof facts.facts];
+    const usdValues = nsFacts?.[concept]?.units?.USD;
+  const eurValues = nsFacts?.[concept]?.units?.EUR;
+  const allValues = usdValues?.length ? usdValues : eurValues?.length ? eurValues : [];
 
-  const allValues = gaap[concept].units.USD;
+  if (!allValues.length) continue;
 
-  // Filter to 10-K annual filings only
-  const annual = allValues.filter((v) => v.form === '10-K' && v.fp === 'FY');
+    const annual = allValues.filter((v) => v.form === '10-K' && v.fp === 'FY' || v.form === '20-F' && v.fp === 'FY');
 
-  // Dedupe by fiscal year, keeping latest filed version
-  const byYear = new Map<number, SECFact>();
-  for (const fact of annual) {
-    const existing = byYear.get(fact.fy);
-    if (!existing || new Date(fact.filed) > new Date(existing.filed)) {
-      byYear.set(fact.fy, fact);
+    const byYear = new Map<number, SECFact>();
+    for (const fact of annual) {
+      const existing = byYear.get(fact.fy);
+      if (!existing || new Date(fact.filed) > new Date(existing.filed)) {
+        byYear.set(fact.fy, fact);
+      }
     }
+
+    const results = Array.from(byYear.entries())
+      .map(([year, fact]) => ({ year, value: fact.val }))
+      .sort((a, b) => a.year - b.year);
+
+    if (results.length > 0) return results;
   }
 
-  return Array.from(byYear.entries())
-    .map(([year, fact]) => ({ year, value: fact.val }))
-    .sort((a, b) => a.year - b.year);
+  return [];
 }
 
 // Try multiple XBRL tags and return the one with the most recent data
@@ -136,15 +155,15 @@ export function extractTotalAssets(facts: SECCompanyFacts): { year: number; valu
 }
 
 export function extractCostOfRevenue(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold']);
+  return extractBestTag(facts, ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold', 'CostOfSales']);
 }
 
 export function extractOperatingExpenses(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['OperatingExpenses', 'OperatingCostsAndExpenses']);
+  return extractBestTag(facts, ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense']);
 }
 
 export function extractSGA(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense']);
+  return extractBestTag(facts, ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense']);
 }
 
 export function extractRD(facts: SECCompanyFacts): { year: number; value: number }[] {
@@ -156,7 +175,7 @@ export function extractInterestExpense(facts: SECCompanyFacts): { year: number; 
 }
 
 export function extractTaxExpense(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['IncomeTaxExpenseBenefit', 'ProvisionForIncomeTaxes']);
+  return extractBestTag(facts, ['IncomeTaxExpenseBenefit', 'ProvisionForIncomeTaxes', 'IncomeTaxExpenseContinuingOperations']);
 }
 
 export function extractCapex(facts: SECCompanyFacts): { year: number; value: number }[] {
@@ -164,6 +183,8 @@ export function extractCapex(facts: SECCompanyFacts): { year: number; value: num
     'PaymentsToAcquirePropertyPlantAndEquipment',
     'CapitalExpenditure',
     'CapitalExpenditures',
+    'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipment',
+    'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipmentIncludingRightofuseAssets',
   ]);
 }
 
@@ -172,6 +193,7 @@ export function extractDepreciation(facts: SECCompanyFacts): { year: number; val
     'DepreciationAndAmortization',
     'DepreciationDepletionAndAmortization',
     'Depreciation',
+    'AdjustmentsForDepreciationAndAmortisationExpense',
   ]);
 }
 
@@ -188,7 +210,11 @@ export function extractGrossProfit(facts: SECCompanyFacts): { year: number; valu
 }
 
 export function extractOperatingIncome(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['OperatingIncomeLoss', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest']);
+  return extractBestTag(facts, [
+    'OperatingIncomeLoss',
+    'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
+    'OtherOperatingIncomeExpense',
+  ]);
 }
 
 export function extractOperatingCashFlow(facts: SECCompanyFacts): { year: number; value: number }[] {
@@ -220,24 +246,48 @@ export function extractDividendsPaid(facts: SECCompanyFacts): { year: number; va
 }
 
 export function extractShareRepurchases(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['PaymentsForRepurchaseOfCommonStock', 'RepurchaseOfCommonStock', 'ShareRepurchases']);
+  return extractBestTag(facts, [
+    'PaymentsForRepurchaseOfCommonStock',
+    'RepurchaseOfCommonStock',
+    'ShareRepurchases',
+    'PurchaseOfTreasuryShares',
+    'IncreaseDecreaseThroughTreasuryShareTransactions',
+  ]);
 }
 
 export function extractSharesOutstanding(facts: SECCompanyFacts): number | null {
-  const dei = facts.facts['dei'];
-  if (!dei) return null;
+  const namespaces = [facts.facts['dei'], facts.facts['us-gaap'], facts.facts['ifrs-full']];
 
-  const sharesEntry = dei['EntityCommonStockSharesOutstanding'] as {
-    label: string;
-    description: string;
-    units: { shares: SECFact[] };
-  } | undefined;
+  const tags = [
+    'EntityCommonStockSharesOutstanding',
+    'CommonStockSharesOutstanding',
+    'CommonStockSharesIssued',
+    'WeightedAverageNumberOfSharesOutstandingBasic',
+    'WeightedAverageNumberOfDilutedSharesOutstanding',
+    'AdjustedWeightedAverageShares',
+    'AdjustedWeightedAverageNumberOfShares',
+    'SharesOutstanding',
+  ];
 
-  if (!sharesEntry?.units?.shares?.length) return null;
+  for (const ns of namespaces) {
+    if (!ns) continue;
+    for (const tag of tags) {
+      const entry = ns[tag] as { units?: Record<string, SECFact[]> } | undefined;
+      const units = entry?.units;
+      if (!units) continue;
 
-  const shares = sharesEntry.units.shares;
-  const latest = shares.reduce((a, b) => (new Date(a.filed) > new Date(b.filed) ? a : b));
-  return latest.val;
+      const unitKey = Object.keys(units).find(k => k.toLowerCase().includes('share'));
+      if (!unitKey) continue;
+      const factsArr = units[unitKey];
+      if (!factsArr?.length) continue;
+
+      return factsArr.reduce((a: SECFact, b: SECFact) =>
+        new Date(a.filed) > new Date(b.filed) ? a : b
+      ).val;
+    }
+  }
+
+  return null;
 }
 
 export function extractCash(facts: SECCompanyFacts): { year: number; value: number }[] {
@@ -286,4 +336,12 @@ export function extractRetainedEarnings(facts: SECCompanyFacts): { year: number;
 
 export function extractCurrentLiabilities(facts: SECCompanyFacts): { year: number; value: number }[] {
   return extractBestTag(facts, ['LiabilitiesCurrent']);
+}
+
+export function extractShortTermInvestments(facts: SECCompanyFacts): { year: number; value: number }[] {
+  return extractBestTag(facts, ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities']);
+}
+
+export function extractTreasuryStock(facts: SECCompanyFacts): { year: number; value: number }[] {
+  return extractBestTag(facts, ['TreasuryStockValue', 'TreasuryStockCommon', 'TreasuryStock']);
 }

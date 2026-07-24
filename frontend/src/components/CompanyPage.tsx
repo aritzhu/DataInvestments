@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Users, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
@@ -8,7 +8,6 @@ import { DashboardTab } from './tabs/DashboardTab';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
-import { CompareTab } from './tabs/CompareTab';
 import { EducationTab } from './tabs/EducationTab';
 
 export interface CompanyProfile {
@@ -110,14 +109,13 @@ export interface CompanyProfile {
   }>;
 }
 
-export type TabId = 'dashboard' | 'financials' | 'sankey' | 'valuation' | 'compare' | 'education';
+export type TabId = 'dashboard' | 'financials' | 'sankey' | 'valuation' | 'education';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'financials', label: 'Estados financieros' },
   { id: 'sankey', label: 'Flujo de caja' },
   { id: 'valuation', label: 'Valoración' },
-  { id: 'compare', label: 'Comparador' },
   { id: 'education', label: 'Educativo' },
 ];
 
@@ -164,6 +162,7 @@ export function CompanyPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ticker) return;
@@ -186,6 +185,12 @@ export function CompanyPage() {
       });
   }, [ticker]);
 
+  useEffect(() => {
+    if (!loading && data && headerRef.current) {
+      headerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading, data]);
+
   if (loading) return <CompanySkeleton />;
 
   if (error || !data) {
@@ -205,7 +210,7 @@ export function CompanyPage() {
   return (
     <div className="cp-page">
       {/* Header */}
-      <div className="cp-header">
+      <div className="cp-header" ref={headerRef}>
         <button className="cp-back" onClick={() => navigate('/')}>
           <ArrowLeft size={18} />
         </button>
@@ -250,8 +255,8 @@ export function CompanyPage() {
         </div>
       </div>
 
-      {/* Year Selector */}
-      {availableYears.length > 1 && (
+      {/* Year Selector — only in tabs where content depends on selected year */}
+      {availableYears.length > 1 && ['financials', 'sankey', 'dashboard'].includes(activeTab) && (
         <div className="cp-year-bar">
           <Calendar size={16} />
           <span className="cp-year-label">Año fiscal:</span>
@@ -284,6 +289,12 @@ export function CompanyPage() {
 
       {/* Tab Content */}
       <div className="cp-content">
+        {financials.length === 0 && stockMetrics.length === 0 && (
+          <div className="cp-empty-banner">
+            <AlertTriangle size={18} />
+            <span>Sin datos financieros disponibles. Sincroniza esta empresa desde el panel de administración.</span>
+          </div>
+        )}
         {activeTab === 'dashboard' && (
           <DashboardTab
             company={company}
@@ -299,7 +310,6 @@ export function CompanyPage() {
             balanceSheet={balanceSheets.find((b) => b.year === selectedYear) || null}
             stock={stock}
             segments={segments.filter((s) => s.year === selectedYear)}
-            selectedYear={selectedYear}
           />
         )}
         {activeTab === 'sankey' && (
@@ -319,19 +329,11 @@ export function CompanyPage() {
             selectedYear={selectedYear}
           />
         )}
-        {activeTab === 'compare' && (
-          <CompareTab
-            company={company}
-            financial={currentFinancial}
-            stock={stock}
-          />
-        )}
         {activeTab === 'education' && (
           <EducationTab
             financial={currentFinancial}
             balanceSheet={balanceSheets.find((b) => b.year === selectedYear) || null}
             stock={stock}
-            selectedYear={selectedYear}
           />
         )}
       </div>

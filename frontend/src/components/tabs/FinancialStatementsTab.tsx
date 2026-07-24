@@ -13,12 +13,11 @@ interface Props {
   balanceSheet: CompanyProfile['balanceSheets'][0] | null;
   stock: CompanyProfile['stockMetrics'][0] | null;
   segments: CompanyProfile['segments'];
-  selectedYear: number | null;
 }
 
 const SEGMENT_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1'];
 
-export function FinancialStatementsTab({ financial, balanceSheet, stock, segments, selectedYear }: Props) {
+export function FinancialStatementsTab({ financial, balanceSheet, stock, segments }: Props) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     income: true,
     balance: false,
@@ -31,7 +30,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
   const toggle = (key: string) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   if (!financial) {
-    return <div className="tab-empty">Sin datos para {selectedYear}</div>;
+    return <div className="tab-empty">Sin datos financieros disponibles</div>;
   }
 
   const f = financial;
