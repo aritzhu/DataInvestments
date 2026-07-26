@@ -90,13 +90,12 @@ export async function fetchCompanyFacts(cik: string): Promise<SECCompanyFacts | 
 export function extractAnnualValues(facts: SECCompanyFacts, concept: string, namespaces: string[] = ['us-gaap', 'ifrs-full']): { year: number; value: number }[] {
   for (const ns of namespaces) {
     const nsFacts = facts.facts[ns as keyof typeof facts.facts];
-    const usdValues = nsFacts?.[concept]?.units?.USD;
-  const eurValues = nsFacts?.[concept]?.units?.EUR;
-  const allValues = usdValues?.length ? usdValues : eurValues?.length ? eurValues : [];
+    const unitMap = (nsFacts as Record<string, { units: Record<string, SECFact[]> }>)?.[concept]?.units;
+    const allValues = unitMap?.USD?.length ? unitMap.USD : unitMap?.EUR?.length ? unitMap.EUR : [];
 
-  if (!allValues.length) continue;
+    if (!allValues.length) continue;
 
-    const annual = allValues.filter((v) => v.form === '10-K' && v.fp === 'FY' || v.form === '20-F' && v.fp === 'FY');
+    const annual = allValues.filter((v: SECFact) => v.form === '10-K' && v.fp === 'FY' || v.form === '20-F' && v.fp === 'FY');
 
     const byYear = new Map<number, SECFact>();
     for (const fact of annual) {

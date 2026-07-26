@@ -1,0 +1,18 @@
+diff --git a/src/utils/valuation.ts b/src/utils/valuation.ts
+index 1c8a2b3..d8f8a4c 100644
+--- a/src/utils/valuation.ts
++++ b/src/utils/valuation.ts
+@@ -85,6 +85,9 @@ export function computeDCF(input: ValuationInput, config: { 
+           const fairValue = (totalPV + terminalPV) / shares;
+ 
+   const conf = fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low';
+-  return {
++  // If fairValue is negative, still return it but attach a warning for UI
++  const negativityWarning = fcf < 0 ? 'FCF negativo: la empresa genera pérdidas operativas. El DCF sigue calculando un valor aunque es negativo.' : undefined;
++  return {
++    ...base,
++    fairValue: fairValue,  // keep negative value
++    negativeInputWarning: negativityWarning,
+             valuation: null,
+             confidence: conf,
+             confidenceReason: `FCF promedio: ${fmtB(fcf)} (${fcfValues.length} años)`,

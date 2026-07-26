@@ -197,7 +197,7 @@ export function CompanyPage() {
     return (
       <div className="cp-error">
         <p>{error || 'No se encontraron datos'}</p>
-        <button onClick={() => navigate('/')}>Volver al inicio</button>
+        <button onClick={() => navigate(-1)}>Volver al inicio</button>
       </div>
     );
   }
@@ -211,7 +211,7 @@ export function CompanyPage() {
     <div className="cp-page">
       {/* Header */}
       <div className="cp-header" ref={headerRef}>
-        <button className="cp-back" onClick={() => navigate('/')}>
+        <button className="cp-back" onClick={() => navigate(-1)}>
           <ArrowLeft size={18} />
         </button>
         <div className="cp-header-info">

@@ -71,8 +71,11 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   }
 
   // Use average FCF across all available years (not just latest peak)
-  const fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : 0)).filter((v) => v !== 0);
-  const fcf = fcfValues.length > 0 ? fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length : 0;
+  const fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null)).filter((v): v is number => v != null && v !== 0);
+  if (fcfValues.length === 0) {
+    return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre', configurable: true, inputs: [] };
+  }
+  const fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
   const fcfWarning = fcf < 0
     ? 'FCF promedio negativo: la empresa invierte más de lo que genera en efectivo. Esto es común en empresas de infraestructura en fase de inversión, pero un DCF con FCF negativo produce un valor intrínseco negativo, lo que indica que la empresa no genera suficiente caja libre para sostener su valoración actual.'
     : undefined;
@@ -257,8 +260,8 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   const { stock } = input;
   const shares = sharesOf(stock);
   const ebit = f?.ebit ?? (f ? (f.grossProfit ?? (f.revenue - f.costOfRevenue)) - f.operatingExpenses : null);
-  if (!f || !stock || shares <= 0 || ebit == null) {
-    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
+  if (!f || !stock || shares <= 0 || ebit == null || ebit === 0) {
+    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit === 0 ? 'EBIT es cero' : 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
@@ -366,7 +369,10 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
   if (!f || !stock || shares <= 0) {
     return { id: 'fcf_yield', name: 'FCF Yield', description: 'Precio implícito dado un rendimiento de FCF objetivo', explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera $10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es $200. Es análogo al yield de un bono pero para acciones.', formula: 'FCF/Share ÷ Target Yield', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [] };
   }
-  const fcf = f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : 0);
+  const fcf = f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : null);
+  if (fcf == null) {
+    return { id: 'fcf_yield', name: 'FCF Yield', description: 'Precio implícito dado un rendimiento de FCF objetivo', explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera $10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es $200. Es análogo al yield de un bono pero para acciones.', formula: 'FCF/Share ÷ Target Yield', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de FCF', configurable: true, inputs: [] };
+  }
   const fcfPerShare = fcf / shares;
   const fairValue = config.targetYield > 0 ? fcfPerShare / (config.targetYield / 100) : null;
   const currentYield = stock.currentPrice > 0 ? fcfPerShare / stock.currentPrice : 0;
@@ -398,8 +404,8 @@ export function computeNetNet(input: ValuationInput): ValuationResult {
   const bs = latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!bs || !stock || shares <= 0) {
-    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin balance sheet', configurable: false, inputs: [] };
+  if (!bs || !stock || shares <= 0 || bs.totalLiabilities == null) {
+    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: bs.totalLiabilities == null ? 'Sin datos de pasivos totales' : 'Sin balance sheet', configurable: false, inputs: [] };
   }
   const ncav = (bs.cashAndCashEquivalents ?? 0) + 0.5 * (bs.accountsReceivable ?? 0) + 0.5 * (bs.inventory ?? 0) - (bs.totalLiabilities ?? 0);
   const fairValue = ncav / shares;

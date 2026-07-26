@@ -7,43 +7,105 @@
   gap: 1.5rem;
 }
 
-/* --- Summary Bar --- */
-.val-summary {
+/* --- Hero Summary --- */
+.val-hero-summary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+  gap: 2rem;
   background: var(--surface-0);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 1rem 1.25rem;
+  padding: 1.5rem 2rem;
   box-shadow: var(--shadow-card);
 }
 
-.val-summary-item {
-  text-align: center;
+.val-hero-fair,
+.val-hero-price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 130px;
 }
 
-.val-summary-label {
-  display: block;
-  font-size: 0.6rem;
+.val-hero-amount {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.val-hero-fair .val-hero-amount {
+  color: var(--color-primary, #6366f1);
+}
+
+.val-hero-label {
+  font-size: 0.65rem;
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.2rem;
+  letter-spacing: 0.05em;
+  margin-top: 0.3rem;
 }
 
-.val-summary-value {
-  display: block;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--text-primary);
+.val-hero-method {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--color-primary, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
 }
 
-.val-summary-value.positive { color: #059669; }
-.val-summary-value.negative { color: #dc2626; }
+.val-hero-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  max-width: 280px;
+}
+
+/* Progress bar */
+.val-hero-bar {
+  width: 100%;
+}
+
+.val-hero-bar-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.val-hero-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* --- Summary Secondary --- */
+.val-summary-secondary {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem 0;
+}
+
+.val-summary-secondary-text {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.val-summary-secondary-sep {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
 
 /* --- Verdict Badge --- */
 .val-verdict {
@@ -284,6 +346,14 @@
 
 @media (max-width: 640px) {
   .val-price-compare { flex-direction: column; gap: 0.75rem; }
+  .val-hero-summary {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.25rem 1rem;
+  }
+  .val-hero-amount { font-size: 1.8rem; }
+  .val-hero-center { max-width: 100%; }
+  .val-hero-fair, .val-hero-price { min-width: 0; }
 }
 
 .val-price-block { text-align: center; }

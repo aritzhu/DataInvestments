@@ -202,24 +202,47 @@ const IFRS_MAP: Record<string, string> = {
   'ifrs-full:LongtermBorrowings': 'longTermDebt',
   'ifrs-full:CurrentLeaseLiabilities': 'shortTermDebt',
   'ifrs-full:NoncurrentLeaseLiabilities': 'longTermDebt',
+  'ifrs-full:DatedSubordinatedLiabilities': 'longTermDebt',
+  'ifrs-full:UnsecuredBankLoansReceived': 'longTermDebt',
   'ifrs-full:RetainedEarnings': 'retainedEarnings',
   'ifrs-full:IssuedCapital': 'issuedCapital',
   'ifrs-full:RevenueFromInterest': 'revenue',
+  'ifrs-full:InsuranceRevenue': 'revenue',
+  'ifrs-full:PremiumRevenue': 'revenue',
+  'ifrs-full:NetInvestmentIncome': 'revenue',
+  'ifrs-full:IncomeArisingFromInsuranceContracts': 'revenue',
+  'ifrs-full:InsuranceRevenueOtherAmounts': 'revenue',
   'ifrs-full:InterestExpenseClassifiedAsOperatingActivities': 'interestExpense',
+  'ifrs-full:InsuranceFinanceExpense': 'interestExpense',
+  'ifrs-full:FinanceIncomeCost': 'interestExpense',
   'ifrs-full:InterestIncome': 'interestIncome',
+  'ifrs-full:InsuranceFinanceIncome': 'interestIncome',
   'ifrs-full:FeeAndCommissionIncome': 'feeIncome',
   'ifrs-full:FeeAndCommissionExpense': 'feeExpense',
+  'ifrs-full:InsuranceServiceExpense': 'costOfRevenue',
+  'ifrs-full:IncurredClaimsExpense': 'costOfRevenue',
+  'ifrs-full:InsuranceServiceExpensesFromInsuranceContractsIssued': 'costOfRevenue',
   'ifrs-full:BasicEarningsLossPerShare': 'epsBasic',
   'ifrs-full:DilutedEarningsLossPerShare': 'epsDiluted',
   'ifrs-full:ResearchAndDevelopmentExpense': 'rdExpense',
   'ifrs-full:SellingAndMarketingExpense': 'sgaExpense',
   'ifrs-full:AdministrativeExpense': 'sgaExpense',
+  'ifrs-full:AcquisitionAndAdministrationExpenseRelatedToInsuranceContracts': 'operatingExpenses',
+  'ifrs-full:OtherExpenseByFunction': 'operatingExpenses',
   'ifrs-full:PaymentsForRepurchaseOfOwnEquity': 'shareRepurchases',
   'ifrs-full:AcquisitionsOfPropertyPlantAndEquipment': 'capex',
+  'ifrs-full:PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities': 'capex',
+  'ifrs-full:PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities': 'capex',
   'ifrs-full:TotalAssets': 'totalAssets',
   'ifrs-full:IncreaseDecreaseInWorkingCapital': 'workingCapitalChange',
   'ifrs-full:AdjustmentsForReconcileProfitLoss': 'cashAdjustments',
   'ifrs-full:OtherAdjustmentsToReconcileProfitLoss': 'otherCashAdjustments',
+  'ifrs-full:CashFlowsFromUsedInOperatingActivitiesDirectMethod': 'operatingCashFlow',
+  'ifrs-full:CashFlowsFromUsedInOperations': 'operatingCashFlow',
+  'ifrs-full:DepreciationAmortisationImpairmentLoss': 'depreciation',
+  'ifrs-full:DepreciationOfPropertyPlantAndEquipment': 'depreciation',
+  'ifrs-full:AmortisationExpense': 'depreciation',
+  'ifrs-full:ProfitLossBeforeTax': 'ebit',
   // Spanish IFRS / custom Acciona tags (depreciation + provisions)
   'Acciona:DotacionAmortizacionYVariacionDeProvisiones': 'depreciation',
   'Acciona:OtherExpenseByNature': 'sgaExpense',
@@ -232,6 +255,17 @@ const IFRS_ALIASES: Record<string, string> = {
   'ifrs-full:Borrowings': 'totalDebt',
   'ifrs-full:TotalBorrowings': 'totalDebt',
   'ifrs-full:ShareofProfitLossOfAssociatesAndJointVenturesAccountedForUsingEquityMethod': 'equityMethodIncome',
+  'ifrs-full:InsuranceContractAssets': 'totalAssets',
+  'ifrs-full:InsuranceContractLiabilities': 'totalLiabilities',
+  'ifrs-full:PolicyholderLiabilities': 'totalLiabilities',
+  'ifrs-full:ReinsuranceContractAssets': 'receivables',
+  'ifrs-full:InsuranceContractsThatAreAssets': 'totalAssets',
+  'ifrs-full:InsuranceContractsThatAreLiabilities': 'totalLiabilities',
+  'ifrs-full:OtherFinancialLiabilities': 'totalLiabilities',
+  'ifrs-full:OtherAssets': 'totalAssets',
+  'ifrs-full:CurrentTaxLiabilities': 'currentLiabilities',
+  'ifrs-full:DeferredTaxLiabilities': 'nonCurrentLiabilities',
+  'ifrs-full:LoansAndReceivables': 'receivables',
 };
 
 const CAPEX_PATTERN = /Purchase.*PropertyPlant|Purchase.*IntangibleAsset|Payment.*Investment.*Property|PurchasesAndSales.*PropertyPlant/i;
@@ -293,8 +327,8 @@ function getYearFromPeriod(period: string): number | null {
 
 function getFiscalYear(period: string): number | null {
   if (period.includes('/')) {
-    const end = period.split('/')[1];
-    const match = end.match(/(\d{4})/);
+    const start = period.split('/')[0];
+    const match = start.match(/(\d{4})/);
     return match ? parseInt(match[1], 10) : null;
   }
   const match = period.match(/(\d{4})/);
@@ -583,13 +617,29 @@ async function mapJsonFactsToFiscalData(
     longTermDebt: fields.longTermDebt ?? null,
     totalDebt: fields.totalDebt ?? null,
     retainedEarnings: fields.retainedEarnings ?? null,
-    sharesOutstanding: fields.sharesOutstanding ?? (
-      fields.netIncome != null && fields.epsBasic != null && fields.epsBasic > 0
-        ? Math.round(fields.netIncome / fields.epsBasic)
-        : fields.issuedCapital != null && fields.issuedCapital > 0
-          ? Math.round(fields.issuedCapital)
-          : null
-    ),
+    sharesOutstanding: (() => {
+      if (fields.sharesOutstanding != null && fields.sharesOutstanding > 0) return fields.sharesOutstanding;
+      if (fields.netIncome != null && fields.epsBasic != null && fields.epsBasic !== 0
+          && Math.sign(fields.netIncome!) === Math.sign(fields.epsBasic!)) {
+        let computed = Math.round(Math.abs(fields.netIncome! / fields.epsBasic!));
+        console.log(`[XBRL] shares heuristic: netIncome=${fields.netIncome}, epsBasic=${fields.epsBasic}, raw=${computed}`);
+        if (fields.revenue != null && fields.revenue > 1_000_000 && computed > 0) {
+          const rawAdequate = computed * 0.5 >= fields.revenue * 0.01;
+          if (!rawAdequate) {
+            for (const factor of [1_000, 1_000_000]) {
+              const scaled = computed * factor;
+              if (scaled * 0.5 >= fields.revenue * 0.01) { computed = scaled; break; }
+            }
+          }
+        }
+        if (computed >= 1_000 && computed <= 100_000_000_000) {
+          console.log(`[XBRL] shares heuristic result: ${computed}`);
+          return computed;
+        }
+        console.log(`[XBRL] shares heuristic: ${computed} out of range`);
+      }
+      return null;
+    })(),
     interestIncome: fields.interestIncome ?? null,
     feeIncome: fields.feeIncome ?? null,
     feeExpense: fields.feeExpense ?? null,

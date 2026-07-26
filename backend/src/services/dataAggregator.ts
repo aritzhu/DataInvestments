@@ -566,7 +566,8 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
     try {
       const yahooQuote = await fetchYahooQuote(ticker);
       if (yahooQuote && yahooQuote.currentPrice > 0) {
-        const shares = sharesOutstanding ?? (yahooQuote.sharesOutstanding > 0 ? yahooQuote.sharesOutstanding : null);
+        const shares = sharesOutstanding ?? (yahooQuote.sharesOutstanding > 0 ? yahooQuote.sharesOutstanding
+          : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0 ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice) : null));
         const mcap = yahooQuote.marketCap && yahooQuote.marketCap > 0
           ? yahooQuote.marketCap
           : (shares && yahooQuote.currentPrice > 0 ? yahooQuote.currentPrice * shares : null);
@@ -642,6 +643,20 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
     };
     const countryCode = (suffix ? TICKER_COUNTRY[suffix] : '') || '';
 
+    const STOXX_SECTOR_INDUSTRY: Record<string, string> = {
+      'Financial Services': 'Banks - Diversified',
+      'Technology': 'Software - Infrastructure',
+      'Industrials': 'Aerospace & Defense',
+      'Consumer Cyclical': 'Auto Manufacturers',
+      'Consumer Defensive': 'Consumer Staples',
+      'Healthcare': 'Drug Manufacturers',
+      'Energy': 'Oil & Gas Integrated',
+      'Utilities': 'Utilities - Regulated Electric',
+      'Real Estate': 'REIT - Diversified',
+      'Communication Services': 'Telecom Services',
+      'Basic Materials': 'Specialty Chemicals',
+    };
+
     if (countryCode) {
       try {
         const yahooQuote = await fetchYahooQuote(ticker);
@@ -670,9 +685,24 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
                 name: companyName || ticker.toUpperCase(),
                 country: countryCode,
                 exchange: yahooQuote?.exchange || null,
+                sector: stoxxEntry?.sector || null,
+                industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
               },
             });
             console.log(`[European] Created company ${ticker} (id: ${company.id})`);
+          } else if (!company.sector) {
+            const sectorData = stoxxEntry?.sector
+              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              : TICKER_SECTORS[ticker]
+                ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+                : null;
+            if (sectorData) {
+              await prisma.company.update({
+                where: { id: company.id },
+                data: sectorData,
+              });
+              console.log(`[European] Updated ${ticker} sector → ${sectorData.sector}`);
+            }
           }
 
           for (const ed of europeanData.data) {
@@ -779,7 +809,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
             const latestLiabilities = firstRecord?.totalLiabilities ?? null;
             const stockSharesOutstanding = yahooQuote.sharesOutstanding > 0
             ? yahooQuote.sharesOutstanding
-            : (europeanData.data[0]?.sharesOutstanding ?? 0);
+            : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0
+              ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice)
+              : (europeanData.data.find(d => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? 0));
 
             const mcap = yahooQuote.marketCap > 0
               ? yahooQuote.marketCap
@@ -788,6 +820,7 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
                 : null);
 
             console.log(`[European] ${ticker}: Yahoo quote price=${yahooQuote.currentPrice}, shares=${yahooQuote.sharesOutstanding}, mcap=${mcap}`);
+            console.log(`[European] ${ticker}: XBRL shares=${europeanData.data[0]?.sharesOutstanding}, computed stockSharesOutstanding=${stockSharesOutstanding}`);
 
             const stockData = {
               companyId: company.id,
@@ -823,6 +856,19 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
           console.log(`[European] Completed for ${ticker}: ${result.financialRecords} financial records, ${result.balanceSheets} balance sheets, stockMetric=${yahooQuote ? 'yes' : 'no'}`);
         } else {
           console.log(`[European] No XBRL data found for ${ticker}`);
+
+          const existingCompany = await prisma.company.findUnique({ where: { ticker: ticker.toUpperCase() } });
+          if (existingCompany && !existingCompany.sector) {
+            const sectorData = stoxxEntry?.sector
+              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              : TICKER_SECTORS[ticker]
+                ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+                : null;
+            if (sectorData) {
+              await prisma.company.update({ where: { id: existingCompany.id }, data: sectorData });
+              console.log(`[European] Updated ${ticker} sector → ${sectorData.sector} (from no-XBRL fallback)`);
+            }
+          }
         }
       } catch (error) {
         console.error(`[European] Error for ${ticker}:`, error instanceof Error ? error.message : error);
@@ -1044,10 +1090,25 @@ export async function addCompanyFromTicker(ticker: string, fmpApiKey?: string) {
   };
   const countryCode = (suffix ? TICKER_COUNTRY[suffix] : '') || '';
 
+  const STOXX_SECTOR_INDUSTRY: Record<string, string> = {
+    'Financial Services': 'Banks - Diversified',
+    'Technology': 'Software - Infrastructure',
+    'Industrials': 'Aerospace & Defense',
+    'Consumer Cyclical': 'Auto Manufacturers',
+    'Consumer Defensive': 'Consumer Staples',
+    'Healthcare': 'Drug Manufacturers',
+    'Energy': 'Oil & Gas Integrated',
+    'Utilities': 'Utilities - Regulated Electric',
+    'Real Estate': 'REIT - Diversified',
+    'Communication Services': 'Telecom Services',
+    'Basic Materials': 'Specialty Chemicals',
+  };
+
   if (countryCode) {
     try {
       const yahooQuote = await fetchYahooQuote(ticker);
       const companyName = yahooQuote?.name || undefined;
+      const stoxxEntry = STOXX600_UNIQUE_TICKERS.find(t => t.ticker === ticker);
       console.log(`[AddCompany] Trying European data for ${upperTicker} (${countryCode})...`);
 
       const company = await prisma.company.create({
@@ -1056,6 +1117,8 @@ export async function addCompanyFromTicker(ticker: string, fmpApiKey?: string) {
           name: companyName || upperTicker,
           country: countryCode,
           exchange: yahooQuote?.exchange || null,
+          sector: stoxxEntry?.sector || null,
+          industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
         },
       });
       console.log(`[AddCompany] Created ${upperTicker} via European fallback (id: ${company.id})`);

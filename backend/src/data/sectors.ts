@@ -328,4 +328,52 @@ export const TICKER_SECTORS: Record<string, { sector: string; industry: string }
   MOS: { sector: 'Basic Materials', industry: 'Agricultural Inputs' },
   FMC: { sector: 'Basic Materials', industry: 'Agricultural Inputs' },
   IP: { sector: 'Basic Materials', industry: 'Paper & Paper Products' },
+
+  // European / IBEX 35
+  'MAP.MC': { sector: 'Financial Services', industry: 'Insurance - Life' },
+  'BBVA.MC': { sector: 'Financial Services', industry: 'Banks - Diversified' },
+  'SANT.MC': { sector: 'Financial Services', industry: 'Banks - Diversified' },
+  'SAN.MC': { sector: 'Financial Services', industry: 'Banks - Diversified' },
+  'TLF.MC': { sector: 'Communication Services', industry: 'Telecom Services' },
+  'TEF.MC': { sector: 'Communication Services', industry: 'Telecom Services' },
+  'REP.MC': { sector: 'Energy', industry: 'Oil & Gas Integrated' },
+  'REPYY': { sector: 'Energy', industry: 'Oil & Gas Integrated' },
+  'IBE.MC': { sector: 'Utilities', industry: 'Utilities - Renewable' },
+  'ENEL.MI': { sector: 'Utilities', industry: 'Utilities - Regulated Electric' },
+  'ENGI.PA': { sector: 'Utilities', industry: 'Utilities - Regulated Electric' },
+  'VIE.MC': { sector: 'Industrials', industry: 'Aerospace & Defense' },
+  'ICAG.L': { sector: 'Industrials', industry: 'Airlines' },
+  'IAG.MC': { sector: 'Industrials', industry: 'Airlines' },
+  'NTGY.MC': { sector: 'Utilities', industry: 'Utilities - Regulated Gas' },
+  'CLNX.MC': { sector: 'Real Estate', industry: 'Real Estate - Diversified' },
+
+  // IBEX 35 - Missing companies
+  'ACS.MC': { sector: 'Industrials', industry: 'Engineering & Construction' },
+  'AENA.MC': { sector: 'Industrials', industry: 'Airports & Air Services' },
+  'CABK.MC': { sector: 'Financial Services', industry: 'Banks - Regional' },
+  'ENG.MC': { sector: 'Utilities', industry: 'Utilities - Regulated Gas' },
+  'FER.MC': { sector: 'Industrials', industry: 'Engineering & Construction' },
+  'GRF.MC': { sector: 'Healthcare', industry: 'Drug Manufacturers - General' },
+  'MEL.MC': { sector: 'Consumer Cyclical', industry: 'Lodging' },
+  'MRL.MC': { sector: 'Real Estate', industry: 'REIT - Office' },
+  'RED.MC': { sector: 'Utilities', industry: 'Utilities - Regulated Electric' },
+  'REE.MC': { sector: 'Utilities', industry: 'Utilities - Regulated Electric' },
+  'SAB.MC': { sector: 'Financial Services', industry: 'Banks - Regional' },
+  'SOL.MC': { sector: 'Industrials', industry: 'Solar' },
+  'TRE.MC': { sector: 'Industrials', industry: 'Engineering & Construction' },
+  'UNI.MC': { sector: 'Financial Services', industry: 'Banks - Regional' },
+  'FDR.MC': { sector: 'Industrials', industry: 'Industrial Distribution' },
+  'BKT.MC': { sector: 'Financial Services', industry: 'Banks - Regional' },
+
+  // DAX - SAP
+  'SAP': { sector: 'Technology', industry: 'Software - Application' },
+  'SAP.DE': { sector: 'Technology', industry: 'Software - Application' },
+
+  // Other European
+  'MTS.MC': { sector: 'Basic Materials', industry: 'Steel' },
+  'ELE.MC': { sector: 'Utilities', industry: 'Utilities - Regulated Electric' },
+  'GBF.MC': { sector: 'Basic Materials', industry: 'Building Materials' },
+  'IDR.MC': { sector: 'Basic Materials', industry: 'Gold' },
+  'NG.MC': { sector: 'Basic Materials', industry: 'Gold' },
+  'ALV.DE': { sector: 'Financial Services', industry: 'Insurance - Diversified' },
 };

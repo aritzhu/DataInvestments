@@ -76,34 +76,25 @@ export function AdminPanel() {
   const handleCompanyDeleted = () => fetchCompanies();
   const handleSyncComplete = () => fetchCompanies();
 
-  const EUROPEAN_PRESETS: Record<string, { name: string; tickers: string[] }> = {
-    dax: {
-      name: 'DAX 40 (Alemania)',
-      tickers: ['SAP.DE','SIE.DE','ALV.DE','BMW.DE','MBG.DE','VOW3.DE','BAS.DE','BAYN.DE','DTE.DE','DBK.DE','DB1.DE','MUV2.DE','ADS.DE','HEN3.DE','MRK.DE','SY1.DE','IFX.DE','RWE.DE','FRE.DE','CON.DE','HEI.DE','BEI.DE','PZI.DE','CBK.DE','QIA.DE','ZAL.DE','COV.DE','MPS.DE','HFG.DE','SCE.DE','GYC.DE','SHL.DE','ENR.DE','DWNI.DE','NDA.DE','HDD.DE','SRT3.DE','TKA.DE','TEG.DE','NEM.DE'],
-    },
-    cac40: {
-      name: 'CAC 40 (Francia)',
-      tickers: ['MC.PA','OR.PA','TTE.PA','SAN.PA','AIR.PA','BNP.PA','SU.PA','ACA.PA','ENGI.PA','VIE.PA','KER.PA','LR.PA','RMS.PA','SAF.PA','DG.PA','ATO.PA','STM.PA','CAP.PA','EL.PA','DSY.PA','SQ.PA','BOL.PA','SGO.PA','WLN.PA','HEX.PA','TEP.PA','RNO.PA','VIV.PA','PUB.PA','EN.PA','BN.PA','ACP.PA','SPIE.PA','FDJ.PA','NXI.PA','AM.PA','IPH.PA','CO.PA','ALO.PA','SW.PA'],
-    },
-    ibex35: {
-      name: 'IBEX 35 (España)',
-      tickers: ['SAN.MC','BBVA.MC','IBE.MC','TEF.MC','CABK.MC','ITX.MC','NG.MC','REP.MC','CLNX.MC','ANA.MC','MAP.MC','ACS.MC','ENG.MC','FER.MC','GRF.MC','IAG.MC','MTS.MC','MRL.MC','RED.MC','REE.MC','SAB.MC','SOL.MC','TRE.MC','UNI.MC','AENA.MC','BKT.MC','ELE.MC','FDR.MC','GBF.MC','IDR.MC','MEL.MC'],
-    },
-    ftse100: {
-      name: 'FTSE 100 (Reino Unido)',
-      tickers: ['SHEL.L','AZN.L','HSBA.L','ULVR.L','BP.L','BATS.L','GSK.L','DGE.L','RIO.L','LSEG.L','REL.L','LLOY.L','NWG.L','BRCB.L','PRU.L','AV.L','BA.L','HL.L','EXPN.L','STAN.L','NG.L','BT-A.L','SGRO.L','IMB.L','SSE.L','CCH.L','ENR.L','MNG.L','WPP.L','SMIN.L','SMT.L','BNZL.L','III.L','ADM.L','ABF.L','RMV.L','AHT.L','PSON.L','LAND.L','KAZ.L'],
-    },
-    aex: {
-      name: 'AEX (Países Bajos)',
-      tickers: ['ASML.AS','RAND.AS','AD.AS','INGA.AS','PRX.AS','UNA.AS','PHIA.AS','AKZA.AS','ABN.AS','KPN.AS','ASM.AS','HEIA.AS','WKL.AS','ADYEN.AS','DSM.AS','NN.AS','AGN.AS','AML.AS','SBMO.AS','IMCD.AS','TKWY.AS','VPK.AS','EXO.AS','JUST.AS','ARCELOR.AS'],
-    },
-  };
+  const EUROPEAN_INDICES = [
+    { id: 'stoxx600', name: 'STOXX Europe 600', flag: '🇪🇺', country: 'Europa', count: 600, tickers: ['SAP.DE','SIE.DE','ALV.DE','BMW.DE','MBG.DE','BAS.DE','BAYN.DE','DTE.DE','DBK.DE','DB1.DE','MUV2.DE','ADS.DE','HEN3.DE','MRK.DE','IFX.DE','RWE.DE','FRE.DE','CON.DE','HEI.DE','SHL.DE','ENR.DE','NDA.DE','TKA.DE','TEG.DE','SHEL.L','AZN.L','HSBA.L','ULVR.L','BP.L','BATS.L','GSK.L','DGE.L','RIO.L','LSEG.L','REL.L','LLOY.L','NWG.L','PRU.L','AV.L','BA.L','HL.L','EXPN.L','STAN.L','NG.L','BT-A.L','SGRO.L','IMB.L','SSE.L','MC.PA','OR.PA','TTE.PA','SAN.PA','AIR.PA','BNP.PA','SU.PA','ACA.PA','ENGI.PA','VIE.PA','KER.PA','LR.PA','RMS.PA','SAF.PA','DG.PA','ATO.PA','STM.PA','CAP.PA','EL.PA','DSY.PA','SQ.PA','BOL.PA','SGO.PA','WLN.PA','RNO.PA','VIV.PA','PUB.PA','EN.PA','SAN.MC','BBVA.MC','IBE.MC','TEF.MC','ITX.MC','REP.MC','CLNX.MC','ANA.MC','MAP.MC','ACS.MC','ENG.MC','FER.MC','GRF.MC','IAG.MC','MTS.MC','RED.MC','REE.MC','AENA.MC','ASML.AS','RAND.AS','AD.AS','INGA.AS','PRX.AS','UNA.AS','PHIA.AS','AKZA.AS','ABN.AS','KPN.AS','ENEL.MI','ENI.MI','ISP.MI','UNI.MI','STM.MI','PRY.MI','TIT.MI','A32.MI','CNHI.MI','SAF.MI','UCG.MI','PIRC.MI','LUX.DE','ROG.SW','NOVN.SW','UBSG.SW','ZUR.SW','NESN.SW','SREN.SW','ABBN.SW','CFR.SW','SGSN.SW'] },
+    { id: 'dax', name: 'DAX 40', flag: '🇩🇪', country: 'Alemania', count: 40, tickers: ['SAP.DE','SIE.DE','ALV.DE','BMW.DE','MBG.DE','VOW3.DE','BAS.DE','BAYN.DE','DTE.DE','DBK.DE','DB1.DE','MUV2.DE','ADS.DE','HEN3.DE','MRK.DE','SY1.DE','IFX.DE','RWE.DE','FRE.DE','CON.DE','HEI.DE','BEI.DE','PZI.DE','CBK.DE','QIA.DE','ZAL.DE','COV.DE','MPS.DE','HFG.DE','SCE.DE','GYC.DE','SHL.DE','ENR.DE','DWNI.DE','NDA.DE','HDD.DE','SRT3.DE','TKA.DE','TEG.DE','NEM.DE'] },
+    { id: 'cac40', name: 'CAC 40', flag: '🇫🇷', country: 'Francia', count: 40, tickers: ['MC.PA','OR.PA','TTE.PA','SAN.PA','AIR.PA','BNP.PA','SU.PA','ACA.PA','ENGI.PA','VIE.PA','KER.PA','LR.PA','RMS.PA','SAF.PA','DG.PA','ATO.PA','STM.PA','CAP.PA','EL.PA','DSY.PA','SQ.PA','BOL.PA','SGO.PA','WLN.PA','HEX.PA','TEP.PA','RNO.PA','VIV.PA','PUB.PA','EN.PA','BN.PA','ACP.PA','SPIE.PA','FDJ.PA','NXI.PA','AM.PA','IPH.PA','CO.PA','ALO.PA','SW.PA'] },
+    { id: 'ibex35', name: 'IBEX 35', flag: '🇪🇸', country: 'España', count: 35, tickers: ['SAN.MC','BBVA.MC','IBE.MC','TEF.MC','CABK.MC','ITX.MC','NG.MC','REP.MC','CLNX.MC','ANA.MC','MAP.MC','ACS.MC','ENG.MC','FER.MC','GRF.MC','IAG.MC','MTS.MC','MRL.MC','RED.MC','REE.MC','SAB.MC','SOL.MC','TRE.MC','UNI.MC','AENA.MC','BKT.MC','ELE.MC','FDR.MC','GBF.MC','IDR.MC','MEL.MC'] },
+    { id: 'ftse100', name: 'FTSE 100', flag: '🇬🇧', country: 'Reino Unido', count: 100, tickers: ['SHEL.L','AZN.L','HSBA.L','ULVR.L','BP.L','BATS.L','GSK.L','DGE.L','RIO.L','LSEG.L','REL.L','LLOY.L','NWG.L','BRCB.L','PRU.L','AV.L','BA.L','HL.L','EXPN.L','STAN.L','NG.L','BT-A.L','SGRO.L','IMB.L','SSE.L','CCH.L','ENR.L','MNG.L','WPP.L','SMIN.L','SMT.L','BNZL.L','III.L','ADM.L','ABF.L','RMV.L','AHT.L','PSON.L','LAND.L','KAZ.L'] },
+    { id: 'aex', name: 'AEX', flag: '🇳🇱', country: 'Países Bajos', count: 25, tickers: ['ASML.AS','RAND.AS','AD.AS','INGA.AS','PRX.AS','UNA.AS','PHIA.AS','AKZA.AS','ABN.AS','KPN.AS','ASM.AS','HEIA.AS','WKL.AS','ADYEN.AS','DSM.AS','NN.AS','AGN.AS','AML.AS','SBMO.AS','IMCD.AS','TKWY.AS','VPK.AS','EXO.AS','JUST.AS','ARCELOR.AS'] },
+    { id: 'ftsemib', name: 'FTSE MIB', flag: '🇮🇹', country: 'Italia', count: 40, tickers: ['ENEL.MI','ENI.MI','ISP.MI','UNI.MI','STM.MI','PRY.MI','TIT.MI','A32.MI','CNHI.MI','SAF.MI','UCG.MI','PIRC.MI','BPE.MI','CRE.MI','BZU.MI','SRG.MI','MONC.MI','LUX.MI','ATL.MI','IG.MI','SFER.MI','PRIO.MI','DIA.MI','AQM.MI','RAT.MI'] },
+    { id: 'smi', name: 'SMI', flag: '🇨🇭', country: 'Suiza', count: 20, tickers: ['ROG.SW','NOVN.SW','UBSG.SW','ZUR.SW','NESN.SW','SREN.SW','ABBN.SW','CFR.SW','SGSN.SW','SIKA.SW','GIVN.SW','LONN.SW','ALC.SW','ADEN.SW','BAER.SW','SCMN.SW','CLN.SW','FLU.SW','SDBK.SW','FREN.SW'] },
+  ];
 
-  const handleEuropeanPreset = (presetId: string) => {
-    const preset = EUROPEAN_PRESETS[presetId];
-    if (preset) {
-      setBulkTickers(preset.tickers.join('\n'));
-    }
+  const [selectedEuropeanIndex, setSelectedEuropeanIndex] = useState(EUROPEAN_INDICES[0].id);
+
+  const handleAddEuropeanIndex = () => {
+    const index = EUROPEAN_INDICES.find(i => i.id === selectedEuropeanIndex);
+    if (!index) return;
+    const existing = bulkTickers.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+    const newTickers = [...new Set([...existing, ...index.tickers])];
+    setBulkTickers(newTickers.join('\n'));
   };
 
   const startBulkImport = async () => {
@@ -357,24 +348,41 @@ export function AdminPanel() {
           <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <Globe size={16} style={{ color: '#059669' }} />
-              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Índices Europeos (ESEF/XBRL)</span>
+              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Indices Europeos (ESEF/XBRL)</span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {Object.entries(EUROPEAN_PRESETS).map(([id, preset]) => (
-                <button
-                  key={id}
-                  onClick={() => handleEuropeanPreset(id)}
-                  className="admin-form-btn"
-                  style={{
-                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                    color: 'white', fontWeight: 500, fontSize: '0.75rem',
-                  }}
-                >
-                  <Download size={12} />
-                  {preset.name} ({preset.tickers.length})
-                </button>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <select
+                value={selectedEuropeanIndex}
+                onChange={(e) => setSelectedEuropeanIndex(e.target.value)}
+                style={{
+                  flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
+                  border: '1px solid #d1d5db', fontSize: '0.85rem', background: 'white',
+                  cursor: 'pointer',
+                }}
+              >
+                {EUROPEAN_INDICES.map((idx) => (
+                  <option key={idx.id} value={idx.id}>
+                    {idx.flag} {idx.name} — {idx.count} empresas
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAddEuropeanIndex}
+                disabled={isImporting}
+                className="admin-form-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  color: 'white', fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap',
+                  padding: '0.5rem 1rem',
+                }}
+              >
+                <Download size={14} />
+                Añadir
+              </button>
             </div>
+            <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
+              Selecciona un indice y haz clic en "Añadir" para incluir sus tickers en la importación
+            </p>
           </div>
 
           {/* Ticker Input */}

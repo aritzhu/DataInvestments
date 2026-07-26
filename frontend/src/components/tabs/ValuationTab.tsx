@@ -34,6 +34,19 @@ const CONFIDENCE_DOT: Record<string, string> = {
   na: 'var(--text-tertiary)',
 };
 
+const METHOD_NAMES: Record<string, string> = {
+  dcf: 'DCF',
+  per: 'P/E',
+  pb: 'P/B',
+  ps: 'P/S',
+  ev_ebitda: 'EV/EBITDA',
+  ev_ebit: 'EV/EBIT',
+  ddm: 'DDM',
+  graham: 'Nº de Graham',
+  fcf_yield: 'FCF Yield',
+  net_net: 'Net-Net',
+};
+
 export function ValuationTab({ company, financials, balanceSheets, stock }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
@@ -130,9 +143,19 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   }
 
   const validValues = results.filter(r => r.fairValue != null && r.fairValue > 0).map(r => r.fairValue!);
+  const recommendedResult = results.find(r => r.id === recommendedModel);
+  const recommendedFair = recommendedResult?.fairValue ?? null;
   const avgFair = weightedAverage(results);
-  const avgUpside = avgFair && stock.currentPrice > 0 ? (avgFair - stock.currentPrice) / stock.currentPrice : null;
-  const { verdict, label: verdictLabel } = getVerdict(avgFair, stock.currentPrice);
+  const avgUpside = recommendedFair && stock.currentPrice > 0 ? (recommendedFair - stock.currentPrice) / stock.currentPrice : null;
+  const { verdict, label: verdictLabel } = getVerdict(recommendedFair, stock.currentPrice);
+  const latestFinancialYear = financials.length > 0 ? Math.max(...financials.map(f => f.year)) : null;
+
+  const barPct = (() => {
+    if (!recommendedFair || !stock.currentPrice || stock.currentPrice <= 0) return 50;
+    const max = Math.max(recommendedFair, stock.currentPrice);
+    if (max <= 0) return 50;
+    return Math.min(100, Math.max(0, (stock.currentPrice / max) * 100));
+  })();
 
   const updateConfig = <K extends keyof typeof configs>(section: K, key: keyof typeof configs[K], value: number) => {
     setConfigs(prev => ({
@@ -143,36 +166,57 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
 
   return (
     <div className="val-tab">
-      {/* Summary Bar */}
+      {/* Hero Summary */}
       <SectionReveal delay={0}>
-        <div className="val-summary">
-          {/* Verdict Badge */}
-          <div className="val-verdict" style={{ background: VERDICT_BG[verdict], borderColor: VERDICT_BORDER[verdict] }}>
-            <span className="val-verdict-dot" style={{ background: VERDICT_COLORS[verdict] }} />
-            <span className="val-verdict-label" style={{ color: VERDICT_COLORS[verdict] }}>{verdictLabel}</span>
-            {avgUpside != null && (
-              <span className="val-verdict-pct" style={{ color: VERDICT_COLORS[verdict] }}>
-                {avgUpside > 0 ? '+' : ''}{(avgUpside * 100).toFixed(1)}%
-              </span>
-            )}
-          </div>
-          <div className="val-summary-item">
-            <span className="val-summary-label">Valor medio ponderado</span>
-            <span className="val-summary-value">
-              {avgFair ? `$${avgFair.toFixed(2)}` : '—'}
+        <div className="val-hero-summary">
+          <div className="val-hero-fair">
+            <span className="val-hero-amount">
+              {recommendedFair ? `$${recommendedFair.toFixed(2)}` : '—'}
             </span>
+            <span className="val-hero-label">Valor justo</span>
+            <span className="val-hero-method">{METHOD_NAMES[recommendedModel] || recommendedModel}</span>
           </div>
-          <div className="val-summary-item">
-            <span className="val-summary-label">Precio actual</span>
-            <span className="val-summary-value">{`$${stock.currentPrice.toFixed(2)}`}</span>
+
+          <div className="val-hero-center">
+            <div className="val-verdict" style={{ background: VERDICT_BG[verdict], borderColor: VERDICT_BORDER[verdict] }}>
+              <span className="val-verdict-dot" style={{ background: VERDICT_COLORS[verdict] }} />
+              <span className="val-verdict-label" style={{ color: VERDICT_COLORS[verdict] }}>{verdictLabel}</span>
+              {avgUpside != null && (
+                <span className="val-verdict-pct" style={{ color: VERDICT_COLORS[verdict] }}>
+                  {avgUpside > 0 ? '+' : ''}{(avgUpside * 100).toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <div className="val-hero-bar">
+              <div className="val-hero-bar-track">
+                <div
+                  className="val-hero-bar-fill"
+                  style={{
+                    width: `${barPct}%`,
+                    background: verdict === 'buy' ? '#059669' : verdict === 'sell' ? '#dc2626' : '#d97706',
+                  }}
+                />
+              </div>
+            </div>
           </div>
-          <div className="val-summary-item">
-            <span className="val-summary-label">Métodos con datos</span>
-            <span className="val-summary-value">{validValues.length} / 10</span>
+
+          <div className="val-hero-price">
+            <span className="val-hero-amount">${stock.currentPrice.toFixed(2)}</span>
+            <span className="val-hero-label">Precio actual</span>
           </div>
         </div>
+
+        <div className="val-summary-secondary">
+          <span className="val-summary-secondary-text">
+            Promedio ponderado {validValues.length} métodos: {avgFair ? `$${avgFair.toFixed(2)}` : '—'}
+          </span>
+          <span className="val-summary-secondary-sep">·</span>
+          <span className="val-summary-secondary-text">
+            Ejercicio {latestFinancialYear ?? '—'}
+          </span>
+        </div>
         <p className="verdict-explanation">
-          El <strong>valor medio ponderado</strong> combina los 10 métodos de valoración, dando <strong>mayor peso a los métodos más fiables</strong> (confianza alta = 100%, media = 70%, baja = 40%). Esto evita que un método poco fiable arrastre el promedio. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
+          La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[recommendedModel] || recommendedModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>eercicio {latestFinancialYear ?? '—'}</strong>. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
         </p>
       </SectionReveal>
 
@@ -181,7 +225,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         <div className="val-method-grid">
           {results.map((r) => {
             const isActive = activeMethod === r.id;
-            const isNA = r.fairValue == null;
+            const isNA = r.fairValue == null || r.fairValue === 0;
             const isNegative = r.fairValue != null && r.fairValue < 0;
             const isRecommended = r.id === recommendedModel;
             return (
@@ -238,10 +282,10 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   </div>
 <div className="val-price-block val-price-block--intrinsic">
                      <span className="val-price-label">Valor intrínseco</span>
-                     <span className={`val-price-value ${active.fairValue != null && active.fairValue < 0 ? 'val-price-value--negative' : 'val-price-value--green'}`}>
-                       {active.fairValue != null ? (
-                         <>$<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
-                       ) : '—'}
+                    <span className={`val-price-value ${active.fairValue != null && active.fairValue < 0 ? 'val-price-value--negative' : 'val-price-value--green'}`}>
+                      {active.fairValue != null && active.fairValue !== 0 ? (
+                        <>$<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
+                      ) : '—'}
                      </span>
                    </div>
                 </div>

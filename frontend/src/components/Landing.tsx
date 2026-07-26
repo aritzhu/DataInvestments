@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { TrendingUp, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/landing.css';
@@ -11,18 +11,42 @@ interface CompanyFromAPI {
   name: string;
   sector: string | null;
   industry: string | null;
+  country: string | null;
 }
+
+const COUNTRY_NAMES: Record<string, string> = {
+  ES: 'España',
+  US: 'Estados Unidos',
+  DE: 'Alemania',
+  FR: 'Francia',
+  GB: 'Reino Unido',
+  IT: 'Italia',
+  NL: 'Países Bajos',
+  BE: 'Bélgica',
+  FI: 'Finlandia',
+  SE: 'Suecia',
+  DK: 'Dinamarca',
+  PT: 'Portugal',
+  AT: 'Austria',
+  CH: 'Suiza',
+  NO: 'Noruega',
+  IE: 'Irlanda',
+  LU: 'Luxemburgo',
+};
 
 const colorNames = ['blue', 'emerald', 'purple', 'amber', 'rose', 'cyan', 'blue'] as const;
 
 export function Landing() {
   const { user, favorites, isFavorite, addFavorite, removeFavorite } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const companiesSectionRef = useRef<HTMLDivElement>(null);
   const [companies, setCompanies] = useState<CompanyFromAPI[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSector, setSelectedSector] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [selectedSector, setSelectedSector] = useState<string | null>(searchParams.get('sector') || null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort') as 'asc' | 'desc') || 'asc');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('fav') === '1');
+  const [selectedCountry, setSelectedCountry] = useState<string>(searchParams.get('country') || '');
 
   useEffect(() => {
     fetch('/api/companies')
@@ -30,6 +54,24 @@ export function Landing() {
       .then((data) => setCompanies(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (searchTerm) params.search = searchTerm;
+    if (selectedCountry) params.country = selectedCountry;
+    if (selectedSector) params.sector = selectedSector;
+    if (sortOrder !== 'asc') params.sort = sortOrder;
+    if (showFavoritesOnly) params.fav = '1';
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly]);
+
+  useEffect(() => {
+    if (companies.length > 0 && searchParams.toString()) {
+      setTimeout(() => {
+        companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [companies.length]);
 
   const favoriteCompanies = useMemo(() => {
     if (!favorites.length) return [];
@@ -42,12 +84,19 @@ export function Landing() {
     return Array.from(sectorSet).sort() as string[];
   }, [companies]);
 
+  const availableCountries = useMemo(() => {
+    const countrySet = new Set(companies.map((c) => c.country).filter(Boolean));
+    return Array.from(countrySet).sort() as string[];
+  }, [companies]);
+
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.companyId)), [favorites]);
 
   const filteredCompanies = useMemo(() => {
     return companies
       .filter((c) => {
         if (showFavoritesOnly && !favoriteIds.has(c.id)) return false;
+
+        if (selectedCountry && c.country !== selectedCountry) return false;
 
         const matchesSearch =
           c.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -64,7 +113,7 @@ export function Landing() {
         const cmp = a.ticker.localeCompare(b.ticker);
         return sortOrder === 'asc' ? cmp : -cmp;
       });
-  }, [companies, searchTerm, selectedSector, sortOrder, showFavoritesOnly, favoriteIds]);
+  }, [companies, searchTerm, selectedSector, sortOrder, showFavoritesOnly, favoriteIds, selectedCountry]);
 
   const handleToggleFavorite = async (e: React.MouseEvent, companyId: string) => {
     e.preventDefault();
@@ -175,7 +224,7 @@ export function Landing() {
       </section>
 
       {/* Companies */}
-      <section id="companies" className="companies-section">
+      <section id="companies" className="companies-section" ref={companiesSectionRef}>
         <div className="companies-inner">
           <SectionReveal delay={0}>
             <div className="companies-header">
@@ -234,6 +283,23 @@ export function Landing() {
                     className="companies-search-input"
                   />
                 </div>
+                {availableCountries.length > 0 && (
+                  <div className="country-filter-wrapper">
+                    <Globe size={14} className="country-filter-icon" />
+                    <select
+                      className="country-filter"
+                      value={selectedCountry}
+                      onChange={(e) => setSelectedCountry(e.target.value)}
+                    >
+                      <option value="">Todos los países</option>
+                      {availableCountries.map((code) => (
+                        <option key={code} value={code}>
+                          {COUNTRY_NAMES[code] || code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <button
                   className="sort-btn"
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
