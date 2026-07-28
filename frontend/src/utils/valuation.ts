@@ -392,7 +392,16 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
   const { stock } = input;
   const shares = sharesOf(stock);
   if (!ttm || !stock || shares <= 0 || !ttm.ebitda) {
-    return { id: 'ev_ebitda', name: 'EV/EBITDA', description: 'Múltiplo de empresa sobre EBITDA', explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.', formula: '(EBITDA × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBITDA', configurable: true, inputs: [], negativeInputWarning: undefined };
+    return {
+      id: 'ev_ebitda', name: 'EV/EBITDA',
+      description: 'Múltiplo de empresa sobre EBITDA',
+      explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.',
+      formula: '(EBITDA × Múltiplo − Net Debt) / Shares',
+      fairValue: null, confidence: 'na',
+      confidenceReason: 'Sin EBITDA',
+      configurable: true, inputs: [],
+      negativeInputWarning: undefined,
+    };
   }
   const ebitda = ttm.ebitda;
   const ev = ebitda * config.targetMultiple;
