@@ -33,6 +33,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(compression());
+app.set('trust proxy', 1);
 app.use(express.json());
 
 app.use(session({
