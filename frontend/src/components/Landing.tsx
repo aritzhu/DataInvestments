@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { TrendingUp, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
 import { useAuth } from '../contexts/AuthContext';
+import { companyLogoUrl } from '../utils/companyLogoUrl';
 import '../styles/landing.css';
 
 interface CompanyFromAPI {
@@ -12,6 +13,8 @@ interface CompanyFromAPI {
   sector: string | null;
   industry: string | null;
   country: string | null;
+  website: string | null;
+  logoUrl: string | null;
 }
 
 const COUNTRY_NAMES: Record<string, string> = {
@@ -47,11 +50,31 @@ export function Landing() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort') as 'asc' | 'desc') || 'asc');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('fav') === '1');
   const [selectedCountry, setSelectedCountry] = useState<string>(searchParams.get('country') || '');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>({});
+  const [undervalued, setUndervalued] = useState<any[]>([]);
+  const [overvalued, setOvervalued] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/companies')
       .then((res) => res.json())
       .then((data) => setCompanies(data))
+      .catch(() => {});
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        setHeroSettings(data);
+        const uLimit = data.undervalued_limit || '5';
+        const oLimit = data.overvalued_limit || '5';
+        fetch(`/api/companies/undervalued?limit=${uLimit}`)
+          .then((res) => res.json())
+          .then((d) => setUndervalued(d))
+          .catch(() => {});
+        fetch(`/api/companies/overvalued?limit=${oLimit}`)
+          .then((res) => res.json())
+          .then((d) => setOvervalued(d))
+          .catch(() => {});
+      })
       .catch(() => {});
   }, []);
 
@@ -132,33 +155,140 @@ export function Landing() {
   return (
     <div className="landing-root">
       {/* Hero */}
-      <section className="hero">
+      <section className={`hero${heroSettings.hero_bg_url ? ' hero--has-bg' : ''}`} style={heroSettings.hero_bg_url ? { backgroundImage: `url(${heroSettings.hero_bg_url})` } : undefined}>
         <div className="hero-pattern" />
         <div className="hero-content">
           <div className="hero-badge">
             <BarChart3 size={16} />
-            Análisis de Valor Intrínseco
+            {heroSettings.hero_badge || 'Análisis de Valor Intrínseco'}
           </div>
           <h1 className="hero-title">
-            Entiende el{' '}
-            <span className="hero-title-gradient">valor real</span>{' '}
-            de las empresas
+            {(heroSettings.hero_title || 'Entiende el valor real de las empresas')
+              .split(/( valor real)/i)
+              .map((part, i) =>
+                part.toLowerCase() === ' valor real'
+                  ? <span key={i} className="hero-title-gradient">{part}</span>
+                  : <span key={i}>{i > 0 ? ' ' : ''}{part.trim()}</span>
+              )}
           </h1>
           <p className="hero-subtitle">
-            Visualiza flujos de caja, gastos, reinversión y valoración con gráficos interactivos que hacen simple lo complejo.
+            {heroSettings.hero_subtitle || 'Visualiza flujos de caja, gastos, reinversión y valoración con gráficos interactivos que hacen simple lo complejo.'}
           </p>
           <div className="hero-actions">
-            <a href="#companies" className="hero-btn-primary">
-              Explorar Empresas
+            <a href={heroSettings.hero_cta_primary_link || '#companies'} className="hero-btn-primary">
+              {heroSettings.hero_cta_primary || 'Explorar Empresas'}
               <ArrowRight size={20} />
             </a>
-            <a href="#features" className="hero-btn-secondary">
-              Saber más
+            <a href={heroSettings.hero_cta_secondary_link || '#features'} className="hero-btn-secondary">
+              {heroSettings.hero_cta_secondary || 'Saber más'}
             </a>
           </div>
         </div>
         <div className="hero-glow" />
       </section>
+
+      {/* Valuation Sections — Undervalued & Overvalued */}
+      {(undervalued.length > 0 || overvalued.length > 0) && (
+        <section className="valuation-section">
+          <div className="valuation-inner">
+            <div className="valuation-grid">
+              {/* Undervalued */}
+              {undervalued.length > 0 && (
+                <div className="valuation-column">
+                  <SectionReveal delay={0}>
+                    <div className="valuation-header valuation-header--green">
+                      <TrendingUp size={22} className="valuation-icon valuation-icon--green" />
+                      <h2 className="valuation-title">{heroSettings.undervalued_title || 'Oportunidades de Inversión'}</h2>
+                      <p className="valuation-subtitle">{heroSettings.undervalued_subtitle || 'Empresas con margen de seguridad positivo según nuestro análisis'}</p>
+                    </div>
+                  </SectionReveal>
+                  <div className="valuation-list">
+                    {undervalued.map((c: any, i: number) => (
+                      <SectionReveal key={c.ticker} delay={40 + i * 60}>
+                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green">
+                          <div className="valuation-card-left">
+                            {c.logoUrl ? (
+                              <img src={c.logoUrl} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                            ) : null}
+                            <div className={`valuation-avatar valuation-avatar--green ${c.logoUrl ? 'valuation-avatar--hidden' : ''}`}>
+                              {c.ticker.slice(0, 2)}
+                            </div>
+                            <div>
+                              <div className="valuation-ticker">{c.ticker}</div>
+                              <div className="valuation-name">{c.name}</div>
+                            </div>
+                          </div>
+                          <div className="valuation-metrics">
+                            <div className="valuation-metric">
+                              <span className="valuation-metric-label">Precio</span>
+                              <span className="valuation-metric-value">${c.currentPrice?.toFixed(2)}</span>
+                            </div>
+                            <div className="valuation-metric">
+                              <span className="valuation-metric-label">Valor intrínseco</span>
+                              <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                            </div>
+                            <div className="valuation-metric valuation-metric--green">
+                              <span className="valuation-metric-label">Margen de seguridad</span>
+                              <span className="valuation-metric-value">+{(c.marginOfSafety * 100).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </Link>
+                      </SectionReveal>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Overvalued */}
+              {overvalued.length > 0 && (
+                <div className="valuation-column">
+                  <SectionReveal delay={100}>
+                    <div className="valuation-header valuation-header--red">
+                      <TrendingDown size={22} className="valuation-icon valuation-icon--red" />
+                      <h2 className="valuation-title">{heroSettings.overvalued_title || 'Empresas Sobrevaloradas'}</h2>
+                      <p className="valuation-subtitle">{heroSettings.overvalued_subtitle || 'Empresas que el mercado sobreestima según nuestro análisis'}</p>
+                    </div>
+                  </SectionReveal>
+                  <div className="valuation-list">
+                    {overvalued.map((c: any, i: number) => (
+                      <SectionReveal key={c.ticker} delay={140 + i * 60}>
+                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red">
+                          <div className="valuation-card-left">
+                            {c.logoUrl ? (
+                              <img src={c.logoUrl} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                            ) : null}
+                            <div className={`valuation-avatar valuation-avatar--red ${c.logoUrl ? 'valuation-avatar--hidden' : ''}`}>
+                              {c.ticker.slice(0, 2)}
+                            </div>
+                            <div>
+                              <div className="valuation-ticker">{c.ticker}</div>
+                              <div className="valuation-name">{c.name}</div>
+                            </div>
+                          </div>
+                          <div className="valuation-metrics">
+                            <div className="valuation-metric">
+                              <span className="valuation-metric-label">Precio</span>
+                              <span className="valuation-metric-value">${c.currentPrice?.toFixed(2)}</span>
+                            </div>
+                            <div className="valuation-metric">
+                              <span className="valuation-metric-label">Valor intrínseco</span>
+                              <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                            </div>
+                            <div className="valuation-metric valuation-metric--red">
+                              <span className="valuation-metric-label">Sobrevaloración</span>
+                              <span className="valuation-metric-value">{(c.marginOfSafety * 100).toFixed(0)}%</span>
+                            </div>
+                          </div>
+                        </Link>
+                      </SectionReveal>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features */}
       <section id="features" className="features-section">
@@ -249,7 +379,15 @@ export function Landing() {
                     className="favorites-card"
                   >
                     <div className="favorites-card-left">
-                      <div className="favorites-card-avatar">
+                      {(company.logoUrl || companyLogoUrl(company.website)) ? (
+                        <img
+                          src={company.logoUrl || companyLogoUrl(company.website)!}
+                          alt={company.ticker}
+                          className="favorites-card-avatar favorites-card-avatar--img"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('favorites-card-avatar--hidden'); }}
+                        />
+                      ) : null}
+                      <div className={`favorites-card-avatar ${(company.logoUrl || companyLogoUrl(company.website)) ? 'favorites-card-avatar--hidden' : ''}`}>
                         {company.ticker.slice(0, 2)}
                       </div>
                       <div>
@@ -317,6 +455,14 @@ export function Landing() {
                     <span className="fav-filter-count">{favoriteCompanies.length}</span>
                   </button>
                 )}
+                <div className="view-toggle">
+                  <button className={`view-toggle-btn ${viewMode === 'grid' ? 'view-toggle-btn--active' : ''}`} onClick={() => setViewMode('grid')} title="Vista cuadrícula">
+                    <LayoutGrid size={15} />
+                  </button>
+                  <button className={`view-toggle-btn ${viewMode === 'list' ? 'view-toggle-btn--active' : ''}`} onClick={() => setViewMode('list')} title="Vista lista">
+                    <List size={15} />
+                  </button>
+                </div>
               </div>
               {availableSectors.length > 0 && (
                 <div className="sector-pills">
@@ -340,7 +486,7 @@ export function Landing() {
             </div>
           )}
 
-          <div className="companies-grid">
+          <div className={viewMode === 'grid' ? 'companies-grid' : 'companies-list'}>
             {companies.length === 0 ? (
               <SectionReveal delay={80}>
                 <div className="companies-empty">
@@ -354,12 +500,12 @@ export function Landing() {
                 </div>
               </SectionReveal>
             ) : filteredCompanies.length === 0 ? (
-              <div className="companies-empty" style={{ gridColumn: '1 / -1' }}>
+              <div className="companies-empty" style={viewMode === 'grid' ? { gridColumn: '1 / -1' } : undefined}>
                 <Database size={48} className="companies-empty-icon" />
                 <h3 className="companies-empty-title">Sin resultados</h3>
                 <p className="companies-empty-desc">No se encontraron empresas para "{searchTerm}"</p>
               </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
               filteredCompanies.map((company, i) => {
                 const color = colorNames[i % colorNames.length];
                 return (
@@ -367,7 +513,15 @@ export function Landing() {
                     <div className="company-card">
                       <div className={`company-card-strip company-card-strip--${color}`} />
                       <div className="company-card-header">
-                        <div className={`company-card-avatar company-card-avatar--${color}`}>
+                        {(company.logoUrl || companyLogoUrl(company.website)) ? (
+                          <img
+                            src={company.logoUrl || companyLogoUrl(company.website)!}
+                            alt={company.ticker}
+                            className={`company-card-avatar company-card-avatar--img`}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('company-card-avatar--hidden'); }}
+                          />
+                        ) : null}
+                        <div className={`company-card-avatar company-card-avatar--${color} ${(company.logoUrl || companyLogoUrl(company.website)) ? 'company-card-avatar--hidden' : ''}`}>
                           {company.ticker.slice(0, 2)}
                         </div>
                         <div>
@@ -386,17 +540,54 @@ export function Landing() {
                       <div className="company-card-actions">
                         <Link to={`/empresa/${company.ticker}`} className="company-card-btn company-card-btn--secondary">
                           <DollarSign size={14} />
-                          Analizar
+                          Dashboard
                         </Link>
-                        <Link to={`/empresa/${company.ticker}`} className="company-card-btn company-card-btn--primary">
+                        <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-card-btn company-card-btn--primary">
                           <TrendingUp size={14} />
-                          Ver detalles
+                          Ver valoración
                         </Link>
                       </div>
                     </div>
                   </SectionReveal>
                 );
               })
+            ) : (
+              filteredCompanies.map((company, i) => (
+                <SectionReveal key={company.ticker} delay={40 + i * 40}>
+                  <div className="company-list-item">
+                    {(company.logoUrl || companyLogoUrl(company.website)) ? (
+                      <img
+                        src={company.logoUrl || companyLogoUrl(company.website)!}
+                        alt={company.ticker}
+                        className="company-list-avatar company-list-avatar--img"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('company-list-avatar--hidden'); }}
+                      />
+                    ) : null}
+                    <div className={`company-list-avatar ${(company.logoUrl || companyLogoUrl(company.website)) ? 'company-list-avatar--hidden' : ''}`}>
+                      {company.ticker.slice(0, 2)}
+                    </div>
+                    <Link to={`/empresa/${company.ticker}`} className="company-list-info">
+                      <div className="company-list-ticker">{company.ticker}</div>
+                      <div className="company-list-name">{company.name}</div>
+                    </Link>
+                    <div className="company-list-meta">
+                      <span className="company-list-sector">{company.sector || company.industry || 'N/A'}</span>
+                      <span className="company-list-country">{COUNTRY_NAMES[company.country || ''] || company.country || ''}</span>
+                    </div>
+                    <div className="company-list-actions">
+                      <button
+                        className={`company-card-heart ${user && isFavorite(company.id) ? 'company-card-heart--active' : ''}`}
+                        onClick={(e) => handleToggleFavorite(e, company.id)}
+                        title={user && isFavorite(company.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+                      >
+                        <Heart size={16} fill={user && isFavorite(company.id) ? 'currentColor' : 'none'} />
+                      </button>
+                      <Link to={`/empresa/${company.ticker}`} className="company-list-link">Dashboard</Link>
+                      <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-list-link company-list-link--accent">Valoración</Link>
+                    </div>
+                  </div>
+                </SectionReveal>
+              ))
             )}
           </div>
         </div>

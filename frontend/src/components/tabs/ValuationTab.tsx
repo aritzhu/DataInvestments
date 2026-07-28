@@ -4,7 +4,7 @@ import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { SectionReveal } from '../ui/SectionReveal';
 import { ValuationChart } from '../ui/ValuationChart';
 import { formatPct } from '../../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, type ValuationInput } from '../../utils/valuation';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, latestFinancialPeriod, type ValuationInput } from '../../utils/valuation';
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X } from 'lucide-react';
 import '../../styles/stockvalue.css';
@@ -60,7 +60,8 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     financials,
     balanceSheets,
     stock: stock!,
-  }), [financials, balanceSheets, stock]);
+    currency: company.currency || 'USD',
+  }), [financials, balanceSheets, stock, company.currency]);
 
   const results = useMemo(() => {
     if (!stock) return [];
@@ -148,7 +149,10 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   const avgFair = weightedAverage(results);
   const avgUpside = recommendedFair && stock.currentPrice > 0 ? (recommendedFair - stock.currentPrice) / stock.currentPrice : null;
   const { verdict, label: verdictLabel } = getVerdict(recommendedFair, stock.currentPrice);
-  const latestFinancialYear = financials.length > 0 ? Math.max(...financials.map(f => f.year)) : null;
+  const periodInfo = latestFinancialPeriod(financials);
+  const periodLabel = periodInfo.isTTM
+    ? `TTM — ${periodInfo.quarter != null ? `Q${periodInfo.quarter} ` : ''}${periodInfo.year ?? '—'}`
+    : `Ejercicio ${periodInfo.year ?? '—'}`;
 
   const barPct = (() => {
     if (!recommendedFair || !stock.currentPrice || stock.currentPrice <= 0) return 50;
@@ -171,7 +175,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         <div className="val-hero-summary">
           <div className="val-hero-fair">
             <span className="val-hero-amount">
-              {recommendedFair ? `$${recommendedFair.toFixed(2)}` : '—'}
+              {recommendedFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${recommendedFair.toFixed(2)}` : '—'}
             </span>
             <span className="val-hero-label">Valor justo</span>
             <span className="val-hero-method">{METHOD_NAMES[recommendedModel] || recommendedModel}</span>
@@ -201,22 +205,27 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
           </div>
 
           <div className="val-hero-price">
-            <span className="val-hero-amount">${stock.currentPrice.toFixed(2)}</span>
+            <span className="val-hero-amount">{company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{stock.currentPrice.toFixed(2)}</span>
             <span className="val-hero-label">Precio actual</span>
           </div>
         </div>
 
         <div className="val-summary-secondary">
           <span className="val-summary-secondary-text">
-            Promedio ponderado {validValues.length} métodos: {avgFair ? `$${avgFair.toFixed(2)}` : '—'}
+            Promedio ponderado {validValues.length} métodos: {avgFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${avgFair.toFixed(2)}` : '—'}
           </span>
           <span className="val-summary-secondary-sep">·</span>
           <span className="val-summary-secondary-text">
-            Ejercicio {latestFinancialYear ?? '—'}
+            {periodLabel}
           </span>
         </div>
+        {periodInfo.isTTM && (
+          <p className="val-ttm-legend">
+            TTM = <strong>Trailing Twelve Months</strong> — últimos 12 meses acumulados. Último trimestre disponible: <strong>Q{periodInfo.quarter} {periodInfo.year}</strong>. Los ingresos/beneficio se suman de los 4 trimestres más recientes; el balance corresponde al último trimestre.
+          </p>
+        )}
         <p className="verdict-explanation">
-          La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[recommendedModel] || recommendedModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>eercicio {latestFinancialYear ?? '—'}</strong>. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
+          La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[recommendedModel] || recommendedModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
         </p>
       </SectionReveal>
 
@@ -240,7 +249,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
                 </div>
                 <span className={`val-method-card-value ${isNegative ? 'val-method-card-value--negative' : ''}`}>
-                  {isNA ? 'N/D' : `${isNegative ? '-' : ''}$${(isNegative ? -r.fairValue! : r.fairValue!).toFixed(2)}`}
+                  {isNA ? 'N/D' : `${isNegative ? '-' : ''}${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${(isNegative ? -r.fairValue! : r.fairValue!).toFixed(2)}`}
                 </span>
               </button>
             );
@@ -277,14 +286,14 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   <div className="val-price-block">
                     <span className="val-price-label">Precio actual</span>
                     <span className="val-price-value">
-                      $<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
+                      {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
                     </span>
                   </div>
 <div className="val-price-block val-price-block--intrinsic">
                      <span className="val-price-label">Valor intrínseco</span>
                     <span className={`val-price-value ${active.fairValue != null && active.fairValue < 0 ? 'val-price-value--negative' : 'val-price-value--green'}`}>
                       {active.fairValue != null && active.fairValue !== 0 ? (
-                        <>$<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
+                        <>{company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}<AnimatedNumber value={active.fairValue} format={(n) => n.toFixed(2)} /></>
                       ) : '—'}
                      </span>
                    </div>
@@ -467,7 +476,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
       <SectionReveal delay={240}>
         <div className="val-chart-section">
           <h4 className="val-chart-title">Comparación de métodos</h4>
-          <ValuationChart results={results} currentPrice={stock.currentPrice} activeId={activeMethod} onSelect={setActiveMethod} />
+          <ValuationChart results={results} currentPrice={stock.currentPrice} activeId={activeMethod} onSelect={setActiveMethod} currency={company.currency || 'USD'} />
         </div>
       </SectionReveal>
 

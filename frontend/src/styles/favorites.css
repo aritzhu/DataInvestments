@@ -179,6 +179,22 @@
   font-weight: 700;
   text-decoration: none;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.fav-card-avatar--link {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+}
+
+.fav-card-avatar--img {
+  object-fit: contain;
+  background: var(--surface-1);
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.fav-card-avatar--hidden {
+  display: none;
 }
 
 .fav-card-info {

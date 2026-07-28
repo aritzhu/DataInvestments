@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2 } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
@@ -9,6 +9,10 @@ import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
 import { EducationTab } from './tabs/EducationTab';
+import { useAuth } from '../contexts/AuthContext';
+import { listPortfolios, addHolding, createPortfolio } from '../services/portfolioService';
+import type { Portfolio } from '../types/portfolio';
+import { companyLogoUrl } from '../utils/companyLogoUrl';
 
 export interface CompanyProfile {
   company: {
@@ -23,7 +27,9 @@ export interface CompanyProfile {
     employees: number | null;
     country: string | null;
     exchange: string | null;
+    currency: string | null;
     website: string | null;
+    logoUrl: string | null;
     ipoDate: string | null;
   };
   financials: Array<{
@@ -157,12 +163,31 @@ function CompanySkeleton() {
 export function CompanyPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isFavorite, addFavorite, removeFavorite } = useAuth();
   const [data, setData] = useState<CompanyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>((searchParams.get('tab') as TabId) || 'dashboard');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [portfolioCompany, setPortfolioCompany] = useState<{ id: string; ticker: string } | null>(null);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
+  const [holdingQuantity, setHoldingQuantity] = useState('');
+  const [holdingCost, setHoldingCost] = useState('');
+  const [newPortfolioName, setNewPortfolioName] = useState('');
+  const [showNewPortfolio, setShowNewPortfolio] = useState(false);
+  const [savingHolding, setSavingHolding] = useState(false);
+  const portfolioModalRef = useRef<HTMLDivElement>(null);
+
+  const [showAlarmModal, setShowAlarmModal] = useState(false);
+  const [alarmTarget, setAlarmTarget] = useState<'buy' | 'hold' | 'sell'>('buy');
+  const [alarmLoading, setAlarmLoading] = useState(false);
+  const [existingAlarm, setExistingAlarm] = useState<{ id: string; targetVerdict: string; triggered: boolean } | null>(null);
+  const alarmModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!ticker) return;
@@ -191,6 +216,129 @@ export function CompanyPage() {
     }
   }, [loading, data]);
 
+  useEffect(() => {
+    if (user) {
+      listPortfolios().then(setPortfolios).catch(() => {});
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !data) return;
+    fetch('/api/alarms')
+      .then((r) => r.ok ? r.json() : [])
+      .then((alarms: Array<{ id: string; companyId: string; targetVerdict: string; triggered: boolean }>) => {
+        const found = alarms.find((a) => a.companyId === data.company.id);
+        setExistingAlarm(found || null);
+      })
+      .catch(() => {});
+  }, [user, data]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (portfolioModalRef.current && !portfolioModalRef.current.contains(e.target as Node)) {
+        setShowPortfolioModal(false);
+      }
+      if (alarmModalRef.current && !alarmModalRef.current.contains(e.target as Node)) {
+        setShowAlarmModal(false);
+      }
+    };
+    if (showPortfolioModal || showAlarmModal) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPortfolioModal, showAlarmModal]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!user) { navigate('/login'); return; }
+    if (!data) return;
+    if (isFavorite(data.company.id)) {
+      await removeFavorite(data.company.id);
+    } else {
+      await addFavorite(data.company.id);
+    }
+  }, [user, data, isFavorite, addFavorite, removeFavorite, navigate]);
+
+  const handleOpenPortfolioModal = useCallback(() => {
+    if (!user) { navigate('/login'); return; }
+    if (!data) return;
+    setPortfolioCompany({ id: data.company.id, ticker: data.company.ticker });
+    setSelectedPortfolioId(null);
+    setHoldingQuantity('');
+    setHoldingCost(data.stockMetrics[0]?.currentPrice?.toString() || '');
+    setShowNewPortfolio(false);
+    setNewPortfolioName('');
+    setShowPortfolioModal(true);
+  }, [user, data, navigate]);
+
+  const handleAddToPortfolio = useCallback(async () => {
+    if (!portfolioCompany) return;
+    setSavingHolding(true);
+    try {
+      let pid = selectedPortfolioId;
+      if (showNewPortfolio && newPortfolioName.trim()) {
+        const created = await createPortfolio({ name: newPortfolioName.trim() });
+        pid = created.id;
+        setPortfolios((prev) => [created, ...prev]);
+      }
+      if (!pid || !holdingQuantity || !holdingCost) return;
+      await addHolding(pid, {
+        companyId: portfolioCompany.id,
+        quantity: parseFloat(holdingQuantity),
+        averageCost: parseFloat(holdingCost),
+      });
+      setShowPortfolioModal(false);
+    } catch {
+    } finally {
+      setSavingHolding(false);
+    }
+  }, [portfolioCompany, selectedPortfolioId, showNewPortfolio, newPortfolioName, holdingQuantity, holdingCost]);
+
+  const handleOpenAlarmModal = useCallback(() => {
+    if (!user) { navigate('/login'); return; }
+    if (!data) return;
+    setAlarmTarget((existingAlarm?.targetVerdict as 'buy' | 'hold' | 'sell') || 'buy');
+    setShowAlarmModal(true);
+  }, [user, data, navigate, existingAlarm]);
+
+  const handleSaveAlarm = useCallback(async () => {
+    if (!data) return;
+    setAlarmLoading(true);
+    try {
+      const body = {
+        companyId: data.company.id,
+        targetVerdict: alarmTarget,
+      };
+      if (existingAlarm) {
+        await fetch(`/api/alarms/${existingAlarm.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        setExistingAlarm({ ...existingAlarm, targetVerdict: alarmTarget });
+      } else {
+        const res = await fetch('/api/alarms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const created = await res.json();
+        setExistingAlarm({ id: created.id, targetVerdict: alarmTarget, triggered: false });
+      }
+      setShowAlarmModal(false);
+    } catch {
+    } finally {
+      setAlarmLoading(false);
+    }
+  }, [data, alarmTarget, existingAlarm]);
+
+  const handleDeleteAlarm = useCallback(async () => {
+    if (!existingAlarm) return;
+    try {
+      await fetch(`/api/alarms/${existingAlarm.id}`, { method: 'DELETE' });
+      setExistingAlarm(null);
+      setShowAlarmModal(false);
+    } catch {
+    }
+  }, [existingAlarm]);
+
   if (loading) return <CompanySkeleton />;
 
   if (error || !data) {
@@ -207,6 +355,14 @@ export function CompanyPage() {
   const availableYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
   const currentFinancial = financials.find((f) => f.year === selectedYear) || financials[0];
 
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      prev.set('tab', tab);
+      return prev;
+    }, { replace: true });
+  };
+
   return (
     <div className="cp-page">
       {/* Header */}
@@ -216,6 +372,14 @@ export function CompanyPage() {
         </button>
         <div className="cp-header-info">
           <div className="cp-header-top">
+            {(company.logoUrl || companyLogoUrl(company.website)) ? (
+              <img
+                src={company.logoUrl || companyLogoUrl(company.website)!}
+                alt={company.ticker}
+                className="cp-logo"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : null}
             <h1 className="cp-ticker">{company.ticker}</h1>
             {stock && (
               <div className="cp-price">
@@ -224,6 +388,168 @@ export function CompanyPage() {
                 </span>
               </div>
             )}
+            <div className="cp-actions">
+              <button
+                className={`cp-action-btn ${user && isFavorite(company.id) ? 'cp-action-btn--active' : ''}`}
+                onClick={handleToggleFavorite}
+                title={user && isFavorite(company.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+              >
+                <Heart size={16} fill={user && isFavorite(company.id) ? 'currentColor' : 'none'} />
+              </button>
+              <div className="cp-portfolio-wrapper" ref={portfolioModalRef}>
+                <button
+                  className="cp-action-btn"
+                  onClick={handleOpenPortfolioModal}
+                  title="Añadir a portfolio"
+                >
+                  <Briefcase size={16} />
+                </button>
+                {showPortfolioModal && (
+                  <div className="cp-portfolio-modal">
+                    <div className="cp-portfolio-modal-header">
+                      <span>Añadir {portfolioCompany?.ticker} a portfolio</span>
+                      <button className="cp-portfolio-modal-close" onClick={() => setShowPortfolioModal(false)}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="cp-portfolio-modal-body">
+                      {!showNewPortfolio ? (
+                        <>
+                          {portfolios.length > 0 && (
+                            <div className="cp-portfolio-list">
+                              {portfolios.map((p) => (
+                                <button
+                                  key={p.id}
+                                  className={`cp-portfolio-item ${selectedPortfolioId === p.id ? 'cp-portfolio-item--selected' : ''}`}
+                                  onClick={() => setSelectedPortfolioId(p.id)}
+                                >
+                                  {p.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            className="cp-portfolio-new-btn"
+                            onClick={() => setShowNewPortfolio(true)}
+                          >
+                            <Plus size={14} />
+                            Crear nuevo portfolio
+                          </button>
+                        </>
+                      ) : (
+                        <div className="cp-portfolio-create">
+                          <input
+                            type="text"
+                            value={newPortfolioName}
+                            onChange={(e) => setNewPortfolioName(e.target.value)}
+                            placeholder="Nombre del portfolio"
+                            className="cp-portfolio-input"
+                            autoFocus
+                          />
+                          <button
+                            className="cp-portfolio-back-btn"
+                            onClick={() => { setShowNewPortfolio(false); setNewPortfolioName(''); }}
+                          >
+                            Volver
+                          </button>
+                        </div>
+                      )}
+                      {(selectedPortfolioId || showNewPortfolio) && (
+                        <div className="cp-portfolio-form">
+                          <div className="cp-portfolio-field">
+                            <label>Cantidad</label>
+                            <input
+                              type="number"
+                              value={holdingQuantity}
+                              onChange={(e) => setHoldingQuantity(e.target.value)}
+                              step="0.0001"
+                              min="0"
+                              placeholder="100"
+                              className="cp-portfolio-input"
+                            />
+                          </div>
+                          <div className="cp-portfolio-field">
+                            <label>Precio medio</label>
+                            <input
+                              type="number"
+                              value={holdingCost}
+                              onChange={(e) => setHoldingCost(e.target.value)}
+                              step="0.01"
+                              min="0"
+                              placeholder="150.00"
+                              className="cp-portfolio-input"
+                            />
+                          </div>
+                          <button
+                            className="cp-portfolio-save-btn"
+                            disabled={(!selectedPortfolioId && !showNewPortfolio) || !holdingQuantity || !holdingCost || savingHolding || (showNewPortfolio && !newPortfolioName.trim())}
+                            onClick={handleAddToPortfolio}
+                          >
+                            {savingHolding ? 'Guardando...' : 'Guardar'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="cp-alarm-wrapper" ref={alarmModalRef}>
+                <button
+                  className={`cp-action-btn ${existingAlarm ? 'cp-action-btn--alarm' : ''}`}
+                  onClick={handleOpenAlarmModal}
+                  title={existingAlarm ? 'Editar alarma' : 'Crear alarma'}
+                >
+                  <Bell size={16} fill={existingAlarm ? 'currentColor' : 'none'} />
+                </button>
+                {showAlarmModal && (
+                  <div className="cp-alarm-modal">
+                    <div className="cp-alarm-modal-header">
+                      <span>{existingAlarm ? 'Editar alarma' : 'Crear alarma'}</span>
+                      <button className="cp-alarm-modal-close" onClick={() => setShowAlarmModal(false)}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="cp-alarm-modal-body">
+                      <p className="cp-alarm-modal-desc">Recibe una alerta cuando {company.ticker} entre en este estado:</p>
+                      <div className="cp-alarm-options">
+                        {([
+                          { key: 'buy' as const, label: 'Subvalorada', desc: 'Por debajo de su valor justo', color: '#22c55e' },
+                          { key: 'hold' as const, label: 'Justa', desc: 'Cerca del valor intrínseco', color: '#eab308' },
+                          { key: 'sell' as const, label: 'Sobrevalorada', desc: 'Por encima de su valor justo', color: '#ef4444' },
+                        ]).map((opt) => (
+                          <button
+                            key={opt.key}
+                            className={`cp-alarm-option ${alarmTarget === opt.key ? 'cp-alarm-option--selected' : ''}`}
+                            style={{ '--alarm-color': opt.color } as React.CSSProperties}
+                            onClick={() => setAlarmTarget(opt.key)}
+                          >
+                            <div className="cp-alarm-option-dot" />
+                            <div className="cp-alarm-option-text">
+                              <span className="cp-alarm-option-label">{opt.label}</span>
+                              <span className="cp-alarm-option-desc">{opt.desc}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="cp-alarm-modal-actions">
+                        <button
+                          className="cp-alarm-save-btn"
+                          disabled={alarmLoading}
+                          onClick={handleSaveAlarm}
+                        >
+                          {alarmLoading ? 'Guardando...' : existingAlarm ? 'Actualizar' : 'Crear alarma'}
+                        </button>
+                        {existingAlarm && (
+                          <button className="cp-alarm-delete-btn" onClick={handleDeleteAlarm}>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           <h2 className="cp-name">{company.name}</h2>
           <div className="cp-meta">
@@ -280,7 +606,7 @@ export function CompanyPage() {
           <button
             key={tab.id}
             className={`cp-tab ${activeTab === tab.id ? 'cp-tab--active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
           >
             {tab.label}
           </button>

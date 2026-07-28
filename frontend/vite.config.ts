@@ -14,6 +14,10 @@ export default defineConfig({
         target: process.env.VITE_API_PROXY || 'http://localhost:3005',
         agent: proxyAgent,
       },
+      '/uploads/': {
+        target: process.env.VITE_API_PROXY || 'http://localhost:3005',
+        agent: proxyAgent,
+      },
     },
   },
 })

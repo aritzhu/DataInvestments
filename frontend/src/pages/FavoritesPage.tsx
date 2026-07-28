@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Heart, Clock, Bell, Trash2, CheckCircle, Circle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER } from '../utils/valuation';
+import { companyLogoUrl } from '../utils/companyLogoUrl';
 import '../styles/favorites.css';
 
 interface Alarm {
@@ -133,8 +134,18 @@ export function FavoritesPage() {
                     className={`fav-card ${alarm ? (alarm.triggered ? 'fav-card--triggered' : 'fav-card--pending') : ''}`}
                   >
                     <div className="fav-card-top">
-                      <Link to={`/empresa/${fav.company.ticker}`} className="fav-card-avatar">
-                        {fav.company.ticker.slice(0, 2)}
+                      <Link to={`/empresa/${fav.company.ticker}`} className="fav-card-avatar fav-card-avatar--link">
+                        {(fav.company.logoUrl || companyLogoUrl(fav.company.website)) ? (
+                          <img
+                            src={fav.company.logoUrl || companyLogoUrl(fav.company.website)!}
+                            alt={fav.company.ticker}
+                            className="fav-card-avatar fav-card-avatar--img"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('fav-card-avatar--hidden'); }}
+                          />
+                        ) : null}
+                        <span className={`${(fav.company.logoUrl || companyLogoUrl(fav.company.website)) ? 'fav-card-avatar--hidden' : ''}`}>
+                          {fav.company.ticker.slice(0, 2)}
+                        </span>
                       </Link>
                       <div className="fav-card-info">
                         <Link to={`/empresa/${fav.company.ticker}`} className="fav-card-ticker">

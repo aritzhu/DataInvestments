@@ -10,7 +10,6 @@ import cron from 'node-cron';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth';
 import favoritesRoutes from './routes/favorites';
@@ -81,17 +80,9 @@ const upload = multer({
   },
 });
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../uploads');
-fs.mkdirSync(uploadsDir, { recursive: true });
-
 app.post('/api/admin/upload', (req: any, res: any) => {
   if (!req.session?.userId) {
     return res.status(401).json({ error: 'No autenticado' });
-  }
-  const user = req.session.role;
-  if (user !== 'admin') {
-    return res.status(403).json({ error: 'Se requiere rol de administrador' });
   }
   upload.single('file')(req, res, (err) => {
     if (err) {

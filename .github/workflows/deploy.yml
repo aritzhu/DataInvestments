@@ -1,0 +1,32 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env.prod
+        run: |
+          cat > .env.prod << EOF
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }}
+          SEC_USER_AGENT=${{ secrets.SEC_USER_AGENT }}
+          NODE_ENV=production
+          EOF
+
+      - name: Deploy
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
+
+      - name: Run migrations
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec -T backend npx prisma migrate deploy

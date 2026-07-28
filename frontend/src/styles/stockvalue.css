@@ -107,6 +107,17 @@
   color: var(--text-tertiary);
 }
 
+.val-ttm-legend {
+  margin: 0.35rem 0 0;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  background: var(--bg-quaternary, rgba(255,255,255,0.03));
+  border: 1px solid var(--border-tertiary, rgba(255,255,255,0.06));
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
 /* --- Verdict Badge --- */
 .val-verdict {
   display: flex;

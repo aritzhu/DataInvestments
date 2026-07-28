@@ -73,6 +73,7 @@
   background: var(--surface-0);
   border-bottom: 1px solid var(--border-light);
   scroll-margin-top: 72px;
+  position: relative;
 }
 
 .cp-back {
@@ -114,6 +115,16 @@
   font-size: 1.75rem;
   font-weight: 800;
   color: var(--text-primary);
+}
+
+.cp-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: var(--surface-1);
+  padding: 4px;
+  flex-shrink: 0;
 }
 
 .cp-price-value {
@@ -279,6 +290,244 @@
   font-weight: 500;
 }
 
+/* --- Action Buttons --- */
+.cp-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.75rem;
+}
+
+.cp-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface-0);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+}
+
+.cp-action-btn:hover {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.cp-action-btn--active {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.cp-action-btn--active:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+/* --- Portfolio Modal --- */
+.cp-portfolio-wrapper {
+  position: relative;
+}
+
+.cp-portfolio-modal {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.cp-portfolio-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cp-portfolio-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.cp-portfolio-modal-close:hover {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.cp-portfolio-modal-body {
+  padding: 0.75rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cp-portfolio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cp-portfolio-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+  text-align: left;
+}
+
+.cp-portfolio-item:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-0);
+}
+
+.cp-portfolio-item--selected {
+  border-color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--color-primary);
+}
+
+.cp-portfolio-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-default);
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.cp-portfolio-new-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.cp-portfolio-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cp-portfolio-back-btn {
+  align-self: flex-start;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out);
+}
+
+.cp-portfolio-back-btn:hover {
+  color: var(--text-primary);
+}
+
+.cp-portfolio-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.15s var(--ease-out);
+  box-sizing: border-box;
+}
+
+.cp-portfolio-input:focus {
+  border-color: var(--color-primary);
+}
+
+.cp-portfolio-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.cp-portfolio-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.cp-portfolio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cp-portfolio-field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cp-portfolio-save-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--gradient-primary);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  margin-top: 0.25rem;
+}
+
+.cp-portfolio-save-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.cp-portfolio-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* --- Tab Empty --- */
 .tab-empty {
   display: flex;
@@ -287,6 +536,182 @@
   height: 30vh;
   color: var(--text-tertiary);
   font-size: 0.9rem;
+}
+
+/* --- Alarm Modal --- */
+.cp-alarm-wrapper {
+  position: relative;
+}
+
+.cp-action-btn--alarm {
+  color: #eab308;
+  border-color: rgba(234, 179, 8, 0.3);
+  background: rgba(234, 179, 8, 0.08);
+}
+
+.cp-action-btn--alarm:hover {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.5);
+}
+
+.cp-alarm-modal {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.cp-alarm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cp-alarm-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.cp-alarm-modal-close:hover {
+  background: var(--surface-1);
+  color: var(--text-primary);
+}
+
+.cp-alarm-modal-body {
+  padding: 0.75rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cp-alarm-modal-desc {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.cp-alarm-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cp-alarm-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--surface-0);
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+  text-align: left;
+}
+
+.cp-alarm-option:hover {
+  background: var(--surface-1);
+  border-color: var(--border-strong);
+}
+
+.cp-alarm-option--selected {
+  border-color: var(--alarm-color);
+  background: color-mix(in srgb, var(--alarm-color) 8%, transparent);
+}
+
+.cp-alarm-option-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--alarm-color);
+  flex-shrink: 0;
+}
+
+.cp-alarm-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.cp-alarm-option-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cp-alarm-option-desc {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.cp-alarm-modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cp-alarm-save-btn {
+  flex: 1;
+  padding: 0.5rem 0;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+.cp-alarm-save-btn:hover {
+  opacity: 0.9;
+}
+
+.cp-alarm-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cp-alarm-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+  flex-shrink: 0;
+}
+
+.cp-alarm-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 /* --- Mobile --- */
@@ -298,4 +723,6 @@
   .cp-content { padding: 1rem; }
   .cp-ticker { font-size: 1.5rem; }
   .cp-footer { padding: 0.6rem 1rem; }
+  .cp-portfolio-modal { width: 280px; right: -0.5rem; }
+  .cp-alarm-modal { width: 260px; right: -0.5rem; }
 }

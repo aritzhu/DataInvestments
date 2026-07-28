@@ -16,6 +16,8 @@ export interface Favorite {
     name: string;
     sector: string | null;
     industry: string | null;
+    website: string | null;
+    logoUrl: string | null;
     stockMetrics: Array<{
       currentPrice: number;
       intrinsicValue: number | null;

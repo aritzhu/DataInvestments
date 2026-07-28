@@ -20,7 +20,9 @@ model Company {
   employees   Int?
   country     String?
   exchange    String?
+  currency    String?
   website     String?
+  logoUrl     String?
   ipoDate     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -286,4 +288,10 @@ model ConceptMapping {
   source      String
   confirmedBy String?
   createdAt   DateTime @default(now())
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime @updatedAt
 }

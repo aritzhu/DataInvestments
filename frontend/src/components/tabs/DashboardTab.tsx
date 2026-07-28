@@ -26,7 +26,7 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
   const ebitdaMargin = safeDiv(financial.ebitda ?? 0, financial.revenue);
 
   // Fair value computation
-  const valInput: ValuationInput = { financials, balanceSheets, stock: stock! };
+  const valInput: ValuationInput = { financials, balanceSheets, stock: stock!, currency: company.currency || 'USD' };
   const valResults = stock ? computeAll(valInput, getSectorConfigs(company.sector, company.industry)) : [];
   const avgFair = weightedAverage(valResults);
   const { verdict, upside, label: verdictLabel } = getVerdict(avgFair, stock?.currentPrice ?? 0);
@@ -41,7 +41,7 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
           <div className="dash-card-body">
             <span className="dash-card-label">Precio actual</span>
             <span className="dash-card-value">
-              $<AnimatedNumber value={stock?.currentPrice ?? 0} format={(n) => n.toFixed(2)} />
+              {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}<AnimatedNumber value={stock?.currentPrice ?? 0} format={(n) => n.toFixed(2)} />
             </span>
           </div>
           <div className="dash-card-sub">
@@ -67,11 +67,11 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
             <div className="dash-verdict-body">
               <div className="dash-verdict-row">
                 <span className="dash-verdict-row-label">Valor intrínseco</span>
-                <span className="dash-verdict-row-value">${avgFair.toFixed(2)}</span>
+                <span className="dash-verdict-row-value">{company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{avgFair.toFixed(2)}</span>
               </div>
               <div className="dash-verdict-row">
                 <span className="dash-verdict-row-label">Precio actual</span>
-                <span className="dash-verdict-row-value">${(stock?.currentPrice ?? 0).toFixed(2)}</span>
+                <span className="dash-verdict-row-value">{company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{(stock?.currentPrice ?? 0).toFixed(2)}</span>
               </div>
               <div className="dash-verdict-row">
                 <span className="dash-verdict-row-label">Métodos usados</span>

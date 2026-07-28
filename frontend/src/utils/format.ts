@@ -62,6 +62,27 @@ export function fmtEuroAnimated(n: number): string {
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 1 })} €`;
 }
 
+/** Currency symbols map */
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', JPY: '¥', CAD: 'C$', AUD: 'A$', CHF: 'CHF ' };
+
+/** Format value with the correct currency symbol */
+export function fmtCurrency(n: number | null | undefined, currency = 'USD'): string {
+  if (n == null) return '—';
+  const sym = CURRENCY_SYMBOLS[currency?.toUpperCase()] ?? `${currency} `;
+  return `${sym}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+/** Format large number with currency symbol */
+export function fmtCurrencyShort(n: number | null | undefined, currency = 'USD'): string {
+  if (n == null) return '—';
+  const sym = CURRENCY_SYMBOLS[currency?.toUpperCase()] ?? `${currency} `;
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${sym}${(n / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `${sym}${(n / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${sym}${(n / 1e6).toFixed(0)}M`;
+  return `${sym}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
 /** Safe division guard */
 export function safeDiv(a: number, b: number): number | null {
   if (!b || b === 0) return null;

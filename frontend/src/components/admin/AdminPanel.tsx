@@ -55,6 +55,10 @@ export function AdminPanel() {
   const [resyncProgress, setResyncProgress] = useState<ProgressUpdate | null>(null);
   const [resyncComplete, setResyncComplete] = useState<{ succeeded: number; failed: number; errors: Array<{ ticker: string; error: string }> } | null>(null);
   const [companySearch, setCompanySearch] = useState('');
+  const [heroSettings, setHeroSettings] = useState<Record<string, string>>({});
+  const [heroSaving, setHeroSaving] = useState(false);
+  const [heroUploading, setHeroUploading] = useState(false);
+  const [heroUploadError, setHeroUploadError] = useState('');
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -70,9 +74,54 @@ export function AdminPanel() {
 
   useEffect(() => {
     fetchCompanies();
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => setHeroSettings(data))
+      .catch(() => {});
   }, [fetchCompanies]);
 
   const handleCompanyAdded = () => fetchCompanies();
+
+  const handleSaveHero = async () => {
+    setHeroSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(heroSettings),
+      });
+    } finally {
+      setHeroSaving(false);
+    }
+  };
+
+  const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setHeroUploading(true);
+    setHeroUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setHeroSettings((prev) => ({ ...prev, hero_bg_url: data.url }));
+      } else {
+        setHeroUploadError(data.error || 'Error al subir la imagen');
+      }
+    } catch {
+      setHeroUploadError('Error de conexión al subir la imagen');
+    } finally {
+      setHeroUploading(false);
+    }
+  };
+
   const handleCompanyDeleted = () => fetchCompanies();
   const handleSyncComplete = () => fetchCompanies();
 
@@ -276,6 +325,99 @@ export function AdminPanel() {
               <span className="admin-status-dot admin-status-dot--green" />
               Gratuito — Scraping
             </span>
+          </div>
+        </div>
+
+        {/* Hero Settings */}
+        <div className="admin-form-section" style={{ border: '2px solid #fce7f3', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>🎨</span>
+              <h2 className="admin-form-title" style={{ marginBottom: 0, color: '#9d174d' }}>Contenido de la Web</h2>
+            </div>
+            <button onClick={handleSaveHero} disabled={heroSaving} style={{ padding: '0.5rem 1.25rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroSaving ? 0.6 : 1 }}>
+              {heroSaving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+
+          {/* Hero Image Upload */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Imagen de fondo del hero</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroUploading ? 0.6 : 1 }}>
+                {heroUploading ? 'Subiendo...' : 'Subir imagen'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleHeroImageUpload} style={{ display: 'none' }} disabled={heroUploading} />
+              </label>
+              {heroSettings.hero_bg_url && (
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, hero_bg_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                  Eliminar
+                </button>
+              )}
+            </div>
+            {heroSettings.hero_bg_url && (
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', maxHeight: '160px', position: 'relative' }}>
+                <img src={heroSettings.hero_bg_url} alt="Preview" style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.6))', padding: '0.5rem 0.75rem', color: 'white', fontSize: '0.7rem' }}>
+                  Imagen de fondo del hero
+                </div>
+              </div>
+            )}
+            {heroUploadError && (
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+                {heroUploadError}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {[
+              { key: 'hero_badge', label: 'Badge del hero', placeholder: 'Análisis de Valor Intrínseco' },
+              { key: 'hero_title', label: 'Título principal', placeholder: 'Entiende el valor real de las empresas' },
+              { key: 'hero_subtitle', label: 'Subtítulo', placeholder: 'Visualiza flujos de caja...' },
+              { key: 'hero_cta_primary', label: 'Texto botón primario', placeholder: 'Explorar Empresas' },
+              { key: 'hero_cta_primary_link', label: 'Enlace botón primario', placeholder: '#companies' },
+              { key: 'hero_cta_secondary', label: 'Texto botón secundario', placeholder: 'Saber más' },
+              { key: 'hero_cta_secondary_link', label: 'Enlace botón secundario', placeholder: '#features' },
+            ].map((field) => (
+              <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>{field.label}</label>
+                <input
+                  type="text"
+                  value={heroSettings[field.key] || ''}
+                  onChange={(e) => setHeroSettings((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  placeholder={field.placeholder}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', fontSize: '0.85rem', outline: 'none' }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Valuation Sections Config */}
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(236, 72, 153, 0.2)', paddingTop: '1.25rem' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#9d174d', marginBottom: '1rem' }}>Secciones de Valoración</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {[
+                { key: 'undervalued_title', label: 'Título subvaloradas', placeholder: 'Oportunidades de Inversión' },
+                { key: 'undervalued_subtitle', label: 'Subtítulo subvaloradas', placeholder: 'Empresas con margen de seguridad positivo...' },
+                { key: 'undervalued_limit', label: 'Límite subvaloradas (1-20)', placeholder: '5' },
+                { key: 'overvalued_title', label: 'Título sobrevaloradas', placeholder: 'Empresas Sobrevaloradas' },
+                { key: 'overvalued_subtitle', label: 'Subtítulo sobrevaloradas', placeholder: 'Empresas que el mercado sobreestima...' },
+                { key: 'overvalued_limit', label: 'Límite sobrevaloradas (1-20)', placeholder: '5' },
+              ].map((field) => (
+                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>{field.label}</label>
+                  <input
+                    type={field.key.includes('limit') ? 'number' : 'text'}
+                    min={field.key.includes('limit') ? 1 : undefined}
+                    max={field.key.includes('limit') ? 20 : undefined}
+                    value={heroSettings[field.key] || ''}
+                    onChange={(e) => setHeroSettings((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', fontSize: '0.85rem', outline: 'none' }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 

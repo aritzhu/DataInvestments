@@ -12,7 +12,7 @@ router.get('/', requireAuth, async (req, res) => {
       include: {
         company: {
           select: {
-            id: true, ticker: true, name: true, sector: true, industry: true,
+            id: true, ticker: true, name: true, sector: true, industry: true, website: true, logoUrl: true,
             stockMetrics: { orderBy: { date: 'desc' }, take: 1 },
             financialData: { orderBy: [{ year: 'desc' }, { quarter: 'desc' }], take: 1 },
           },
@@ -49,7 +49,7 @@ router.post('/:companyId', requireAuth, async (req, res) => {
 
     const favorite = await prisma.favorite.create({
       data: { userId, companyId },
-      include: { company: { select: { id: true, ticker: true, name: true, sector: true, industry: true } } },
+      include: { company: { select: { id: true, ticker: true, name: true, sector: true, industry: true, website: true, logoUrl: true } } },
     });
 
     res.status(201).json(favorite);

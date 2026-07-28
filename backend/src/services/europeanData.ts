@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
+import { validateFinancialData, logValidationWarnings } from '../utils/financialValidation';
 
 const prisma = new PrismaClient();
 const GLEIF_BASE = 'https://api.gleif.org/api/v1';
@@ -579,7 +580,7 @@ async function mapJsonFactsToFiscalData(
   );
   const rdVal = fields.rdExpense ?? null;
 
-  return {
+  const result: EuropeanFinancialData = {
     year,
     revenue: fields.revenue ?? null,
     costOfRevenue,
@@ -644,4 +645,11 @@ async function mapJsonFactsToFiscalData(
     feeIncome: fields.feeIncome ?? null,
     feeExpense: fields.feeExpense ?? null,
   };
+
+  const warnings = validateFinancialData(result);
+  if (warnings.length > 0) {
+    logValidationWarnings(`year=${year}`, warnings, 'European-XBRL');
+  }
+
+  return result;
 }

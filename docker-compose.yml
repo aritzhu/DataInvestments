@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  yfinance-service:
+    build: ./backend/python
+    container_name: datainvestments-yfinance
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   backend:
     build: ./backend
     container_name: datainvestments-backend
@@ -25,10 +38,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      yfinance-service:
+        condition: service_started
+    volumes:
+      - uploads:/app/uploads
     environment:
       PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-datainvestments}
       SESSION_SECRET: ${SESSION_SECRET:-di-dev-session-secret-change-in-production}
+      YFINANCE_URL: http://yfinance-service:8000
 
 volumes:
   postgres_data:
+  uploads:

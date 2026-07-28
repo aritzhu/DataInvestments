@@ -1,4 +1,23 @@
 import { PrismaClient } from '@prisma/client';
+
+function buildLogoUrl(website: string | null | undefined): string | null {
+  if (!website) return null;
+  const domain = website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+  if (!domain) return null;
+  return `https://logos.hunter.io/${domain}`;
+}
+
+function inferCurrency(ticker: string): string {
+  const t = ticker.toUpperCase();
+  if (t.endsWith('.DE') || t.endsWith('.AS') || t.endsWith('.MC') || t.endsWith('.PA') || t.endsWith('.MI') || t.endsWith('.BR') || t.endsWith('.SW') || t.endsWith('.SI')) return 'EUR';
+  if (t.endsWith('.L')) return 'GBP';
+  if (t.endsWith('.TO') || t.endsWith('.V')) return 'CAD';
+  if (t.endsWith('.AX')) return 'AUD';
+  if (t.endsWith('.HK')) return 'HKD';
+  if (t.endsWith('.T')) return 'JPY';
+  return 'USD';
+}
+
 import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
 import {
   getCikForTicker,
@@ -55,8 +74,18 @@ import {
 import { fetchYahooQuote, fetchYahooProfile } from './yahoo';
 import { fetchFinnhubMetrics } from './finnhub';
 import { fetchEuropeanFinancials } from './europeanData';
+import {
+  fetchYFinanceQuarterly,
+  fetchYFinanceInfo,
+  parseYFinanceDate,
+  mapIncomeRecord,
+  mapCashflowRecord,
+  mapBalanceRecord,
+  type YFinanceRecord,
+} from './yfinanceSidecar';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
+import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
 
 const prisma = new PrismaClient();
 
@@ -72,6 +101,7 @@ export interface SyncResult {
   fmpSync: boolean;
   finnhubSync: boolean;
   europeanSync: boolean;
+  yfinanceSync: boolean;
   yearsSynced: number;
   financialRecords: number;
   balanceSheets: number;
@@ -86,6 +116,7 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
     fmpSync: false,
     finnhubSync: false,
     europeanSync: false,
+    yfinanceSync: false,
     yearsSynced: years,
     financialRecords: 0,
     balanceSheets: 0,
@@ -126,7 +157,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
               employees: safeInt(profile?.fullTimeEmployees),
               country: profile?.country || null,
               exchange: profile?.exchangeShortName || null,
+              currency: inferCurrency(ticker),
               website: profile?.website || null,
+              logoUrl: buildLogoUrl(profile?.website),
             },
           });
         } else if (profile) {
@@ -143,6 +176,7 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
               country: profile.country || company.country,
               exchange: profile.exchangeShortName || company.exchange,
               website: profile.website || company.website,
+              logoUrl: buildLogoUrl(profile.website) || company.logoUrl,
             },
           });
         }
@@ -191,6 +225,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
             totalEquity: bs?.totalStockholdersEquity || null,
           };
 
+          const fdWarnings = validateFinancialData(data);
+          logValidationWarnings(ticker, fdWarnings, 'FMP');
+
           if (existing) {
             await prisma.financialData.update({ where: { id: existing.id }, data });
           } else {
@@ -228,6 +265,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
               retainedEarnings: bs.retainedEarnings || null,
               treasuryStock: bs.treasuryStock || null,
             };
+
+            const bsWarnings = validateBalanceSheet(bsData);
+            logValidationWarnings(ticker, bsWarnings, 'FMP');
 
             if (bsExisting) {
               await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
@@ -503,6 +543,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
         totalEquity: totalEquityMap.get(year) || null,
       };
 
+      const secWarnings = validateFinancialData(data);
+      logValidationWarnings(ticker, secWarnings, 'SEC');
+
       if (existing) {
         await prisma.financialData.update({ where: { id: existing.id }, data });
       } else {
@@ -545,6 +588,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
         treasuryStock: treasuryStockMap.get(year) || null,
       };
 
+      const secBsWarnings = validateBalanceSheet(bsData);
+      logValidationWarnings(ticker, secBsWarnings, 'SEC');
+
       if (bsExisting) {
         await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
       } else {
@@ -568,9 +614,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
       if (yahooQuote && yahooQuote.currentPrice > 0) {
         const shares = sharesOutstanding ?? (yahooQuote.sharesOutstanding > 0 ? yahooQuote.sharesOutstanding
           : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0 ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice) : null));
-        const mcap = yahooQuote.marketCap && yahooQuote.marketCap > 0
-          ? yahooQuote.marketCap
-          : (shares && yahooQuote.currentPrice > 0 ? yahooQuote.currentPrice * shares : null);
+        const mcap = shares && yahooQuote.currentPrice > 0
+          ? yahooQuote.currentPrice * shares
+          : (yahooQuote.marketCap && yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null);
 
         const stockExisting = await prisma.stockMetric.findFirst({
           where: { companyId: company.id },
@@ -667,6 +713,167 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
           ? (stoxxEntry?.name || undefined)
           : yahooName;
 
+        // --- Try yfinance quarterly data first ---
+        const yfData = await fetchYFinanceQuarterly(ticker);
+        const yfInfo = await fetchYFinanceInfo(ticker);
+        const yfHasData = yfData?.hasQuarterly && yfData.income.length > 0;
+
+        if (yfHasData && yfData) {
+          console.log(`[yFinance] ${ticker}: ${yfData.income.length} income, ${yfData.balance.length} balance, ${yfData.cashflow.length} cashflow records`);
+
+          let company = await prisma.company.findUnique({
+            where: { ticker: ticker.toUpperCase() },
+          });
+
+          if (!company) {
+            const yfSector = yfInfo?.info?.sector || null;
+            const yfIndustry = yfInfo?.info?.industry || null;
+            const yfWebsite = yfInfo?.info?.website || null;
+            company = await prisma.company.create({
+              data: {
+                ticker: ticker.toUpperCase(),
+                name: companyName || yfInfo?.info?.shortName || yfInfo?.info?.longName || ticker.toUpperCase(),
+                country: countryCode,
+                exchange: yahooQuote?.exchange || null,
+                currency: inferCurrency(ticker),
+                sector: stoxxEntry?.sector || yfSector,
+                industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || yfIndustry) : yfIndustry,
+                website: yfWebsite,
+                logoUrl: buildLogoUrl(yfWebsite),
+              },
+            });
+            console.log(`[yFinance] Created company ${ticker} (id: ${company.id})`);
+          } else if (!company.sector) {
+            const yfSector = yfInfo?.info?.sector || null;
+            const yfIndustry = yfInfo?.info?.industry || null;
+            const sectorData = stoxxEntry?.sector
+              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              : yfSector
+                ? { sector: yfSector, industry: yfIndustry }
+                : TICKER_SECTORS[ticker]
+                  ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+                  : null;
+            if (sectorData) {
+              await prisma.company.update({ where: { id: company.id }, data: sectorData });
+              console.log(`[yFinance] Updated ${ticker} sector → ${sectorData.sector}`);
+            }
+          }
+
+          // Build lookup maps for cashflow and balance by date
+          const cashflowByDate = new Map<string, YFinanceRecord>();
+          for (const cf of yfData.cashflow) cashflowByDate.set(cf.date, cf);
+          const balanceByDate = new Map<string, YFinanceRecord>();
+          for (const bs of yfData.balance) balanceByDate.set(bs.date, bs);
+
+          for (const inc of yfData.income) {
+            const { year, quarter } = parseYFinanceDate(inc.date);
+            const mapped = mapIncomeRecord(inc);
+            const cfRec = cashflowByDate.get(inc.date);
+            const cfMapped = cfRec ? mapCashflowRecord(cfRec) : null;
+            const bsRec = balanceByDate.get(inc.date);
+            const bsMapped = bsRec ? mapBalanceRecord(bsRec) : null;
+
+            const finData = {
+              companyId: company.id,
+              year,
+              quarter,
+              revenue: mapped.revenue,
+              costOfRevenue: mapped.costOfRevenue,
+              grossProfit: mapped.grossProfit,
+              operatingExpenses: mapped.operatingExpenses ?? 0,
+              sgaExpense: mapped.sgaExpense,
+              rdExpense: mapped.rdExpense,
+              interestExpense: mapped.interestExpense,
+              taxExpense: mapped.taxExpense,
+              netIncome: mapped.netIncome,
+              ebitda: mapped.ebitda,
+              ebit: mapped.ebit,
+              capex: cfMapped?.capex ?? 0,
+              depreciation: mapped.depreciation,
+              operatingCashFlow: cfMapped?.operatingCashFlow ?? null,
+              investingCashFlow: cfMapped?.investingCashFlow ?? null,
+              financingCashFlow: cfMapped?.financingCashFlow ?? null,
+              freeCashFlow: cfMapped?.freeCashFlow ?? null,
+              dividendsPaid: cfMapped?.dividendsPaid ?? null,
+              shareRepurchases: cfMapped?.shareRepurchases ?? null,
+              totalAssets: bsMapped?.totalAssets ?? null,
+              totalLiabilities: bsMapped?.totalLiabilities ?? null,
+              totalEquity: bsMapped?.totalStockholdersEquity ?? null,
+            };
+
+            const existing = await prisma.financialData.findUnique({
+              where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+            });
+            const yfWarnings = validateFinancialData(finData);
+            logValidationWarnings(ticker, yfWarnings, 'yFinance');
+            if (existing) {
+              await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+            } else {
+              await prisma.financialData.create({ data: finData });
+            }
+            result.financialRecords++;
+          }
+
+          // Balance sheets from yfinance
+          for (const bsRec of yfData.balance) {
+            const { year, quarter } = parseYFinanceDate(bsRec.date);
+            const bsMapped = mapBalanceRecord(bsRec);
+            if (bsMapped.totalAssets == null && bsMapped.totalLiabilities == null) continue;
+
+            const bsExisting = await prisma.balanceSheet.findUnique({
+              where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+            });
+            const bsData = { companyId: company.id, year, quarter, ...bsMapped };
+            const yfBsWarnings = validateBalanceSheet(bsData);
+            logValidationWarnings(ticker, yfBsWarnings, 'yFinance');
+            if (bsExisting) {
+              await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+            } else {
+              await prisma.balanceSheet.create({ data: bsData });
+            }
+            result.balanceSheets++;
+          }
+
+          // StockMetric from yfinance info (richer than Yahoo quote)
+          if (yfInfo?.info && (yfInfo.info.sharesOutstanding > 0 || yfInfo.info.marketCap > 0)) {
+            const stockExisting = await prisma.stockMetric.findFirst({
+              where: { companyId: company.id },
+              orderBy: { date: 'desc' },
+            });
+
+            const stockData = {
+              companyId: company.id,
+              date: new Date(),
+              currentPrice: yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0,
+              sharesOutstanding: yfInfo.info.sharesOutstanding ?? 0,
+              marketCap: (yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0) * (yfInfo.info.sharesOutstanding ?? 0) || yfInfo.info.marketCap,
+              enterpriseValue: yfInfo.info.enterpriseValue ?? null,
+              peRatio: yfInfo.info.trailingPE ?? null,
+              pbRatio: yfInfo.info.priceToBook ?? null,
+              psRatio: yfInfo.info.priceToSalesTrailing12Months ?? null,
+              dividendYield: yfInfo.info.dividendYield ?? null,
+              roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity * 100 : null,
+              roa: yfInfo.info.returnOnAssets != null ? yfInfo.info.returnOnAssets * 100 : null,
+              currentRatio: yfInfo.info.currentRatio ?? null,
+              debtToEquity: yfInfo.info.debtToEquity != null ? yfInfo.info.debtToEquity / 100 : null,
+              roic: null,
+              altmanZ: null,
+              piotroskiScore: null,
+            };
+
+            if (stockExisting) {
+              await prisma.stockMetric.update({ where: { id: stockExisting.id }, data: stockData });
+            } else {
+              await prisma.stockMetric.create({ data: stockData });
+            }
+            console.log(`[yFinance] ${ticker}: StockMetric saved (shares=${stockData.sharesOutstanding}, mcap=${stockData.marketCap})`);
+          }
+
+          result.yfinanceSync = true;
+          result.europeanSync = true;
+          console.log(`[yFinance] Completed for ${ticker}: ${result.financialRecords} financial records, ${result.balanceSheets} balance sheets`);
+        } else {
+        // --- Fallback: XBRL/ESEF data ---
         const europeanResult = await fetchEuropeanFinancials(ticker, countryCode, companyName);
         const europeanData = europeanResult;
         europeanAvailableTags = europeanResult.availableTags;
@@ -685,6 +892,7 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
                 name: companyName || ticker.toUpperCase(),
                 country: countryCode,
                 exchange: yahooQuote?.exchange || null,
+                currency: inferCurrency(ticker),
                 sector: stoxxEntry?.sector || null,
                 industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
               },
@@ -745,6 +953,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
               totalEquity: ed.totalEquity ?? null,
             };
 
+            const euWarnings = validateFinancialData(data);
+            logValidationWarnings(ticker, euWarnings, 'European');
+
             if (existing) {
               await prisma.financialData.update({ where: { id: existing.id }, data });
             } else {
@@ -785,6 +996,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
                 treasuryStock: null,
               };
 
+              const euBsWarnings = validateBalanceSheet(bsData);
+              logValidationWarnings(ticker, euBsWarnings, 'European');
+
               if (bsExisting) {
                 await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
               } else {
@@ -813,11 +1027,9 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
               ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice)
               : (europeanData.data.find(d => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? 0));
 
-            const mcap = yahooQuote.marketCap > 0
-              ? yahooQuote.marketCap
-              : (stockSharesOutstanding > 0 && yahooQuote.currentPrice > 0
-                ? yahooQuote.currentPrice * stockSharesOutstanding
-                : null);
+            const mcap = stockSharesOutstanding > 0 && yahooQuote.currentPrice > 0
+              ? yahooQuote.currentPrice * stockSharesOutstanding
+              : (yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null);
 
             console.log(`[European] ${ticker}: Yahoo quote price=${yahooQuote.currentPrice}, shares=${yahooQuote.sharesOutstanding}, mcap=${mcap}`);
             console.log(`[European] ${ticker}: XBRL shares=${europeanData.data[0]?.sharesOutstanding}, computed stockSharesOutstanding=${stockSharesOutstanding}`);
@@ -870,6 +1082,7 @@ export async function syncCompanyData(ticker: string, years: number, fmpApiKey?:
             }
           }
         }
+        } // end else (XBRL fallback)
       } catch (error) {
         console.error(`[European] Error for ${ticker}:`, error instanceof Error ? error.message : error);
         result.error = `European error: ${error instanceof Error ? error.message : 'unknown'}`;
@@ -1049,7 +1262,9 @@ export async function addCompanyFromTicker(ticker: string, fmpApiKey?: string) {
             employees: safeInt(profile.fullTimeEmployees),
             country: profile.country || null,
             exchange: profile.exchangeShortName || null,
+            currency: inferCurrency(upperTicker),
             website: profile.website || null,
+            logoUrl: buildLogoUrl(profile.website),
           },
         });
         console.log(`[AddCompany] Created ${upperTicker} via FMP (id: ${company.id})`);
@@ -1117,6 +1332,7 @@ export async function addCompanyFromTicker(ticker: string, fmpApiKey?: string) {
           name: companyName || upperTicker,
           country: countryCode,
           exchange: yahooQuote?.exchange || null,
+          currency: inferCurrency(upperTicker),
           sector: stoxxEntry?.sector || null,
           industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
         },

@@ -1,11 +1,12 @@
 import type { ValuationResult } from '../../utils/valuation';
-import { fmtUsd } from '../../utils/format';
+import { fmtCurrency } from '../../utils/format';
 
 interface Props {
   results: ValuationResult[];
   currentPrice: number;
   activeId: string;
   onSelect: (id: string) => void;
+  currency?: string;
 }
 
 const CONFIDENCE_COLORS: Record<string, string> = {
@@ -22,7 +23,7 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   na: 'N/D',
 };
 
-export function ValuationChart({ results, currentPrice, activeId, onSelect }: Props) {
+export function ValuationChart({ results, currentPrice, activeId, onSelect, currency = 'USD' }: Props) {
   const valid = results.filter(r => r.fairValue != null && r.fairValue > 0);
   const maxVal = Math.max(...valid.map(r => r.fairValue!), currentPrice);
 
@@ -56,7 +57,7 @@ export function ValuationChart({ results, currentPrice, activeId, onSelect }: Pr
                 style={{ width: `${widthPct}%`, background: barColor, opacity: isActive ? 1 : 0.7 }}
               />
             </div>
-            <span className="vc-value">{fmtUsd(r.fairValue)}</span>
+            <span className="vc-value">{fmtCurrency(r.fairValue, currency)}</span>
             <span className="vc-badge" style={{ background: CONFIDENCE_COLORS[r.confidence] }}>
               {CONFIDENCE_LABELS[r.confidence]}
             </span>
@@ -67,7 +68,7 @@ export function ValuationChart({ results, currentPrice, activeId, onSelect }: Pr
       {/* Price line */}
       <div className="vc-price-line" style={{ marginLeft: `${Math.min((currentPrice / maxVal) * 100, 98)}%` }}>
         <div className="vc-price-marker" />
-        <span className="vc-price-label">Precio: {fmtUsd(currentPrice)}</span>
+        <span className="vc-price-label">Precio: {fmtCurrency(currentPrice, currency)}</span>
       </div>
     </div>
   );

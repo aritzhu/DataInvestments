@@ -1,4 +1,5 @@
 import type { CompanyProfile } from '../components/CompanyPage';
+import { fmtCurrency } from './format';
 
 type Financial = CompanyProfile['financials'][0];
 type BalanceSheet = CompanyProfile['balanceSheets'][0];
@@ -28,10 +29,142 @@ export interface ValuationInput {
   financials: Financial[];
   balanceSheets: BalanceSheet[];
   stock: Stock;
+  currency: string;
 }
 
-function latest<T extends { year: number }>(arr: T[]): T | undefined {
-  return [...arr].sort((a, b) => b.year - a.year)[0];
+function latest<T extends { year: number; quarter?: number | null }>(arr: T[]): T | undefined {
+  return [...arr].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  })[0];
+}
+
+interface TTMData {
+  revenue: number;
+  netIncome: number;
+  ebitda: number | null;
+  ebit: number | null;
+  operatingCashFlow: number | null;
+  freeCashFlow: number | null;
+  capex: number;
+  depreciation: number;
+  sgaExpense: number;
+  interestExpense: number;
+  taxExpense: number;
+  costOfRevenue: number;
+  grossProfit: number;
+  operatingExpenses: number;
+  rdExpense: number;
+  dividendsPaid: number | null;
+  shareRepurchases: number | null;
+  balanceSheet: BalanceSheet | undefined;
+  isTTM: boolean;
+  hasGap: boolean;
+}
+
+function sumField(items: Financial[], field: keyof Financial): number {
+  return items.reduce((acc, f) => acc + ((f[field] as number) ?? 0), 0);
+}
+
+function sumFieldNull(items: Financial[], field: keyof Financial): number | null {
+  const total = items.reduce((acc, f) => acc + ((f[field] as number) ?? 0), 0);
+  return items.some(f => f[field] != null) ? total : null;
+}
+
+export function trailing12Months(financials: Financial[], balanceSheets: BalanceSheet[]): TTMData | null {
+  const quarterly = financials.filter(f => f.quarter != null && f.quarter > 0);
+
+  // Fallback to annual if no quarterly data
+  if (quarterly.length < 4) {
+    const f = latest(financials);
+    const bs = latest(balanceSheets);
+    if (!f) return null;
+    return {
+      revenue: f.revenue,
+      netIncome: f.netIncome,
+      ebitda: f.ebitda,
+      ebit: f.ebit,
+      operatingCashFlow: f.operatingCashFlow,
+      freeCashFlow: f.freeCashFlow,
+      capex: f.capex,
+      depreciation: f.depreciation,
+      sgaExpense: f.sgaExpense,
+      interestExpense: f.interestExpense,
+      taxExpense: f.taxExpense,
+      costOfRevenue: f.costOfRevenue,
+      grossProfit: f.grossProfit ?? 0,
+      operatingExpenses: f.operatingExpenses,
+      rdExpense: f.rdExpense,
+      dividendsPaid: f.dividendsPaid,
+      shareRepurchases: f.shareRepurchases,
+      balanceSheet: bs,
+      isTTM: false,
+      hasGap: false,
+    };
+  }
+
+  // Sort quarterly by year desc, quarter desc and take top 4
+  const sorted = [...quarterly].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  });
+  const last4 = sorted.slice(0, 4);
+
+  // Detect gaps: quarters should be contiguous (differ by exactly 1)
+  let hasGap = false;
+  for (let i = 0; i < last4.length - 1; i++) {
+    const a = last4[i];
+    const b = last4[i + 1];
+    const aNum = (a.year ?? 0) * 4 + (a.quarter ?? 0);
+    const bNum = (b.year ?? 0) * 4 + (b.quarter ?? 0);
+    if (aNum - bNum !== 1) {
+      hasGap = true;
+      break;
+    }
+  }
+
+  // Use latest balance sheet (point-in-time snapshot)
+  const bs = latest(balanceSheets);
+
+  return {
+    revenue: sumField(last4, 'revenue'),
+    netIncome: sumField(last4, 'netIncome'),
+    ebitda: sumFieldNull(last4, 'ebitda'),
+    ebit: sumFieldNull(last4, 'ebit'),
+    operatingCashFlow: sumFieldNull(last4, 'operatingCashFlow'),
+    freeCashFlow: sumFieldNull(last4, 'freeCashFlow'),
+    capex: sumField(last4, 'capex'),
+    depreciation: sumField(last4, 'depreciation'),
+    sgaExpense: sumField(last4, 'sgaExpense'),
+    interestExpense: sumField(last4, 'interestExpense'),
+    taxExpense: sumField(last4, 'taxExpense'),
+    costOfRevenue: sumField(last4, 'costOfRevenue'),
+    grossProfit: sumField(last4, 'grossProfit'),
+    operatingExpenses: sumField(last4, 'operatingExpenses'),
+    rdExpense: sumField(last4, 'rdExpense'),
+    dividendsPaid: sumFieldNull(last4, 'dividendsPaid'),
+    shareRepurchases: sumFieldNull(last4, 'shareRepurchases'),
+    balanceSheet: bs,
+    isTTM: true,
+    hasGap,
+  };
+}
+
+export function hasQuarterlyData(financials: Financial[]): boolean {
+  return financials.some(f => f.quarter != null && f.quarter > 0);
+}
+
+export function latestFinancialPeriod(financials: Financial[]): { year: number | null; quarter: number | null; isTTM: boolean } {
+  const quarterly = financials.filter(f => f.quarter != null && f.quarter > 0);
+  if (quarterly.length >= 4) {
+    const sorted = [...quarterly].sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return (b.quarter ?? 0) - (a.quarter ?? 0);
+    });
+    return { year: sorted[0].year, quarter: sorted[0].quarter ?? null, isTTM: true };
+  }
+  const f = latest(financials);
+  return { year: f?.year ?? null, quarter: null, isTTM: false };
 }
 
 function netDebt(bs: BalanceSheet | undefined): number {
@@ -48,7 +181,25 @@ function consistency(arr: number[]): number {
 }
 
 function sharesOf(stock: Stock): number {
-  return stock.sharesOutstanding ?? 0;
+  const shares = stock.sharesOutstanding ?? 0;
+  const price = stock.currentPrice ?? 0;
+  const mcap = stock.marketCap ?? 0;
+  if (shares > 0 && price > 0 && mcap > 0) {
+    const impliedShares = mcap / price;
+    const divergence = Math.abs(impliedShares - shares) / shares;
+    if (divergence > 0.25) {
+      return impliedShares;
+    }
+  }
+  return shares;
+}
+
+function fmtVal(n: number, currency: string): string {
+  return fmtCurrency(n, currency);
+}
+function fmtB(n: number, currency: string): string {
+  const sym = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
+  return `${sym}${(n / 1e9).toFixed(1)}B`;
 }
 
 // Sanity bound: if fair value is more than MAX_MULTIPLE × current price, demote confidence
@@ -70,14 +221,29 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [] };
   }
 
-  // Use average FCF across all available years (not just latest peak)
-  const fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null)).filter((v): v is number => v != null && v !== 0);
-  if (fcfValues.length === 0) {
-    return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre', configurable: true, inputs: [] };
+  // Use TTM FCF when quarterly data exists, otherwise average annual FCF
+  const isQuarterly = hasQuarterlyData(input.financials);
+  let fcf: number;
+  let fcfSource: string;
+  let fcfValues: number[] = [];
+  if (isQuarterly) {
+    const ttm = trailing12Months(input.financials, input.balanceSheets);
+    const ttmFCF = ttm?.freeCashFlow ?? ttm?.operatingCashFlow;
+    if (ttmFCF == null || ttmFCF === 0) {
+      return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre (TTM)', configurable: true, inputs: [] };
+    }
+    fcf = ttmFCF;
+    fcfSource = 'TTM';
+  } else {
+    fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null)).filter((v): v is number => v != null && v !== 0);
+    if (fcfValues.length === 0) {
+      return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre', configurable: true, inputs: [] };
+    }
+    fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
+    fcfSource = `${fcfValues.length} años`;
   }
-  const fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
   const fcfWarning = fcf < 0
-    ? 'FCF promedio negativo: la empresa invierte más de lo que genera en efectivo. Esto es común en empresas de infraestructura en fase de inversión, pero un DCF con FCF negativo produce un valor intrínseco negativo, lo que indica que la empresa no genera suficiente caja libre para sostener su valoración actual.'
+    ? `FCF ${fcfSource} negativo: la empresa invierte más de lo que genera en efectivo. Un DCF con FCF negativo produce un valor intrínseco negativo, lo que indica que la empresa no genera suficiente caja libre para sostener su valoración actual.`
     : undefined;
 
   const g = config.growthRate / 100;
@@ -92,26 +258,27 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const terminalPV = terminalValue / Math.pow(1 + r, config.horizonYears);
   const fairValue = (totalPV + terminalPV) / shares;
 
-  const conf = fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low';
+  const conf = fcfSource === 'TTM' ? (fcf > 0 ? 'medium' : 'low') : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
 
-  const fmtB = (n: number) => `$${(n / 1e9).toFixed(1)}B`;
   return {
     id: 'dcf', name: 'DCF (Flujo de Caja Descontado)',
     description: 'Valor intrínseco calculado con flujos de caja futuros descontados',
-    explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF promedio de los últimos años para suavizar la volatilidad cíclica.',
-    formula: `Σ(FCF_prom×(1+${config.growthRate}%)ⁿ/(1+${config.discountRate}%)ⁿ) + TV`,
+    explanation: isQuarterly
+      ? 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF TTM (últimos 4 trimestres) como base de proyección.'
+      : 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF promedio de los últimos años para suavizar la volatilidad cíclica.',
+    formula: `Σ(FCF_${fcfSource === 'TTM' ? 'TTM' : 'prom'}×(1+${config.growthRate}%)ⁿ/(1+${config.discountRate}%)ⁿ) + TV`,
     fairValue, confidence: conf,
-    confidenceReason: `FCF promedio: ${fmtB(fcf)} (${fcfValues.length} años)`,
+    confidenceReason: `FCF ${fcfSource}: ${fmtB(fcf, input.currency)}`,
     configurable: true,
     negativeInputWarning: fcfWarning,
     inputs: [
-      { label: 'FCF promedio', value: fmtB(fcf), rawValue: fcf },
+      { label: `FCF ${fcfSource}`, value: fmtB(fcf, input.currency), rawValue: fcf },
       { label: 'Crecimiento anual', value: `${config.growthRate}%`, rawValue: config.growthRate },
       { label: 'Tasa de descuento', value: `${config.discountRate}%`, rawValue: config.discountRate },
       { label: 'Horizonte', value: `${config.horizonYears} años`, rawValue: config.horizonYears },
       { label: 'Terminal growth', value: `${(tg * 100).toFixed(0)}%`, rawValue: tg * 100 },
-      { label: 'Valor presente FCF', value: fmtB(totalPV), rawValue: totalPV },
-      { label: 'Valor terminal (PV)', value: fmtB(terminalPV), rawValue: terminalPV },
+      { label: 'Valor presente FCF', value: fmtB(totalPV, input.currency), rawValue: totalPV },
+      { label: 'Valor terminal (PV)', value: fmtB(terminalPV, input.currency), rawValue: terminalPV },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
     ],
   };
@@ -119,32 +286,33 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
 
 // ── PER ──
 export function computePER(input: ValuationInput, config: { targetPE: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0) {
-    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana $5 por acción y el P/E objetivo es 20x, el valor justo es $100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [], negativeInputWarning: undefined };
+  if (!ttm || !stock || shares <= 0) {
+    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana 5 por acción y el P/E objetivo es 20x, el valor justo es 100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
-  const eps = f.netIncome / shares;
+  const netIncome = ttm.netIncome;
+  const eps = netIncome / shares;
   const fairValue = eps * config.targetPE;
   const currentPE = stock.peRatio ?? 0;
   const conf = currentPE > 0 && currentPE < 50 ? 'high' : currentPE > 0 ? 'medium' : 'low';
-  const perWarning = f.netIncome <= 0
+  const perWarning = netIncome <= 0
     ? 'Beneficio neto negativo: la empresa genera pérdidas. El PER no es un indicador válido para empresas con beneficios negativos.'
     : undefined;
   return {
     id: 'per', name: 'PER (Precio/Beneficio)',
     description: 'Valor basado en el beneficio neto por acción y el ratio P/E',
-    explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana $5 por acción y el P/E objetivo es 20x, el valor justo es $100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.',
-    formula: `EPS($${eps.toFixed(2)}) × Target P/E(${config.targetPE})`,
+    explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana 5 por acción y el P/E objetivo es 20x, el valor justo es 100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.',
+    formula: `EPS(${fmtVal(eps, input.currency)}) × Target P/E(${config.targetPE})`,
     fairValue, confidence: conf,
     confidenceReason: currentPE > 0 ? `PER actual: ${currentPE.toFixed(1)}` : 'Sin PER disponible',
     configurable: true,
     negativeInputWarning: perWarning,
     inputs: [
-      { label: 'Beneficio neto', value: `$${(f.netIncome / 1e9).toFixed(1)}B`, rawValue: f.netIncome },
+      { label: 'Beneficio neto', value: fmtB(netIncome, input.currency), rawValue: netIncome },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'EPS', value: `$${eps.toFixed(2)}`, rawValue: eps },
+      { label: 'EPS', value: fmtVal(eps, input.currency), rawValue: eps },
       { label: 'Target P/E', value: `${config.targetPE}x`, rawValue: config.targetPE },
       { label: 'P/E actual', value: currentPE > 0 ? `${currentPE.toFixed(1)}x` : 'N/D', rawValue: currentPE },
     ],
@@ -153,7 +321,8 @@ export function computePER(input: ValuationInput, config: { targetPE: number }):
 
 // ── P/B ──
 export function computePB(input: ValuationInput, config: { targetPB: number }): ValuationResult {
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
   const equity = bs?.totalStockholdersEquity;
@@ -171,15 +340,15 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
     id: 'pb', name: 'P/B (Precio/Valor en Libro)',
     description: 'Patrimonio neto por acción multiplicado por P/B objetivo',
     explanation: 'Compara el precio de la acción con el valor contable de los activos netos (patrimonio). Un P/B de 1x significa que compras la empresa a precio de libros. Funciona mejor para bancos y empresas intensivas en activos. No es útil para empresas de servicios o tecnología donde los activos intangibles dominan.',
-    formula: `BVPS($${bvps.toFixed(2)}) × Target P/B(${config.targetPB})`,
+    formula: `BVPS(${fmtVal(bvps, input.currency)}) × Target P/B(${config.targetPB})`,
     fairValue, confidence: conf,
     confidenceReason: currentPB > 0 ? `P/B actual: ${currentPB.toFixed(1)}` : 'Sin P/B disponible',
     configurable: true,
     negativeInputWarning: pbWarning,
     inputs: [
-      { label: 'Patrimonio total', value: `$${(equity / 1e9).toFixed(1)}B`, rawValue: equity },
+      { label: 'Patrimonio total', value: fmtB(equity, input.currency), rawValue: equity },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'BVPS', value: `$${bvps.toFixed(2)}`, rawValue: bvps },
+      { label: 'BVPS', value: fmtVal(bvps, input.currency), rawValue: bvps },
       { label: 'Target P/B', value: `${config.targetPB}x`, rawValue: config.targetPB },
       { label: 'P/B actual', value: currentPB > 0 ? `${currentPB.toFixed(1)}x` : 'N/D', rawValue: currentPB },
     ],
@@ -188,13 +357,13 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
 
 // ── P/S ──
 export function computePS(input: ValuationInput, config: { targetPS: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0 || f.revenue <= 0) {
+  if (!ttm || !stock || shares <= 0 || ttm.revenue <= 0) {
     return { id: 'ps', name: 'P/S (Precio/Ventas)', description: 'Ingresos por acción multiplicado por P/S objetivo', explanation: 'Mide cuánto paga el mercado por cada euro de ingresos. Es útil para empresas que aún no generan beneficios (startups, empresas en crecimiento). A diferencia del PER, nunca es negativo porque los ingresos siempre son positivos, pero ignora completamente la rentabilidad.', formula: 'SPS × Target P/S', fairValue: null, confidence: 'na', confidenceReason: 'Sin ingresos', configurable: true, inputs: [] };
   }
-  const sps = f.revenue / shares;
+  const sps = ttm.revenue / shares;
   const fairValue = sps * config.targetPS;
   const currentPS = stock.psRatio ?? 0;
   const conf = currentPS > 0 && currentPS < 20 ? 'high' : currentPS > 0 ? 'medium' : 'low';
@@ -202,14 +371,14 @@ export function computePS(input: ValuationInput, config: { targetPS: number }): 
     id: 'ps', name: 'P/S (Precio/Ventas)',
     description: 'Ingresos por acción multiplicado por P/S objetivo',
     explanation: 'Mide cuánto paga el mercado por cada euro de ingresos. Es útil para empresas que aún no generan beneficios (startups, empresas en crecimiento). A diferencia del PER, nunca es negativo porque los ingresos siempre son positivos, pero ignora completamente la rentabilidad.',
-    formula: `SPS($${sps.toFixed(2)}) × Target P/S(${config.targetPS})`,
+    formula: `SPS(${fmtVal(sps, input.currency)}) × Target P/S(${config.targetPS})`,
     fairValue, confidence: conf,
     confidenceReason: currentPS > 0 ? `P/S actual: ${currentPS.toFixed(1)}` : 'Sin P/S disponible',
     configurable: true,
     inputs: [
-      { label: 'Ingresos totales', value: `$${(f.revenue / 1e9).toFixed(1)}B`, rawValue: f.revenue },
+      { label: 'Ingresos totales', value: fmtB(ttm.revenue, input.currency), rawValue: ttm.revenue },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'SPS', value: `$${sps.toFixed(2)}`, rawValue: sps },
+      { label: 'SPS', value: fmtVal(sps, input.currency), rawValue: sps },
       { label: 'Target P/S', value: `${config.targetPS}x`, rawValue: config.targetPS },
       { label: 'P/S actual', value: currentPS > 0 ? `${currentPS.toFixed(1)}x` : 'N/D', rawValue: currentPS },
     ],
@@ -218,19 +387,20 @@ export function computePS(input: ValuationInput, config: { targetPS: number }): 
 
 // ── EV/EBITDA ──
 export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple: number }): ValuationResult {
-  const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0 || !f.ebitda) {
+  if (!ttm || !stock || shares <= 0 || !ttm.ebitda) {
     return { id: 'ev_ebitda', name: 'EV/EBITDA', description: 'Múltiplo de empresa sobre EBITDA', explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.', formula: '(EBITDA × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin EBITDA', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
-  const ev = f.ebitda * config.targetMultiple;
+  const ebitda = ttm.ebitda;
+  const ev = ebitda * config.targetMultiple;
   const nd = netDebt(bs);
   const fairValue = (ev - nd) / shares;
-  const currentMult = stock.enterpriseValue && f.ebitda ? stock.enterpriseValue / f.ebitda : 0;
+  const currentMult = stock.enterpriseValue && ebitda ? stock.enterpriseValue / ebitda : 0;
   const conf = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
-  const evEbitdaWarning = f.ebitda < 0
+  const evEbitdaWarning = ebitda < 0
     ? 'EBITDA negativo: la operación no genera beneficio antes de intereses, impuestos y amortizaciones. El EV/EBITDA no es aplicable con EBITDA negativo.'
     : undefined;
   return {
@@ -243,10 +413,10 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
     configurable: true,
     negativeInputWarning: evEbitdaWarning,
     inputs: [
-      { label: 'EBITDA', value: `$${(f.ebitda / 1e9).toFixed(1)}B`, rawValue: f.ebitda },
+      { label: 'EBITDA', value: fmtB(ebitda, input.currency), rawValue: ebitda },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
-      { label: 'EV implícito', value: `$${(ev / 1e9).toFixed(1)}B`, rawValue: ev },
-      { label: 'Deuda neta', value: `$${(nd / 1e9).toFixed(1)}B`, rawValue: nd },
+      { label: 'EV implícito', value: fmtB(ev, input.currency), rawValue: ev },
+      { label: 'Deuda neta', value: fmtB(nd, input.currency), rawValue: nd },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
       { label: 'Múltiplo actual', value: currentMult > 0 ? `${currentMult.toFixed(1)}x` : 'N/D', rawValue: currentMult },
     ],
@@ -255,12 +425,12 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
 
 // ── EV/EBIT ──
 export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: number }): ValuationResult {
-  const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  const ebit = f?.ebit ?? (f ? (f.grossProfit ?? (f.revenue - f.costOfRevenue)) - f.operatingExpenses : null);
-  if (!f || !stock || shares <= 0 || ebit == null || ebit === 0) {
+  const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - (ttm.costOfRevenue + ttm.operatingExpenses + ttm.sgaExpense + ttm.rdExpense)) : null) ?? latest(input.financials)?.ebit ?? null;
+  if (!ttm || !stock || shares <= 0 || ebit == null || ebit === 0) {
     return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit === 0 ? 'EBIT es cero' : 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const evEbit = ebit * config.targetMultiple;
@@ -281,10 +451,10 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
     configurable: true,
     negativeInputWarning: evEbitWarning,
     inputs: [
-      { label: 'EBIT', value: `$${(ebit / 1e9).toFixed(1)}B`, rawValue: ebit },
+      { label: 'EBIT', value: fmtB(ebit, input.currency), rawValue: ebit },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
-      { label: 'EV implícito', value: `$${(evEbit / 1e9).toFixed(1)}B`, rawValue: evEbit },
-      { label: 'Deuda neta', value: `$${(ndEbit / 1e9).toFixed(1)}B`, rawValue: ndEbit },
+      { label: 'EV implícito', value: fmtB(evEbit, input.currency), rawValue: evEbit },
+      { label: 'Deuda neta', value: fmtB(ndEbit, input.currency), rawValue: ndEbit },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
       { label: 'Múltiplo actual', value: currentMultEbit > 0 ? `${currentMultEbit.toFixed(1)}x` : 'N/D', rawValue: currentMultEbit },
     ],
@@ -293,10 +463,12 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
 
 // ── Dividend Discount (DDM) ──
 export function computeDDM(input: ValuationInput, config: { growthRate: number; requiredReturn: number }): ValuationResult {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const f = latest(input.financials);
   const { stock } = input;
   const shares = sharesOf(stock);
-  const divPerShare = f && shares > 0 && f.dividendsPaid ? Math.abs(f.dividendsPaid) / shares : 0;
+  const divPaid = ttm?.dividendsPaid ?? f?.dividendsPaid ?? null;
+  const divPerShare = ttm && shares > 0 && divPaid ? Math.abs(divPaid) / shares : 0;
   if (!stock || shares <= 0 || divPerShare <= 0) {
     return { id: 'ddm', name: 'DDM (Descuento de Dividendos)', description: 'Valor intrínseco por dividendos futuros descontados', explanation: 'Basado en la idea de que una acción vale la suma de todos sus dividendos futuros descontados. Funciona exclusivamente para empresas maduras con historial estable de dividendos (utilities, bancos). No es aplicable a empresas que no pagan dividendos o que reinvierten todo el beneficio.', formula: 'D₁ / (r − g)', fairValue: null, confidence: 'na', confidenceReason: 'Sin dividendos', configurable: true, inputs: [] };
   }
@@ -310,15 +482,15 @@ export function computeDDM(input: ValuationInput, config: { growthRate: number; 
     id: 'ddm', name: 'DDM (Descuento de Dividendos)',
     description: 'Valor intrínseco por dividendos futuros descontados',
     explanation: 'Basado en la idea de que una acción vale la suma de todos sus dividendos futuros descontados. Funciona exclusivamente para empresas maduras con historial estable de dividendos (utilities, bancos). No es aplicable a empresas que no pagan dividendos o que reinvierten todo el beneficio.',
-    formula: `D₁($${d1.toFixed(2)}) / (${config.requiredReturn}% − ${config.growthRate}%)`,
+    formula: `D₁(${fmtVal(d1, input.currency)}) / (${config.requiredReturn}% − ${config.growthRate}%)`,
     fairValue, confidence: conf,
     confidenceReason: divYield > 0 ? `Yield: ${(divYield * 100).toFixed(1)}%` : 'Sin yield disponible',
     configurable: true,
     inputs: [
-      { label: 'Dividendo total', value: `$${(Math.abs(f!.dividendsPaid ?? 0) / 1e9).toFixed(1)}B`, rawValue: Math.abs(f!.dividendsPaid ?? 0) },
+      { label: 'Dividendo total', value: fmtB(Math.abs(divPaid ?? 0), input.currency), rawValue: Math.abs(divPaid ?? 0) },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'Div/acción', value: `$${divPerShare.toFixed(2)}`, rawValue: divPerShare },
-      { label: 'D₁ (próximo año)', value: `$${d1.toFixed(2)}`, rawValue: d1 },
+      { label: 'Div/acción', value: fmtVal(divPerShare, input.currency), rawValue: divPerShare },
+      { label: 'D₁ (próximo año)', value: fmtVal(d1, input.currency), rawValue: d1 },
       { label: 'Crecimiento', value: `${config.growthRate}%`, rawValue: config.growthRate },
       { label: 'Retorno requerido', value: `${config.requiredReturn}%`, rawValue: config.requiredReturn },
       { label: 'Dividend yield', value: divYield > 0 ? `${(divYield * 100).toFixed(1)}%` : 'N/D', rawValue: divYield * 100 },
@@ -328,15 +500,16 @@ export function computeDDM(input: ValuationInput, config: { growthRate: number; 
 
 // ── Graham Number ──
 export function computeGrahamNumber(input: ValuationInput): ValuationResult {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0) {
+  if (!ttm || !stock || shares <= 0) {
     return { id: 'graham', name: 'Número de Graham', description: 'Fórmula defensiva de Benjamin Graham', explanation: 'Fórmula defensiva creada por Benjamin Graham (mentor de Warren Buffett). Establece un tope máximo razonable para el precio de una acción basándose en su beneficio y patrimonio neto. Si la acción cuesta menos que el Número de Graham, se considera una ganga segura.', formula: '√(22.5 × EPS × BVPS)', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: false, inputs: [] };
   }
-  const eps = f.netIncome / shares;
-  const equity = bs?.totalStockholdersEquity ?? f.totalEquity;
+  const eps = ttm.netIncome / shares;
+  const equity = bs?.totalStockholdersEquity ?? f?.totalEquity;
   const bvps = equity ? equity / shares : 0;
   if (eps <= 0 || bvps <= 0) {
     return { id: 'graham', name: 'Número de Graham', description: 'Fórmula defensiva de Benjamin Graham', explanation: 'Fórmula defensiva creada por Benjamin Graham (mentor de Warren Buffett). Establece un tope máximo razonable para el precio de una acción basándose en su beneficio y patrimonio neto. Si la acción cuesta menos que el Número de Graham, se considera una ganga segura.', formula: '√(22.5 × EPS × BVPS)', fairValue: null, confidence: 'na', confidenceReason: eps <= 0 ? 'EPS negativo' : 'Book Value negativo', configurable: false, inputs: [], negativeInputWarning: eps <= 0 ? 'El Número de Graham requiere beneficios positivos (EPS > 0). Con EPS negativo, la fórmula no aplica y el resultado no es significativo.' : 'El Número de Graham requiere patrimonio positivo (BVPS > 0).' };
@@ -346,15 +519,15 @@ export function computeGrahamNumber(input: ValuationInput): ValuationResult {
     id: 'graham', name: 'Número de Graham',
     description: 'Fórmula defensiva de Benjamin Graham',
     explanation: 'Fórmula defensiva creada por Benjamin Graham (mentor de Warren Buffett). Establece un tope máximo razonable para el precio de una acción basándose en su beneficio y patrimonio neto. Si la acción cuesta menos que el Número de Graham, se considera una ganga segura.',
-    formula: `√(22.5 × $${eps.toFixed(2)} × $${bvps.toFixed(2)})`,
+    formula: `√(22.5 × ${fmtVal(eps, input.currency)} × ${fmtVal(bvps, input.currency)})`,
     fairValue, confidence: 'high',
-    confidenceReason: `EPS: $${eps.toFixed(2)}, BVPS: $${bvps.toFixed(2)}`,
+    confidenceReason: `EPS: ${fmtVal(eps, input.currency)}, BVPS: ${fmtVal(bvps, input.currency)}`,
     configurable: false,
     inputs: [
-      { label: 'Beneficio neto', value: `$${(f.netIncome / 1e9).toFixed(1)}B`, rawValue: f.netIncome },
+      { label: 'Beneficio neto', value: fmtB(ttm.netIncome, input.currency), rawValue: ttm.netIncome },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'EPS', value: `$${eps.toFixed(2)}`, rawValue: eps },
-      { label: 'Patrimonio', value: `$${((equity ?? 0) / 1e9).toFixed(1)}B`, rawValue: equity ?? 0 },
+      { label: 'EPS', value: fmtVal(eps, input.currency), rawValue: eps },
+      { label: 'Patrimonio', value: fmtB(equity ?? 0, input.currency), rawValue: equity ?? 0 },
       { label: 'BVPS', value: `$${bvps.toFixed(2)}`, rawValue: bvps },
       { label: 'Constante Graham', value: '22.5', rawValue: 22.5 },
     ],
@@ -363,13 +536,13 @@ export function computeGrahamNumber(input: ValuationInput): ValuationResult {
 
 // ── FCF Yield ──
 export function computeFCFYield(input: ValuationInput, config: { targetYield: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!f || !stock || shares <= 0) {
+  if (!ttm || !stock || shares <= 0) {
     return { id: 'fcf_yield', name: 'FCF Yield', description: 'Precio implícito dado un rendimiento de FCF objetivo', explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera $10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es $200. Es análogo al yield de un bono pero para acciones.', formula: 'FCF/Share ÷ Target Yield', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [] };
   }
-  const fcf = f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : null);
+  const fcf = ttm.freeCashFlow ?? (ttm.operatingCashFlow != null ? ttm.operatingCashFlow - ttm.capex : null);
   if (fcf == null) {
     return { id: 'fcf_yield', name: 'FCF Yield', description: 'Precio implícito dado un rendimiento de FCF objetivo', explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera $10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es $200. Es análogo al yield de un bono pero para acciones.', formula: 'FCF/Share ÷ Target Yield', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de FCF', configurable: true, inputs: [] };
   }
@@ -383,16 +556,16 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
   return {
     id: 'fcf_yield', name: 'FCF Yield',
     description: 'Precio implícito dado un rendimiento de FCF objetivo',
-    explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera $10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es $200. Es análogo al yield de un bono pero para acciones.',
-    formula: `FCF/Share($${fcfPerShare.toFixed(2)}) ÷ ${config.targetYield}%`,
+    explanation: 'Invierte la lógica: dado un rendimiento objetivo del FCF, ¿cuál debería ser el precio? Si la empresa genera 10 de FCF por acción y quieres un 5% de rendimiento, el precio justo es 200. Es análogo al yield de un bono pero para acciones.',
+    formula: `FCF/Share(${fmtVal(fcfPerShare, input.currency)}) ÷ ${config.targetYield}%`,
     fairValue, confidence: conf,
     confidenceReason: currentYield > 0 ? `FCF yield actual: ${(currentYield * 100).toFixed(1)}%` : 'Sin FCF positivo',
     configurable: true,
     negativeInputWarning: fcfYieldWarning,
     inputs: [
-      { label: 'FCF total', value: `$${(fcf / 1e9).toFixed(1)}B`, rawValue: fcf },
+      { label: 'FCF total', value: fmtB(fcf, input.currency), rawValue: fcf },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
-      { label: 'FCF/acción', value: `$${fcfPerShare.toFixed(2)}`, rawValue: fcfPerShare },
+      { label: 'FCF/acción', value: fmtVal(fcfPerShare, input.currency), rawValue: fcfPerShare },
       { label: 'Yield objetivo', value: `${config.targetYield}%`, rawValue: config.targetYield },
       { label: 'FCF yield actual', value: currentYield > 0 ? `${(currentYield * 100).toFixed(1)}%` : 'N/D', rawValue: currentYield * 100 },
     ],
@@ -401,16 +574,17 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
 
 // ── Net-Net ──
 export function computeNetNet(input: ValuationInput): ValuationResult {
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
   if (!bs || !stock || shares <= 0 || bs.totalLiabilities == null) {
-    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: bs.totalLiabilities == null ? 'Sin datos de pasivos totales' : 'Sin balance sheet', configurable: false, inputs: [] };
+    const reason = !bs ? 'Sin balance sheet' : bs.totalLiabilities == null ? 'Sin datos de pasivos totales' : 'Sin datos';
+    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: reason, configurable: false, inputs: [] };
   }
   const ncav = (bs.cashAndCashEquivalents ?? 0) + 0.5 * (bs.accountsReceivable ?? 0) + 0.5 * (bs.inventory ?? 0) - (bs.totalLiabilities ?? 0);
   const fairValue = ncav / shares;
   const conf = fairValue > stock.currentPrice ? 'high' : fairValue > 0 ? 'medium' : 'low';
-  const fmtB = (n: number) => `$${(n / 1e9).toFixed(1)}B`;
   const netnetWarning = ncav < 0
     ? 'NCAV negativo: los pasivos totales superan los activos corrientes ajustados. El valor de liquidación neto es negativo, lo que indica que la empresa tiene más deudas que activos líquidos.'
     : undefined;
@@ -420,17 +594,17 @@ export function computeNetNet(input: ValuationInput): ValuationResult {
     explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.',
     formula: `(Cash + 0.5×AR + 0.5×Inv − Liabilities) / Shares`,
     fairValue, confidence: conf,
-    confidenceReason: `NCAV: $${(ncav / 1e9).toFixed(1)}B`,
+    confidenceReason: `NCAV: ${fmtB(ncav, input.currency)}`,
     configurable: false,
     negativeInputWarning: netnetWarning,
     inputs: [
-      { label: 'Cash & equivalents', value: fmtB(bs.cashAndCashEquivalents ?? 0), rawValue: bs.cashAndCashEquivalents ?? 0 },
-      { label: 'Cuentas por cobrar', value: fmtB(bs.accountsReceivable ?? 0), rawValue: bs.accountsReceivable ?? 0 },
-      { label: 'AR × 0.5', value: fmtB(0.5 * (bs.accountsReceivable ?? 0)), rawValue: 0.5 * (bs.accountsReceivable ?? 0) },
-      { label: 'Inventarios', value: fmtB(bs.inventory ?? 0), rawValue: bs.inventory ?? 0 },
-      { label: 'Inv × 0.5', value: fmtB(0.5 * (bs.inventory ?? 0)), rawValue: 0.5 * (bs.inventory ?? 0) },
-      { label: 'Total liabilities', value: fmtB(bs.totalLiabilities ?? 0), rawValue: bs.totalLiabilities ?? 0 },
-      { label: 'NCAV total', value: fmtB(ncav), rawValue: ncav },
+      { label: 'Cash & equivalents', value: fmtB(bs.cashAndCashEquivalents ?? 0, input.currency), rawValue: bs.cashAndCashEquivalents ?? 0 },
+      { label: 'Cuentas por cobrar', value: fmtB(bs.accountsReceivable ?? 0, input.currency), rawValue: bs.accountsReceivable ?? 0 },
+      { label: 'AR × 0.5', value: fmtB(0.5 * (bs.accountsReceivable ?? 0), input.currency), rawValue: 0.5 * (bs.accountsReceivable ?? 0) },
+      { label: 'Inventarios', value: fmtB(bs.inventory ?? 0, input.currency), rawValue: bs.inventory ?? 0 },
+      { label: 'Inv × 0.5', value: fmtB(0.5 * (bs.inventory ?? 0), input.currency), rawValue: 0.5 * (bs.inventory ?? 0) },
+      { label: 'Total liabilities', value: fmtB(bs.totalLiabilities ?? 0, input.currency), rawValue: bs.totalLiabilities ?? 0 },
+      { label: 'NCAV total', value: fmtB(ncav, input.currency), rawValue: ncav },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
     ],
   };
