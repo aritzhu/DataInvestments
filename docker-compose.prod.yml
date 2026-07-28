@@ -26,6 +26,7 @@ services:
       - uploads:/app/uploads
     environment:
       PORT: 3001
+      NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-datainvestments}
 
   frontend:
