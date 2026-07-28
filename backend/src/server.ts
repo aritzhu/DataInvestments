@@ -624,6 +624,11 @@ app.get('/api/companies/overvalued', async (req, res) => {
   }
 });
 
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error(err.stack || err);
+  res.status(500).json({ error: err.message || 'Error interno del servidor' });
+});
+
 app.listen(PORT, () => {
   console.log(`DataInvestments API running on port ${PORT}`);
 });
