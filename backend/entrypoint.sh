@@ -5,5 +5,9 @@ set -e
 mkdir -p /app/uploads
 chown app:app /app/uploads
 
-# Drop to app user and start Node
+# If a command is passed (run --rm / exec), execute it instead
+if [ $# -gt 0 ]; then
+  exec su-exec app "$@"
+fi
+
 exec su-exec app node dist/server.js
