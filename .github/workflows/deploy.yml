@@ -18,6 +18,7 @@ jobs:
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
           SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          FMP_API_KEY=${{ secrets.FMP_API_KEY }}
           FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }}
           SEC_USER_AGENT=${{ secrets.SEC_USER_AGENT }}
           NODE_ENV=production
