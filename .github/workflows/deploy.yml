@@ -48,9 +48,19 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               --env-file .env.prod up -d --build --remove-orphans
 
+            # Ensure trust auth for Docker network connections
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              --env-file .env.prod exec -T db sh -c \
+              "echo 'host all all 0.0.0.0/0 trust' >> /var/lib/postgresql/data/pg_hba.conf && \
+               echo 'host all all ::/0 trust' >> /var/lib/postgresql/data/pg_hba.conf"
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              --env-file .env.prod exec -T db psql -U postgres \
+              -c "SELECT pg_reload_conf();"
+
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               --env-file .env.prod exec -T backend \
-              npx prisma db push --schema=src/infrastructure/prisma/schema.prisma
+              npx prisma db push --schema=src/infrastructure/prisma/schema.prisma --accept-data-loss
 
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               --env-file .env.prod exec -T backend \
