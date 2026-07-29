@@ -34,7 +34,6 @@ export interface CompanyData {
   sync: {
     lastSyncAt: string;
     yearsFetched: number;
-    fmpSync: boolean;
     secSync: boolean;
     finnhubSync: boolean;
     errorMessage: string | null;

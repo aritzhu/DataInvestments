@@ -358,7 +358,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
             {productSegments.length === 0 && geoSegments.length === 0 && (
               <div className="rev-no-data">
                 <p>Sin datos de segmentos disponibles para {f.year}.</p>
-                <p className="rev-hint">Sincroniza con una API key de FMP para obtener desglose por producto y geografía.</p>
+                <p className="rev-hint">Los datos de segmentos se importan automáticamente desde SEC EDGAR.</p>
               </div>
             )}
           </div>

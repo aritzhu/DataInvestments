@@ -1,5 +1,5 @@
 // GICS sector + industry mapping for US stocks
-// Fallback when FMP profile is rate-limited or unavailable
+// Sector name mapping used by the valuation engine
 export const TICKER_SECTORS: Record<string, { sector: string; industry: string }> = {
   // Technology
   AAPL: { sector: 'Technology', industry: 'Consumer Electronics' },

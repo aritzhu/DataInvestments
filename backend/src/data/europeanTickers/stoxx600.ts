@@ -1,8 +1,7 @@
-// STOXX Europe 600 - Major European companies with FMP ticker suffixes
-// FMP uses exchange suffixes: .DE (Germany), .PA (France), .L (UK), .MC (Spain), .AS (Netherlands), .MI (Italy), .SW (Switzerland), etc.
-
+// STOXX Europe 600 - Major European companies
+// Exchange suffixes: .DE (Germany), .PA (France), .L (UK), .MC (Spain), .AS (Netherlands), .MI (Italy), .SW (Switzerland), etc.
 export interface EuropeanTicker {
-  ticker: string;       // FMP format: TICKER.SUFFIX
+  ticker: string;       // Format: TICKER.SUFFIX
   name: string;
   country: string;
   countryCode: string;  // ISO 3166-1 alpha-2

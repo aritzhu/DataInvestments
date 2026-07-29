@@ -29,10 +29,7 @@ export function CompareTab({ company, financial, stock }: Props) {
 
   useEffect(() => {
     const sector = company.sector || 'Technology';
-    const apiKey = localStorage.getItem('fmp_api_key') || '';
-    fetch(`/api/market/sector-averages?sector=${encodeURIComponent(sector)}`, {
-      headers: apiKey ? { 'x-api-key': apiKey } : {},
-    })
+    fetch(`/api/market/sector-averages?sector=${encodeURIComponent(sector)}`)
       .then((r) => r.json())
       .then((data) => { setMarketData(data); setLoading(false); })
       .catch(() => setLoading(false));

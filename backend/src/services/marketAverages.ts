@@ -1,13 +1,3 @@
-import axios from 'axios';
-
-const FMP_BASE = 'https://financialmodelingprep.com/stable';
-
-interface SectorPE {
-  sector: string;
-  peRatio: number;
-  date: string;
-}
-
 interface MarketAverages {
   pe: number;
   pb: number;
@@ -40,28 +30,8 @@ const SECTOR_DEFAULTS: Record<string, { pe: number; pb: number; ps: number; evEb
 // S&P 500 broad market averages
 const MARKET_DEFAULTS = { pe: 22.0, pb: 4.5, ps: 2.8, evEbitda: 16.0, fcfYield: 3.5 };
 
-async function fetchSectorPE(sector: string, apiKey: string): Promise<number | null> {
-  try {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
-    const url = `${FMP_BASE}/sector-pe-snapshot`;
-    const response = await axios.get<SectorPE[]>(url, {
-      params: { date: dateStr, apikey: apiKey },
-      timeout: 15000,
-    });
-
-    const match = response.data?.find(
-      (s) => s.sector?.toLowerCase() === sector.toLowerCase()
-    );
-    return match?.peRatio ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getMarketAverages(
-  sector: string,
-  apiKey: string
+  sector: string
 ): Promise<MarketAverages> {
   const now = Date.now();
 
@@ -72,17 +42,14 @@ export async function getMarketAverages(
 
   const defaults = SECTOR_DEFAULTS[sector] || SECTOR_DEFAULTS.Technology;
 
-  // Try to get live sector PE from FMP
-  const livePE = await fetchSectorPE(sector, apiKey);
-
   const result: MarketAverages = {
-    pe: livePE ?? defaults.pe,
+    pe: defaults.pe,
     pb: defaults.pb,
     ps: defaults.ps,
     evEbitda: defaults.evEbitda,
     fcfYield: defaults.fcfYield,
     sector,
-    source: livePE ? 'FMP (sector PE) + histórico (otros)' : 'Promedios históricos S&P 500 por sector',
+    source: 'Promedios históricos S&P 500 por sector',
   };
 
   cache = { data: result, ticker: sector, timestamp: now };

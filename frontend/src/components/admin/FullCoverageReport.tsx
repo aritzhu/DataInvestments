@@ -41,7 +41,6 @@ interface ImportEvent {
   recordsProcessed?: number;
   fieldsPopulated?: number;
   sourceBreakdown?: {
-    fmp: number;
     sec: number;
     finnhub: number;
     european: number;

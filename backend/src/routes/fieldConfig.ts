@@ -122,7 +122,7 @@ router.put('/field-config/bulk', async (req, res) => {
 
 // POST /api/admin/field-config/apply — re-sync all companies with current config (SSE)
 router.post('/field-config/apply', async (req, res) => {
-  const { fmpApiKey, years = 5 } = req.body;
+  const { years = 5 } = req.body;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -141,7 +141,6 @@ router.post('/field-config/apply', async (req, res) => {
     clearConceptMappingsCache();
 
     const result = await batchResyncCompanies(
-      fmpApiKey || undefined,
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);

@@ -667,7 +667,7 @@ export function CompanyPage() {
       {/* Footer */}
       <footer className="cp-footer">
         <span>DataInvestments</span>
-        <span>Datos de FMP / SEC EDGAR</span>
+        <span>Datos de SEC EDGAR / Yahoo Finance</span>
       </footer>
     </div>
   );

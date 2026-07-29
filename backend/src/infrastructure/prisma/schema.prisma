@@ -168,7 +168,6 @@ model DataSync {
   companyId    String   @unique
   lastSyncAt   DateTime
   yearsFetched Int
-  fmpSync       Boolean  @default(false)
   secSync       Boolean  @default(false)
   finnhubSync   Boolean  @default(false)
   europeanSync  Boolean  @default(false)

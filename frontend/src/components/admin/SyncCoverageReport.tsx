@@ -35,7 +35,6 @@ interface SyncCoverageReportProps {
 const SOURCE_LABELS: Record<string, string> = {
   sec: 'SEC EDGAR',
   european: 'ESEF/XBRL (European)',
-  fmp: 'Financial Modeling Prep',
   unknown: 'Unknown',
 };
 

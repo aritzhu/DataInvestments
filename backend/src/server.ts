@@ -431,8 +431,7 @@ app.get('/api/companies/:ticker/sankey/cashflow', async (req, res) => {
 app.get('/api/market/sector-averages', async (req, res) => {
   try {
     const sector = (req.query.sector as string) || 'Technology';
-    const apiKey = (req.headers['x-api-key'] as string) || '';
-    const averages = await getMarketAverages(sector, apiKey);
+    const averages = await getMarketAverages(sector);
     res.json(averages);
   } catch (error) {
     console.error('[Market] Error fetching sector averages:', error);

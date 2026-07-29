@@ -63,9 +63,7 @@ export async function buildCoverageReport(
     ? 'european'
     : ds?.secSync
       ? 'sec'
-      : ds?.fmpSync
-        ? 'fmp'
-        : 'unknown';
+      : 'unknown';
 
   const populatedFields: FieldCoverageEntry[] = [];
   const missingFields: FieldCoverageEntry[] = [];

@@ -39,7 +39,6 @@ router.get('/companies', async (_req, res) => {
           ? {
               lastSyncAt: c.dataSync.lastSyncAt,
               yearsFetched: c.dataSync.yearsFetched,
-              fmpSync: c.dataSync.fmpSync,
               secSync: c.dataSync.secSync,
               finnhubSync: c.dataSync.finnhubSync,
               errorMessage: c.dataSync.errorMessage,
@@ -55,13 +54,13 @@ router.get('/companies', async (_req, res) => {
 // POST /api/admin/companies — add company by ticker + auto-sync
 router.post('/companies', async (req, res) => {
   try {
-    const { ticker, fmpApiKey, years = 5 } = req.body;
+    const { ticker, years = 5 } = req.body;
     if (!ticker) {
       res.status(400).json({ error: 'Ticker is required' });
       return;
     }
 
-    const company = await addCompanyFromTicker(ticker, fmpApiKey || undefined);
+    const company = await addCompanyFromTicker(ticker);
     if (!company) {
       res.status(404).json({ error: 'Empresa no encontrada. Verifica el ticker.' });
       return;
@@ -71,7 +70,7 @@ router.post('/companies', async (req, res) => {
     let syncResult = null;
     try {
       console.log(`[Admin] Auto-syncing ${company.ticker}...`);
-      syncResult = await syncCompanyData(company.ticker, Math.min(Math.max(parseInt(years) || 5, 1), 10), fmpApiKey || undefined);
+      syncResult = await syncCompanyData(company.ticker, Math.min(Math.max(parseInt(years) || 5, 1), 10));
       console.log(`[Admin] Auto-sync completed for ${company.ticker}:`, syncResult);
     } catch (err) {
       console.error(`[Admin] Auto-sync failed for ${company.ticker}:`, err instanceof Error ? err.message : err);
@@ -99,7 +98,6 @@ router.post('/sync/:ticker', async (req, res) => {
   try {
     const { ticker } = req.params;
     const years = parseInt(req.body.years || '5', 10);
-    const { fmpApiKey } = req.body;
 
     if (years < 1 || years > 10) {
       res.status(400).json({ error: 'Years must be between 1 and 10' });
@@ -107,7 +105,7 @@ router.post('/sync/:ticker', async (req, res) => {
     }
 
     console.log(`[Sync] Starting sync for ${ticker} with ${years} years...`);
-    const result = await syncCompanyData(ticker, years, fmpApiKey || undefined);
+    const result = await syncCompanyData(ticker, years);
     console.log(`[Sync] Completed for ${ticker}:`, result);
 
     res.json(result);
@@ -229,10 +227,9 @@ router.get('/companies/:ticker/import-timeline', async (req, res) => {
 });
 
 // GET /api/admin/sp500-list — fetch S&P 500 stock list
-router.get('/sp500-list', async (req, res) => {
+router.get('/sp500-list', async (_req, res) => {
   try {
-    const fmpApiKey = process.env.FMP_API_KEY || (req.headers['x-api-key'] as string) || '';
-    const stocks = await getSP500StockList(fmpApiKey);
+    const stocks = await getSP500StockList();
     res.json({ stocks, total: stocks.length });
   } catch (error) {
     console.error('[Admin] Error fetching S&P 500 list:', error);
@@ -247,7 +244,7 @@ router.get('/european-tickers', (_req, res) => {
 
 // POST /api/admin/companies/bulk-import — import multiple companies via SSE stream
 router.post('/companies/bulk-import', async (req, res) => {
-  const { tickers, fmpApiKey, years = 5 } = req.body;
+  const { tickers, years = 5 } = req.body;
 
   if (!Array.isArray(tickers) || tickers.length === 0) {
     res.status(400).json({ error: 'tickers array is required' });
@@ -271,7 +268,6 @@ router.post('/companies/bulk-import', async (req, res) => {
   try {
     const result = await bulkImportCompanies(
       tickers,
-      fmpApiKey || undefined,
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
@@ -290,7 +286,7 @@ router.post('/companies/bulk-import', async (req, res) => {
 
 // POST /api/admin/companies/batch-resync — re-sync all existing companies via SSE stream
 router.post('/companies/batch-resync', async (req, res) => {
-  const { fmpApiKey, years = 5 } = req.body;
+  const { years = 5 } = req.body;
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -305,7 +301,6 @@ router.post('/companies/batch-resync', async (req, res) => {
 
   try {
     const result = await batchResyncCompanies(
-      fmpApiKey || undefined,
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
@@ -354,10 +349,8 @@ router.post('/companies/fix-sectors', async (_req, res) => {
 });
 
 // GET /api/admin/api-status — check which APIs are configured
-router.get('/api-status', (req, res) => {
-  const fmpKey = (req.headers['x-api-key'] as string) || '';
+router.get('/api-status', (_req, res) => {
   res.json({
-    fmp: { available: !!fmpKey, type: 'user-provided', note: 'API key via admin panel' },
     finnhub: { available: !!process.env.FINNHUB_API_KEY, type: 'env-var', note: 'FINNHUB_API_KEY in .env' },
     sec: { available: true, type: 'free', note: 'SEC EDGAR — no key needed' },
     yahoo: { available: true, type: 'free', note: 'Yahoo Finance — scraping' },
@@ -376,7 +369,6 @@ router.get('/data-stats', async (_req, res) => {
     const totalGeoSegments = await prisma.revenueSegment.count({ where: { segmentType: 'geography' } });
 
     // Sync origin counts
-    const fmpSynced = await prisma.dataSync.count({ where: { fmpSync: true } });
     const secSynced = await prisma.dataSync.count({ where: { secSync: true } });
     const finnhubSynced = await prisma.dataSync.count({ where: { finnhubSync: true } });
     const withSync = await prisma.dataSync.count();
@@ -542,7 +534,7 @@ router.get('/data-stats', async (_req, res) => {
         name: true,
         sector: true,
         industry: true,
-        dataSync: { select: { fmpSync: true, secSync: true, finnhubSync: true } },
+        dataSync: { select: { secSync: true, finnhubSync: true } },
         financialData: {
           select: {
             ebitda: true, ebit: true, operatingCashFlow: true, investingCashFlow: true,
@@ -635,7 +627,7 @@ router.get('/data-stats', async (_req, res) => {
         totalSegments,
         totalProductSegments,
         totalGeoSegments,
-        syncOrigin: { fmpSynced, secSynced, finnhubSynced, withSync, withoutSync },
+        syncOrigin: { secSynced, finnhubSynced, withSync, withoutSync },
       },
       fieldCoverage: {
         financialData: buildCoverage(fdCoverage, fdNullableFields),

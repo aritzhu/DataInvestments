@@ -14,7 +14,6 @@ interface ToolAvailability {
 }
 
 interface CompanySync {
-  fmpSync: boolean;
   secSync: boolean;
   finnhubSync: boolean;
 }
@@ -41,7 +40,6 @@ interface DataStats {
     totalProductSegments: number;
     totalGeoSegments: number;
     syncOrigin: {
-      fmpSynced: number;
       secSynced: number;
       finnhubSynced: number;
       withSync: number;
@@ -170,7 +168,6 @@ function CompanyRow({ company }: { company: CompanyStats }) {
         <span className="stats-company-ticker">{company.ticker}</span>
         <span className="stats-company-name">{company.name}</span>
         <div className="stats-company-badges">
-          {company.sync?.fmpSync && <span className="stats-badge stats-badge--info">FMP</span>}
           {company.sync?.secSync && <span className="stats-badge stats-badge--ok">SEC</span>}
           {company.segments > 0 && <span className="stats-badge stats-badge--info">{company.segments} seg</span>}
           {hasData ? (
@@ -365,11 +362,6 @@ export function DataStatsSection() {
           <div className="stats-coverage-section">
             <div className="stats-coverage-title">Origen de Datos</div>
             <div className="stats-origin-grid">
-              <div className="stats-origin-card">
-                <div className="stats-origin-icon stats-origin-icon--fmp">FMP</div>
-                <div className="stats-origin-count">{stats.summary.syncOrigin.fmpSynced}</div>
-                <div className="stats-origin-label">Financial Modeling Prep</div>
-              </div>
               <div className="stats-origin-card">
                 <div className="stats-origin-icon stats-origin-icon--sec">SEC</div>
                 <div className="stats-origin-count">{stats.summary.syncOrigin.secSynced}</div>

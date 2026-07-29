@@ -31,7 +31,6 @@ interface ImportEvent {
   recordsProcessed?: number;
   fieldsPopulated?: number;
   sourceBreakdown?: {
-    fmp: number;
     sec: number;
     finnhub: number;
     european: number;
@@ -176,11 +175,9 @@ export async function buildComprehensiveYearReport(
         ? 'european'
         : dataSync?.secSync
           ? 'sec'
-          : dataSync?.fmpSync
-            ? 'fmp'
-            : dataSync?.finnhubSync
-              ? 'finnhub'
-              : 'yahoo';
+          : dataSync?.finnhubSync
+            ? 'finnhub'
+            : 'yahoo';
 
       const financialDataFields: DetailedFieldEntry[] = [];
       const balanceSheetFields: DetailedFieldEntry[] = [];
@@ -365,7 +362,6 @@ export async function getImportTimeline(
       select: {
         lastSyncAt: true,
         yearsFetched: true,
-        fmpSync: true,
         secSync: true,
         finnhubSync: true,
         europeanSync: true,
@@ -382,7 +378,6 @@ export async function getImportTimeline(
         message: `Sync completado - ${ds.yearsFetched} años`,
         fieldsPopulated: ds.yearsFetched * 50,
         sourceBreakdown: {
-          fmp: ds.fmpSync ? 1 : 0,
           sec: ds.secSync ? 1 : 0,
           finnhub: ds.finnhubSync ? 1 : 0,
           european: ds.europeanSync ? 1 : 0,

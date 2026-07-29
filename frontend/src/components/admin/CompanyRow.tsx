@@ -36,7 +36,6 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
       }
 
       const sources = [
-        data.fmpSync && 'FMP',
         data.secSync && 'SEC',
         data.finnhubSync && 'Finnhub',
       ].filter(Boolean);
@@ -118,7 +117,6 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
           {company.sync ? (
             <>
               <div className="admin-sync-dots">
-                {company.sync.fmpSync && <div className="admin-sync-dot admin-sync-dot--filled" title="FMP" style={{ background: '#2563eb' }} />}
                 {company.sync.secSync && <div className="admin-sync-dot admin-sync-dot--filled" title="SEC" />}
                 {company.sync.finnhubSync && <div className="admin-sync-dot admin-sync-dot--filled" title="Finnhub" style={{ background: '#7c3aed' }} />}
               </div>
