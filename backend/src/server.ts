@@ -33,7 +33,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(compression());
-app.set('trust proxy', 1);
+app.set('trust proxy', 2);
 app.use(express.json());
 
 app.use(session({
@@ -47,7 +47,7 @@ app.use(session({
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE === 'true',
     sameSite: 'lax',
   },
 }));
@@ -625,7 +625,7 @@ app.get('/api/companies/overvalued', async (req, res) => {
 });
 
 app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error(err.stack || err);
+  console.error('[FATAL]', err);
   res.status(500).json({ error: err.message || 'Error interno del servidor' });
 });
 

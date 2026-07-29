@@ -189,21 +189,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   favorites  Favorite[]
-  sessions   Session[]
   alarms     Alarm[]
   portfolios Portfolio[]
-}
-
-model Session {
-  id       String   @id @default(uuid())
-  sid      String   @unique
-  data     Json
-  expireAt DateTime
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
-
-  @@index([userId])
 }
 
 model Favorite {
