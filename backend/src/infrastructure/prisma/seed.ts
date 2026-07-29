@@ -96,8 +96,10 @@ async function main() {
     },
   });
 
-  await prisma.stockMetric.create({
-    data: {
+  await prisma.stockMetric.upsert({
+    where: { companyId_date: { companyId: apple.id, date: new Date('2025-01-15') } },
+    update: {},
+    create: {
       companyId: apple.id, date: new Date('2025-01-15'),
       currentPrice: 234.82, peRatio: 35.2, pbRatio: 45.6, psRatio: 8.9,
       dividendYield: 0.0044, marketCap: 3600000000000, enterpriseValue: 3650000000000,
@@ -108,8 +110,10 @@ async function main() {
     },
   });
 
-  await prisma.balanceSheet.create({
-    data: {
+  await prisma.balanceSheet.upsert({
+    where: { companyId_year_quarter: { companyId: apple.id, year: 2024, quarter: 0 } },
+    update: {},
+    create: {
       companyId: apple.id, year: 2024, quarter: 0,
       cashAndCashEquivalents: 29943000000, shortTermInvestments: 35228000000,
       accountsReceivable: 65375000000, inventory: 7291000000,
@@ -141,8 +145,10 @@ async function main() {
     },
   });
 
-  await prisma.stockMetric.create({
-    data: {
+  await prisma.stockMetric.upsert({
+    where: { companyId_date: { companyId: microsoft.id, date: new Date('2025-01-15') } },
+    update: {},
+    create: {
       companyId: microsoft.id, date: new Date('2025-01-15'),
       currentPrice: 422.86, peRatio: 36.8, pbRatio: 12.1, psRatio: 13.2,
       dividendYield: 0.0074, marketCap: 3140000000000, enterpriseValue: 3180000000000,
@@ -153,8 +159,10 @@ async function main() {
     },
   });
 
-  await prisma.balanceSheet.create({
-    data: {
+  await prisma.balanceSheet.upsert({
+    where: { companyId_year_quarter: { companyId: microsoft.id, year: 2024, quarter: 0 } },
+    update: {},
+    create: {
       companyId: microsoft.id, year: 2024, quarter: 0,
       cashAndCashEquivalents: 34602000000, shortTermInvestments: 76327000000,
       accountsReceivable: 56865000000, inventory: 3028000000,
@@ -186,8 +194,10 @@ async function main() {
     },
   });
 
-  await prisma.stockMetric.create({
-    data: {
+  await prisma.stockMetric.upsert({
+    where: { companyId_date: { companyId: google.id, date: new Date('2025-01-15') } },
+    update: {},
+    create: {
       companyId: google.id, date: new Date('2025-01-15'),
       currentPrice: 192.53, peRatio: 23.5, pbRatio: 7.8, psRatio: 7.2,
       dividendYield: 0, marketCap: 2370000000000, enterpriseValue: 2300000000000,
@@ -198,8 +208,10 @@ async function main() {
     },
   });
 
-  await prisma.balanceSheet.create({
-    data: {
+  await prisma.balanceSheet.upsert({
+    where: { companyId_year_quarter: { companyId: google.id, year: 2024, quarter: 0 } },
+    update: {},
+    create: {
       companyId: google.id, year: 2024, quarter: 0,
       cashAndCashEquivalents: 95647000000, shortTermInvestments: 72463000000,
       accountsReceivable: 53062000000, inventory: 14420000000,

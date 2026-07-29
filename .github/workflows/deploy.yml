@@ -17,7 +17,6 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
           COOKIE_SECURE: "false"
           NODE_ENV: "production"
@@ -26,19 +25,21 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,SESSION_SECRET,FINNHUB_API_KEY,SEC_USER_AGENT,COOKIE_SECURE,NODE_ENV
+          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,SESSION_SECRET,SEC_USER_AGENT,COOKIE_SECURE,NODE_ENV
           script: |
             cd /home/deploy/DataInvestments
             git checkout dev
             git pull origin dev
 
+            # Strip trailing newlines that GitHub secrets sometimes include
+            POSTGRES_PASSWORD=$(printf '%s' "$POSTGRES_PASSWORD" | tr -d '\n')
+            SESSION_SECRET=$(printf '%s' "$SESSION_SECRET" | tr -d '\n')
             cat > .env.prod << EOF
             POSTGRES_USER=${POSTGRES_USER}
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
             POSTGRES_DB=${POSTGRES_DB}
             DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
             SESSION_SECRET=${SESSION_SECRET}
-            FINNHUB_API_KEY=${FINNHUB_API_KEY}
             SEC_USER_AGENT=${SEC_USER_AGENT}
             NODE_ENV=${NODE_ENV}
             COOKIE_SECURE=${COOKIE_SECURE}

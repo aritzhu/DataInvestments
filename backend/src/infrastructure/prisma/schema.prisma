@@ -161,6 +161,8 @@ model StockMetric {
 
   createdAt DateTime @default(now())
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, date])
 }
 
 model DataSync {

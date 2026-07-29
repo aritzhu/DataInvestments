@@ -30,7 +30,6 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-datainvestments}
       SESSION_SECRET: ${SESSION_SECRET}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
       SEC_USER_AGENT: ${SEC_USER_AGENT}
 
   frontend:
