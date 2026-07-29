@@ -6,6 +6,8 @@ import '../styles/navbar.css';
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
+  const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
   const location = useLocation();
   const { user, logout } = useAuth();
 
@@ -22,6 +24,23 @@ export function Navbar() {
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.site_logo_url) setSiteLogoUrl(data.site_logo_url);
+        if (data.site_favicon_url) setSiteFaviconUrl(data.site_favicon_url);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (siteFaviconUrl) {
+      const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (link) link.href = siteFaviconUrl;
+    }
+  }, [siteFaviconUrl]);
+
   const handleLogout = async () => {
     await logout();
     setMenuOpen(false);
@@ -32,10 +51,16 @@ export function Navbar() {
       <nav className="navbar">
         <div className="navbar-inner">
           <Link to="/" className="navbar-logo">
-            <div className="navbar-logo-icon">
-              <TrendingUp size={22} />
-            </div>
-            <span className="navbar-logo-text">DataInvestments</span>
+            {siteLogoUrl ? (
+              <img src={siteLogoUrl} alt="DataInvestments" className="navbar-logo-img" />
+            ) : (
+              <>
+                <div className="navbar-logo-icon">
+                  <TrendingUp size={22} />
+                </div>
+                <span className="navbar-logo-text">DataInvestments</span>
+              </>
+            )}
           </Link>
 
           {/* Desktop links */}

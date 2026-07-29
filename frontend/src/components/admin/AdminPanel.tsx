@@ -58,6 +58,10 @@ export function AdminPanel() {
   const [heroSaving, setHeroSaving] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
   const [heroUploadError, setHeroUploadError] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState('');
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const [faviconUploadError, setFaviconUploadError] = useState('');
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
 
@@ -120,6 +124,58 @@ export function AdminPanel() {
       setHeroUploadError('Error de conexión al subir la imagen');
     } finally {
       setHeroUploading(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    setLogoUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setHeroSettings((prev) => ({ ...prev, site_logo_url: data.url }));
+      } else {
+        setLogoUploadError(data.error || 'Error al subir el logo');
+      }
+    } catch {
+      setLogoUploadError('Error de conexión al subir el logo');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFaviconUploading(true);
+    setFaviconUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        setHeroSettings((prev) => ({ ...prev, site_favicon_url: data.url }));
+      } else {
+        setFaviconUploadError(data.error || 'Error al subir el favicon');
+      }
+    } catch {
+      setFaviconUploadError('Error de conexión al subir el favicon');
+    } finally {
+      setFaviconUploading(false);
     }
   };
 
@@ -383,6 +439,58 @@ export function AdminPanel() {
             {heroUploadError && (
               <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
                 {heroUploadError}
+              </div>
+            )}
+          </div>
+
+          {/* Site Logo Upload */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Logo del sitio</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: logoUploading ? 0.6 : 1 }}>
+                {logoUploading ? 'Subiendo...' : 'Subir logo'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} style={{ display: 'none' }} disabled={logoUploading} />
+              </label>
+              {heroSettings.site_logo_url && (
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_logo_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                  Eliminar
+                </button>
+              )}
+            </div>
+            {heroSettings.site_logo_url && (
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+                <img src={heroSettings.site_logo_url} alt="Logo preview" style={{ maxHeight: '80px', width: 'auto', objectFit: 'contain' }} />
+              </div>
+            )}
+            {logoUploadError && (
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+                {logoUploadError}
+              </div>
+            )}
+          </div>
+
+          {/* Favicon Upload */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Favicon</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: faviconUploading ? 0.6 : 1 }}>
+                {faviconUploading ? 'Subiendo...' : 'Subir favicon'}
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" onChange={handleFaviconUpload} style={{ display: 'none' }} disabled={faviconUploading} />
+              </label>
+              {heroSettings.site_favicon_url && (
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_favicon_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                  Eliminar
+                </button>
+              )}
+            </div>
+            {heroSettings.site_favicon_url && (
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', maxWidth: '120px' }}>
+                <img src={heroSettings.site_favicon_url} alt="Favicon preview" style={{ maxHeight: '32px', width: 'auto', objectFit: 'contain' }} />
+              </div>
+            )}
+            {faviconUploadError && (
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+                {faviconUploadError}
               </div>
             )}
           </div>
