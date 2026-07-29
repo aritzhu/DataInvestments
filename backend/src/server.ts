@@ -136,6 +136,50 @@ app.get('/api/companies', async (_req, res) => {
   }
 });
 
+app.get('/api/companies/undervalued', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+    const companies = await prisma.$queryRawUnsafe(`
+      SELECT c.id, c.ticker, c.name, c.sector, c.industry, c.country, c."logoUrl", c.website,
+             sm."currentPrice", sm."intrinsicValue", sm."marginOfSafety", sm."peRatio", sm."marketCap"
+      FROM "Company" c
+      JOIN "StockMetric" sm ON sm."companyId" = c.id
+      WHERE sm.id = (
+        SELECT id FROM "StockMetric" WHERE "companyId" = c.id ORDER BY date DESC LIMIT 1
+      )
+      AND sm."marginOfSafety" IS NOT NULL
+      AND sm."marginOfSafety" > 0
+      ORDER BY sm."marginOfSafety" DESC
+      LIMIT ${limit}
+    `);
+    res.json(companies);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching undervalued companies' });
+  }
+});
+
+app.get('/api/companies/overvalued', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+    const companies = await prisma.$queryRawUnsafe(`
+      SELECT c.id, c.ticker, c.name, c.sector, c.industry, c.country, c."logoUrl", c.website,
+             sm."currentPrice", sm."intrinsicValue", sm."marginOfSafety", sm."peRatio", sm."marketCap"
+      FROM "Company" c
+      JOIN "StockMetric" sm ON sm."companyId" = c.id
+      WHERE sm.id = (
+        SELECT id FROM "StockMetric" WHERE "companyId" = c.id ORDER BY date DESC LIMIT 1
+      )
+      AND sm."marginOfSafety" IS NOT NULL
+      AND sm."marginOfSafety" < 0
+      ORDER BY sm."marginOfSafety" ASC
+      LIMIT ${limit}
+    `);
+    res.json(companies);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching overvalued companies' });
+  }
+});
+
 app.get('/api/companies/:ticker', async (req, res) => {
   try {
     const company = await prisma.company.findUnique({
@@ -578,51 +622,7 @@ app.put('/api/settings', async (req, res) => {
   }
 });
 
-// ── Undervalued Companies ───────────────────────────────────────────────────
 
-app.get('/api/companies/undervalued', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-    const companies = await prisma.$queryRawUnsafe(`
-      SELECT c.id, c.ticker, c.name, c.sector, c.industry, c.country, c."logoUrl", c.website,
-             sm."currentPrice", sm."intrinsicValue", sm."marginOfSafety", sm."peRatio", sm."marketCap"
-      FROM "Company" c
-      JOIN "StockMetric" sm ON sm."companyId" = c.id
-      WHERE sm.id = (
-        SELECT id FROM "StockMetric" WHERE "companyId" = c.id ORDER BY date DESC LIMIT 1
-      )
-      AND sm."marginOfSafety" IS NOT NULL
-      AND sm."marginOfSafety" > 0
-      ORDER BY sm."marginOfSafety" DESC
-      LIMIT ${limit}
-    `);
-    res.json(companies);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching undervalued companies' });
-  }
-});
-
-app.get('/api/companies/overvalued', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
-    const companies = await prisma.$queryRawUnsafe(`
-      SELECT c.id, c.ticker, c.name, c.sector, c.industry, c.country, c."logoUrl", c.website,
-             sm."currentPrice", sm."intrinsicValue", sm."marginOfSafety", sm."peRatio", sm."marketCap"
-      FROM "Company" c
-      JOIN "StockMetric" sm ON sm."companyId" = c.id
-      WHERE sm.id = (
-        SELECT id FROM "StockMetric" WHERE "companyId" = c.id ORDER BY date DESC LIMIT 1
-      )
-      AND sm."marginOfSafety" IS NOT NULL
-      AND sm."marginOfSafety" < 0
-      ORDER BY sm."marginOfSafety" ASC
-      LIMIT ${limit}
-    `);
-    res.json(companies);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching overvalued companies' });
-  }
-});
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error('[FATAL]', err);
