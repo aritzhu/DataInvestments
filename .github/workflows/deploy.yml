@@ -2,7 +2,7 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [main]
+    branches: [dev]
 
 jobs:
   deploy:
@@ -10,17 +10,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy & Sync
-        env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
-          COOKIE_SECURE: "true"
-          NODE_ENV: production
+      - name: Create .env.prod
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend npx prisma db push --schema=src/infrastructure/prisma/schema.prisma
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T backend node dist/infrastructure/prisma/seed.js
+          cat > .env.prod << EOF
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          FINNHUB_API_KEY=${{ secrets.FINNHUB_API_KEY }}
+          SEC_USER_AGENT=${{ secrets.SEC_USER_AGENT }}
+          NODE_ENV=production
+          COOKIE_SECURE=false
+          EOF
+
+      - name: Deploy
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d --build --remove-orphans
+
+      - name: Sync database schema
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec -T backend npx prisma db push --schema=src/infrastructure/prisma/schema.prisma
+
+      - name: Seed database
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod exec -T backend node dist/infrastructure/prisma/seed.js
