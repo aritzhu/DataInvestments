@@ -45,15 +45,33 @@ jobs:
             COOKIE_SECURE=${COOKIE_SECURE}
             EOF
 
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              --env-file .env.prod up -d --build --remove-orphans
+            DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod"
 
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              --env-file .env.prod exec -T backend \
+            # Build images (db uses official postgres:16-alpine, no build needed)
+            $DC build
+
+            # Start db only and wait for it to accept connections
+            $DC up -d db
+            echo "Waiting for database..."
+            for i in $(seq 1 30); do
+              $DC exec -T db pg_isready -U postgres && break || sleep 1
+            done
+
+            # Push schema (one-shot container, independent of running backend)
+            echo "Pushing schema..."
+            $DC run --rm backend \
               npx prisma db push --schema=src/infrastructure/prisma/schema.prisma --accept-data-loss
 
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              --env-file .env.prod exec -T backend \
+            # Seed data (one-shot container)
+            echo "Seeding data..."
+            $DC run --rm backend \
               node dist/infrastructure/prisma/seed.js
+
+            # Start remaining services without restarting db
+            $DC up -d --no-deps backend frontend
+
+            # Reload gateway nginx so it picks up any changes
+            echo "Reloading gateway nginx..."
+            docker exec deploy-gateway nginx -s reload || true
 
             docker image prune -f
