@@ -59,6 +59,8 @@ export function AdminPanel() {
   const [heroSaving, setHeroSaving] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
   const [heroUploadError, setHeroUploadError] = useState('');
+  const [sp500Loading, setSp500Loading] = useState(false);
+  const [sp500Count, setSp500Count] = useState(0);
 
   const fetchCompanies = useCallback(async () => {
     try {
@@ -144,6 +146,23 @@ export function AdminPanel() {
     const existing = bulkTickers.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
     const newTickers = [...new Set([...existing, ...index.tickers])];
     setBulkTickers(newTickers.join('\n'));
+  };
+
+  const loadSP500 = async () => {
+    setSp500Loading(true);
+    try {
+      const res = await fetch('/api/admin/sp500-list');
+      const data = await res.json();
+      const tickers = data.stocks.map((s: { ticker: string }) => s.ticker);
+      const existing = bulkTickers.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
+      const newTickers = [...new Set([...existing, ...tickers])];
+      setBulkTickers(newTickers.join('\n'));
+      setSp500Count(tickers.length);
+    } catch {
+      setSp500Count(0);
+    } finally {
+      setSp500Loading(false);
+    }
   };
 
   const startBulkImport = async () => {
@@ -524,6 +543,40 @@ export function AdminPanel() {
             </div>
             <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
               Selecciona un indice y haz clic en "Añadir" para incluir sus tickers en la importación
+            </p>
+          </div>
+
+          {/* US Companies Quick Import */}
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <Globe size={16} style={{ color: '#3b82f6' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Empresas de EEUU</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={loadSP500}
+                disabled={isImporting || sp500Loading}
+                className="admin-form-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  color: 'white', fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap',
+                  padding: '0.5rem 1rem',
+                }}
+              >
+                {sp500Loading ? (
+                  <><Loader2 size={14} className="admin-spinner" /> Cargando...</>
+                ) : (
+                  <><Download size={14} /> Cargar Lista S&P 500</>
+                )}
+              </button>
+              {sp500Count > 0 && (
+                <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 600 }}>
+                  {sp500Count} empresas disponibles
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
+              Carga la lista completa del S&P 500 (~500 empresas) y anadelas al campo de tickers
             </p>
           </div>
 

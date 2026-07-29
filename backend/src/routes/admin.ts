@@ -228,15 +228,10 @@ router.get('/companies/:ticker/import-timeline', async (req, res) => {
   }
 });
 
-// GET /api/admin/sp500-list — fetch S&P 500 stock list from FMP
+// GET /api/admin/sp500-list — fetch S&P 500 stock list
 router.get('/sp500-list', async (req, res) => {
   try {
-    const fmpApiKey = (req.headers['x-api-key'] as string) || '';
-    if (!fmpApiKey) {
-      res.status(400).json({ error: 'FMP API key required' });
-      return;
-    }
-
+    const fmpApiKey = process.env.FMP_API_KEY || (req.headers['x-api-key'] as string) || '';
     const stocks = await getSP500StockList(fmpApiKey);
     res.json({ stocks, total: stocks.length });
   } catch (error) {
