@@ -38,7 +38,12 @@ app.use(express.json());
 
 app.use(session({
   store: new PgSession({
-    conString: process.env.DATABASE_URL,
+    conObject: {
+      host: 'db',
+      port: 5432,
+      database: 'datainvestments',
+      user: 'postgres',
+    },
     createTableIfMissing: true,
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me-in-production',

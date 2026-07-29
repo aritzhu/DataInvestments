@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    build: ./backend/docker/db
     container_name: datainvestments-db
     restart: unless-stopped
     volumes:
