@@ -377,9 +377,12 @@ export function CompanyPage() {
                 src={company.logoUrl || companyLogoUrl(company.website)!}
                 alt={company.ticker}
                 className="cp-logo"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('cp-logo-fallback--hidden'); }}
               />
             ) : null}
+            <div className={`cp-logo-fallback ${(company.logoUrl || companyLogoUrl(company.website)) ? 'cp-logo-fallback--hidden' : ''}`}>
+              {company.ticker.slice(0, 2)}
+            </div>
             <h1 className="cp-ticker">{company.ticker}</h1>
             {stock && (
               <div className="cp-price">

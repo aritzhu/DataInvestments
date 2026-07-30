@@ -300,6 +300,7 @@
   object-fit: contain;
   background: var(--surface-1);
   padding: 3px;
+  box-sizing: border-box;
 }
 
 .valuation-avatar--hidden {
@@ -529,6 +530,7 @@
   object-fit: contain;
   background: var(--surface-1);
   padding: 4px;
+  box-sizing: border-box;
 }
 
 .company-card-avatar--hidden {
@@ -1213,6 +1215,7 @@
   object-fit: contain;
   background: var(--surface-1);
   padding: 3px;
+  box-sizing: border-box;
 }
 
 .favorites-card-avatar--hidden {

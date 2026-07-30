@@ -191,6 +191,7 @@
   background: var(--surface-1);
   padding: 4px;
   border-radius: 10px;
+  box-sizing: border-box;
 }
 
 .fav-card-avatar--hidden {
