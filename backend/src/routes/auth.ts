@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../infrastructure/prisma/client';
+import { generateToken } from '../middleware/jwt';
 
 const router: ExpressRouter = Router();
 
@@ -26,14 +27,11 @@ router.post('/register', async (req, res) => {
       data: { email, name, passwordHash, role },
     });
 
-    req.session.userId = user.id;
-    (req.session as any).role = user.role;
+    const token = generateToken({ id: user.id, role: user.role });
 
     res.status(201).json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (error) {
     console.error('[Auth] Register error:', error);
@@ -61,14 +59,11 @@ router.post('/login', async (req, res) => {
       return;
     }
 
-    req.session.userId = user.id;
-    (req.session as any).role = user.role;
+    const token = generateToken({ id: user.id, role: user.role });
 
     res.json({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (error) {
     console.error('[Auth] Login error:', error);
@@ -76,26 +71,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.post('/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ error: 'Error logging out' });
-      return;
-    }
-    res.clearCookie('connect.sid');
-    res.json({ success: true });
-  });
+router.post('/logout', (_req, res) => {
+  res.json({ success: true });
 });
 
 router.get('/me', async (req, res) => {
-  if (!req.session.userId) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
   try {
+    const jwt = await import('jsonwebtoken');
+    const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'di-dev-jwt-secret';
+    const decoded = jwt.default.verify(header.slice(7), secret) as { id: string; role: string };
+
     const user = await prisma.user.findUnique({
-      where: { id: req.session.userId },
+      where: { id: decoded.id },
       select: { id: true, email: true, name: true, role: true },
     });
 
@@ -105,18 +98,28 @@ router.get('/me', async (req, res) => {
     }
 
     res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Error fetching user' });
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 
 router.post('/invite', async (req, res) => {
-  if (!req.session.userId || (req.session as any).role !== 'admin') {
-    res.status(403).json({ error: 'Admin access required' });
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
   try {
+    const jwt = await import('jsonwebtoken');
+    const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'di-dev-jwt-secret';
+    const decoded = jwt.default.verify(header.slice(7), secret) as { id: string; role: string };
+
+    if (decoded.role !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
     const { email, name } = req.body;
     if (!email || !name) {
       res.status(400).json({ error: 'Email and name are required' });
@@ -142,9 +145,8 @@ router.post('/invite', async (req, res) => {
       name: user.name,
       tempPassword,
     });
-  } catch (error) {
-    console.error('[Auth] Invite error:', error);
-    res.status(500).json({ error: 'Error inviting user' });
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
   }
 });
 

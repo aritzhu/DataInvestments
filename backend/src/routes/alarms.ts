@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import { fetchYahooQuote } from '../services/yahoo';
 import { computeAll, weightedAverage, getVerdict, getSectorConfigs } from '../services/valuationService';
 import prisma from '../infrastructure/prisma/client';
@@ -8,10 +8,10 @@ const router: ExpressRouter = Router();
 
 router.use(requireAuth);
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
   try {
     const alarms = await prisma.alarm.findMany({
-      where: { userId: req.session.userId! },
+      where: { userId: req.user!.id },
       include: {
         company: { select: { id: true, ticker: true, name: true, sector: true, industry: true } },
       },
@@ -23,9 +23,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', async (req: AuthRequest, res) => {
   try {
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
     const { companyId, targetVerdict } = req.body;
 
     if (!companyId || !targetVerdict) {
@@ -100,9 +100,9 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: AuthRequest, res) => {
   try {
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
     const alarmId = req.params.id as string;
 
     const existing = await prisma.alarm.findUnique({ where: { id: alarmId } });
@@ -138,9 +138,9 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: AuthRequest, res) => {
   try {
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
     const alarmId = req.params.id as string;
 
     const existing = await prisma.alarm.findUnique({ where: { id: alarmId } });
@@ -157,9 +157,9 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Manual trigger (admin only)
-router.post('/check', async (req, res) => {
+router.post('/check', async (req: AuthRequest, res) => {
   try {
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== 'admin') {
       res.status(403).json({ error: 'Admin only' });

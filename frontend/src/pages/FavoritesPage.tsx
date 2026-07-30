@@ -38,8 +38,13 @@ export function FavoritesPage() {
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [alarmsLoading, setAlarmsLoading] = useState(true);
 
+  const getAuth = () => {
+    const t = localStorage.getItem('token');
+    return t ? { Authorization: `Bearer ${t}` } : undefined;
+  };
+
   useEffect(() => {
-    fetch('/api/alarms', { credentials: 'include' })
+    fetch('/api/alarms', { headers: getAuth() })
       .then((res) => res.json())
       .then((data) => setAlarms(data))
       .catch(() => {})
@@ -50,7 +55,7 @@ export function FavoritesPage() {
     if (!confirm('¿Eliminar esta alarma?')) return;
     const res = await fetch(`/api/alarms/${alarmId}`, {
       method: 'DELETE',
-      credentials: 'include',
+      headers: getAuth(),
     });
     if (res.ok) {
       setAlarms((prev) => prev.filter((a) => a.id !== alarmId));

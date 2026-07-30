@@ -9,6 +9,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X } from 'lucide-react';
 import '../../styles/stockvalue.css';
 
+const getAuth = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+};
+
 interface AlarmData {
   id: string;
   companyId: string;
@@ -71,7 +76,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   // Fetch existing alarm for this company
   useEffect(() => {
     if (!user || !company.id) return;
-    fetch('/api/alarms', { credentials: 'include' })
+    fetch('/api/alarms', { headers: getAuth() })
       .then((res) => res.json())
       .then((alarms: AlarmData[]) => {
         const found = alarms.find((a) => a.companyId === company.id);
@@ -95,8 +100,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
       if (existingAlarm) {
         const res = await fetch(`/api/alarms/${existingAlarm.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...getAuth() },
           body: JSON.stringify({ targetVerdict: alarmTarget }),
         });
         if (res.ok) {
@@ -107,8 +111,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
       } else {
         const res = await fetch('/api/alarms', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...getAuth() },
           body: JSON.stringify({ companyId: company.id, targetVerdict: alarmTarget }),
         });
         if (res.ok) {
@@ -128,7 +131,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     if (!confirm('¿Eliminar esta alarma?')) return;
     const res = await fetch(`/api/alarms/${existingAlarm.id}`, {
       method: 'DELETE',
-      credentials: 'include',
+      headers: getAuth(),
     });
     if (res.ok) {
       setExistingAlarm(null);

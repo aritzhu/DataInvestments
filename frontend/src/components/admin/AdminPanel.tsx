@@ -65,9 +65,19 @@ export function AdminPanel() {
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
 
+  const getAuth = () => {
+    const t = localStorage.getItem('token');
+    return t ? { Authorization: `Bearer ${t}` } : undefined;
+  };
+  const getAuthFD = () => {
+    const t = localStorage.getItem('token');
+    return t ? { headers: { Authorization: `Bearer ${t}` } } : undefined;
+  };
+  const auth = getAuth();
+
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/companies');
+      const res = await fetch('/api/admin/companies', { headers: auth });
       const data = await res.json();
       setCompanies(data);
     } catch (err) {
@@ -92,8 +102,7 @@ export function AdminPanel() {
     try {
       await fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify(heroSettings),
       });
     } finally {
@@ -111,7 +120,7 @@ export function AdminPanel() {
       formData.append('file', file);
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        credentials: 'include',
+        ...getAuthFD(),
         body: formData,
       });
       const data = await res.json();
@@ -137,7 +146,7 @@ export function AdminPanel() {
       formData.append('file', file);
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        credentials: 'include',
+        ...getAuthFD(),
         body: formData,
       });
       const data = await res.json();
@@ -163,10 +172,9 @@ export function AdminPanel() {
       formData.append('file', file);
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        credentials: 'include',
+        ...getAuthFD(),
         body: formData,
-      });
-      const data = await res.json();
+      });      const data = await res.json();
       if (data.url) {
         setHeroSettings((prev) => ({ ...prev, site_favicon_url: data.url }));
       } else {

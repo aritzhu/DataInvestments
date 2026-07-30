@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Search } from 'lucide-react';
 
+const getAuth = () => {
+  const token = localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+};
+
 interface CompanyOption {
   id: string;
   ticker: string;
@@ -33,7 +38,7 @@ export function AddHoldingModal({ onSave, onClose, initial }: Props) {
     }
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/companies?q=${encodeURIComponent(search)}`, { credentials: 'include' });
+        const res = await fetch(`/api/companies?q=${encodeURIComponent(search)}`, { headers: getAuth() });
         if (res.ok) {
           const all: CompanyOption[] = await res.json();
           setCompanies(all.filter((c) =>

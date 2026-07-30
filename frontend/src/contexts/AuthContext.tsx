@@ -48,15 +48,27 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('token');
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include' })
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => {
         if (res.ok) return res.json();
+        localStorage.removeItem('token');
         return null;
       })
       .then((data) => {
@@ -64,12 +76,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data) loadFavorites();
         else setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        localStorage.removeItem('token');
+        setLoading(false);
+      });
   }, []);
 
   const loadFavorites = async () => {
     try {
-      const res = await fetch('/api/favorites', { credentials: 'include' });
+      const res = await fetch('/api/favorites', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setFavorites(data);
@@ -84,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {
@@ -92,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.error || 'Login failed');
     }
     const data = await res.json();
-    setUser(data);
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
     await loadFavorites();
   };
 
@@ -100,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ email, name, password }),
     });
     if (!res.ok) {
@@ -108,15 +122,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(err.error || 'Registration failed');
     }
     const data = await res.json();
-    setUser(data);
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
     setFavorites([]);
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
+    await fetch('/api/auth/logout', { method: 'POST' });
+    localStorage.removeItem('token');
     setUser(null);
     setFavorites([]);
   };
@@ -124,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const addFavorite = async (companyId: string) => {
     const res = await fetch(`/api/favorites/${companyId}`, {
       method: 'POST',
-      credentials: 'include',
+      headers: authHeaders(),
     });
     if (res.ok) {
       const fav = await res.json();
@@ -135,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const removeFavorite = async (companyId: string) => {
     const res = await fetch(`/api/favorites/${companyId}`, {
       method: 'DELETE',
-      credentials: 'include',
+      headers: authHeaders(),
     });
     if (res.ok) {
       setFavorites((prev) => prev.filter((f) => f.companyId !== companyId));

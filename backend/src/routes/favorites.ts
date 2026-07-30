@@ -1,13 +1,13 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import prisma from '../infrastructure/prisma/client';
 
 const router: ExpressRouter = Router();
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, async (req: AuthRequest, res) => {
   try {
     const favorites = await prisma.favorite.findMany({
-      where: { userId: req.session.userId! },
+      where: { userId: req.user!.id },
       include: {
         company: {
           select: {
@@ -26,10 +26,10 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/:companyId', requireAuth, async (req, res) => {
+router.post('/:companyId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const companyId = req.params.companyId as string;
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
 
     const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) {
@@ -57,10 +57,10 @@ router.post('/:companyId', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/:companyId', requireAuth, async (req, res) => {
+router.delete('/:companyId', requireAuth, async (req: AuthRequest, res) => {
   try {
     const companyId = req.params.companyId as string;
-    const userId = req.session.userId!;
+    const userId = req.user!.id;
 
     await prisma.favorite.deleteMany({
       where: { userId, companyId },

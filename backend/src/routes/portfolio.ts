@@ -1,37 +1,37 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import * as portfolioService from '../services/portfolioService';
 
 const router: ExpressRouter = Router();
 router.use(requireAuth);
 
 // Portfolio CRUD
-router.post('/', async (req, res) => {
+router.post('/', async (req: AuthRequest, res) => {
   try {
     const { name, description, currency } = req.body;
     if (!name) {
       res.status(400).json({ error: 'Name is required' });
       return;
     }
-    const portfolio = await portfolioService.createPortfolio(req.session.userId!, { name, description, currency });
+    const portfolio = await portfolioService.createPortfolio(req.user!.id, { name, description, currency });
     res.status(201).json(portfolio);
   } catch (error) {
     res.status(500).json({ error: 'Error creating portfolio' });
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthRequest, res) => {
   try {
-    const portfolios = await portfolioService.listPortfolios(req.session.userId!);
+    const portfolios = await portfolioService.listPortfolios(req.user!.id);
     res.json(portfolios);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching portfolios' });
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
-    const portfolio = await portfolioService.getPortfolio(req.params.id, req.session.userId!);
+    const portfolio = await portfolioService.getPortfolio(req.params.id as string, req.user!.id);
     if (!portfolio) {
       res.status(404).json({ error: 'Portfolio not found' });
       return;
@@ -42,10 +42,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const { name, description } = req.body;
-    const portfolio = await portfolioService.updatePortfolio(req.params.id, req.session.userId!, { name, description });
+    const portfolio = await portfolioService.updatePortfolio(req.params.id as string, req.user!.id, { name, description });
     if (!portfolio) {
       res.status(404).json({ error: 'Portfolio not found' });
       return;
@@ -56,9 +56,9 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: AuthRequest, res) => {
   try {
-    const deleted = await portfolioService.deletePortfolio(req.params.id, req.session.userId!);
+    const deleted = await portfolioService.deletePortfolio(req.params.id as string, req.user!.id);
     if (!deleted) {
       res.status(404).json({ error: 'Portfolio not found' });
       return;
@@ -70,14 +70,14 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Holdings
-router.post('/:id/holdings', async (req, res) => {
+router.post('/:id/holdings', async (req: AuthRequest, res) => {
   try {
     const { companyId, quantity, averageCost } = req.body;
     if (!companyId || quantity == null || averageCost == null) {
       res.status(400).json({ error: 'companyId, quantity, and averageCost are required' });
       return;
     }
-    const holding = await portfolioService.addHolding(req.params.id, req.session.userId!, { companyId, quantity, averageCost });
+    const holding = await portfolioService.addHolding(req.params.id as string, req.user!.id, { companyId, quantity, averageCost });
     if (!holding) {
       res.status(404).json({ error: 'Portfolio or company not found' });
       return;
@@ -88,10 +88,10 @@ router.post('/:id/holdings', async (req, res) => {
   }
 });
 
-router.put('/:id/holdings/:holdingId', async (req, res) => {
+router.put('/:id/holdings/:holdingId', async (req: AuthRequest, res) => {
   try {
     const { quantity, averageCost } = req.body;
-    const holding = await portfolioService.updateHolding(req.params.holdingId, req.params.id, req.session.userId!, { quantity, averageCost });
+    const holding = await portfolioService.updateHolding(req.params.holdingId as string, req.params.id as string, req.user!.id, { quantity, averageCost });
     if (!holding) {
       res.status(404).json({ error: 'Holding or portfolio not found' });
       return;
@@ -102,9 +102,9 @@ router.put('/:id/holdings/:holdingId', async (req, res) => {
   }
 });
 
-router.delete('/:id/holdings/:holdingId', async (req, res) => {
+router.delete('/:id/holdings/:holdingId', async (req: AuthRequest, res) => {
   try {
-    const deleted = await portfolioService.removeHolding(req.params.holdingId, req.params.id, req.session.userId!);
+    const deleted = await portfolioService.removeHolding(req.params.holdingId as string, req.params.id as string, req.user!.id);
     if (!deleted) {
       res.status(404).json({ error: 'Holding or portfolio not found' });
       return;
@@ -116,9 +116,9 @@ router.delete('/:id/holdings/:holdingId', async (req, res) => {
 });
 
 // Valuation
-router.get('/:id/valuation', async (req, res) => {
+router.get('/:id/valuation', async (req: AuthRequest, res) => {
   try {
-    const valuation = await portfolioService.getPortfolioValuation(req.params.id, req.session.userId!);
+    const valuation = await portfolioService.getPortfolioValuation(req.params.id as string, req.user!.id);
     if (!valuation) {
       res.status(404).json({ error: 'Portfolio not found' });
       return;
