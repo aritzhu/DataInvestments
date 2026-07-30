@@ -1,6 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { addCompanyFromTicker, syncCompanyData, bulkImportCompanies, getSP500StockList, batchResyncCompanies } from '../services/dataAggregator';
+import prisma from '../infrastructure/prisma/client';
 import { buildCoverageReport } from '../services/coverageReporter';
 import { buildComprehensiveYearReport, getImportTimeline } from '../services/adminReporting';
 import { TICKER_SECTORS } from '../data/sectors';
@@ -9,7 +9,6 @@ import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 
 const router: ExpressRouter = Router();
-const prisma = new PrismaClient();
 
 router.use(requireAdmin);
 

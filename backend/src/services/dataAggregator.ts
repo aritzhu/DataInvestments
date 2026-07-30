@@ -1,5 +1,3 @@
-import { PrismaClient } from '@prisma/client';
-
 function buildLogoUrl(website: string | null | undefined): string | null {
   if (!website) return null;
   const domain = website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
@@ -74,8 +72,7 @@ import {
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
-
-const prisma = new PrismaClient();
+import prisma from '../infrastructure/prisma/client';
 
 function safeInt(val: unknown): number | null {
   if (val == null) return null;

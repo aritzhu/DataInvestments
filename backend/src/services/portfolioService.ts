@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { computeAll, weightedAverage, getVerdict, getSectorConfigs } from './valuationService';
-
-const prisma = new PrismaClient();
+import prisma from '../infrastructure/prisma/client';
 
 export async function createPortfolio(userId: string, data: { name: string; description?: string; currency?: string }) {
   return prisma.portfolio.create({

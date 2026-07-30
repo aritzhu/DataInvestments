@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { FIELD_MAPPING_CATALOG } from '../data/fieldMappingCatalog';
-
-const prisma = new PrismaClient();
+import prisma from '../infrastructure/prisma/client';
 
 export interface FieldCoverageEntry {
   fieldName: string;

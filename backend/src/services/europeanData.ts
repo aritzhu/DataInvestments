@@ -1,8 +1,6 @@
 import axios from 'axios';
-import { PrismaClient } from '@prisma/client';
 import { validateFinancialData, logValidationWarnings } from '../utils/financialValidation';
-
-const prisma = new PrismaClient();
+import prisma from '../infrastructure/prisma/client';
 const GLEIF_BASE = 'https://api.gleif.org/api/v1';
 const XBRL_BASE = 'https://filings.xbrl.org/api';
 

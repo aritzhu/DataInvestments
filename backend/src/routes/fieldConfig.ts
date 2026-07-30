@@ -1,6 +1,6 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/auth';
+import prisma from '../infrastructure/prisma/client';
 import {
   FIELD_MAPPING_CATALOG,
   FIELD_CATEGORIES,
@@ -9,7 +9,6 @@ import {
 import { batchResyncCompanies } from '../services/dataAggregator';
 
 const router: ExpressRouter = Router();
-const prisma = new PrismaClient();
 
 router.use(requireAdmin);
 

@@ -1,11 +1,10 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth';
 import { fetchYahooQuote } from '../services/yahoo';
 import { computeAll, weightedAverage, getVerdict, getSectorConfigs } from '../services/valuationService';
+import prisma from '../infrastructure/prisma/client';
 
 const router: ExpressRouter = Router();
-const prisma = new PrismaClient();
 
 router.use(requireAuth);
 

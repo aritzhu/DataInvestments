@@ -11,7 +11,7 @@ import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
-import { PrismaClient } from '@prisma/client';
+import prisma from './infrastructure/prisma/client';
 import authRoutes from './routes/auth';
 import favoritesRoutes from './routes/favorites';
 import alarmsRoutes, { checkAllAlarms } from './routes/alarms';
@@ -23,7 +23,6 @@ import { getCikForTicker, fetchCompanyFacts, extractSharesOutstanding } from './
 import { getMarketAverages } from './services/marketAverages';
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 const PgSession = ConnectPgSimple(session);
