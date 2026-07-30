@@ -280,9 +280,10 @@ export function extractSharesOutstanding(facts: SECCompanyFacts): number | null 
       const factsArr = units[unitKey];
       if (!factsArr?.length) continue;
 
-      return factsArr.reduce((a: SECFact, b: SECFact) =>
+      const latest = factsArr.reduce((a: SECFact, b: SECFact) =>
         new Date(a.filed) > new Date(b.filed) ? a : b
       ).val;
+      if (latest >= 100_000) return latest;
     }
   }
 
