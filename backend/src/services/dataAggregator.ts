@@ -887,7 +887,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   try {
     const companyForProfile = await prisma.company.findUnique({
       where: { ticker: ticker.toUpperCase() },
-      select: { id: true, logoUrl: true, website: true, cik: true },
+      select: { id: true, logoUrl: true, website: true, name: true },
     });
     if (companyForProfile && !companyForProfile.logoUrl) {
       const finnhubProfile = await fetchFinnhubProfile(ticker);
@@ -919,32 +919,22 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         }
       }
 
-      // SEC fallback: get website from SEC submissions endpoint (gratuito, sin API key)
-      if (companyForProfile.cik && !companyForProfile.website) {
-        try {
-          const paddedCik = companyForProfile.cik.padStart(10, '0');
-          const secResponse = await axios.get(
-            `https://data.sec.gov/submissions/CIK${paddedCik}.json`,
-            {
-              headers: {
-                'User-Agent': process.env.SEC_USER_AGENT || 'DataInvestments/1.0',
-              },
-              timeout: 15000,
-            }
-          );
-          const secWebsite = secResponse.data?.website;
-          if (secWebsite) {
-            await prisma.company.update({
-              where: { id: companyForProfile.id },
-              data: {
-                website: secWebsite,
-                logoUrl: buildLogoUrl(secWebsite),
-              },
-            });
-            console.log(`[SEC] Enriched ${ticker} with website/logo`);
-          }
-        } catch (err) {
-          console.error(`[SEC] Website fetch failed for ${ticker}:`, err instanceof Error ? err.message : err);
+      // Fallback final: deducir dominio desde el nombre de la empresa
+      const name = companyForProfile.name;
+      if (name && !companyForProfile.website) {
+        let domain = name.toLowerCase().trim();
+        domain = domain.replace(/^(the\s+)/i, '');
+        domain = domain.replace(/\b(inc|corp|ltd|plc|llc|sa|ag|se|nv|gmbh|limited|corporation|company|group|holdings|holding|co\.|class\s+[ab])\b\.?$/gi, '');
+        domain = domain.replace(/[&]/g, 'and');
+        domain = domain.replace(/[^a-z0-9\s-]/g, '');
+        domain = domain.replace(/\s+/g, '');
+        if (domain && domain.length >= 3) {
+          const website = `https://www.${domain}.com`;
+          await prisma.company.update({
+            where: { id: companyForProfile.id },
+            data: { website, logoUrl: buildLogoUrl(website) },
+          });
+          console.log(`[Guess] Enriched ${ticker} → ${website}`);
         }
       }
     }
