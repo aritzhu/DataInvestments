@@ -69,7 +69,14 @@ jobs:
               node dist/infrastructure/prisma/seed.js
 
             # Start remaining services without restarting db
+            $DC rm -fsv frontend backend 2>/dev/null || true
             $DC up -d --no-deps backend frontend
+
+            # Wait for backend to be ready before reloading nginx
+            echo "Waiting for backend..."
+            for i in $(seq 1 15); do
+              curl -sf http://localhost:3001/api/health > /dev/null 2>&1 && break || sleep 2
+            done
 
             # Reload gateway nginx so it picks up any changes
             echo "Reloading gateway nginx..."
