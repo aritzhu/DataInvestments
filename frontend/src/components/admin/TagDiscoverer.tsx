@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Check } from 'lucide-react';
 import { FIELD_LABELS, guessField } from '../../utils/tagDiscovery';
+import { apiFetch } from '../../utils/api';
 
 interface TagDiscovererProps {
   availableTags: string[];
@@ -34,21 +35,21 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
       const conceptName = colonIdx >= 0 ? tag.substring(colonIdx + 1) : tag;
 
       // Fetch existing config first to append
-      const res = await fetch('/api/admin/field-config');
+      const res = await apiFetch('/api/admin/field-config');
       const { catalog } = await res.json();
       const field = catalog?.find((f: { fieldName: string }) => f.fieldName === fieldName);
       const existingCustom = field?.sources?.european?.customTags || [];
       const merged = [...new Set([...existingCustom, tag])];
 
       // Save to FieldConfig (custom tag)
-      await fetch('/api/admin/field-config', {
+      await apiFetch('/api/admin/field-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fieldName, source: 'european', customTags: merged }),
       });
 
       // Save to ConceptMapping (learned mapping)
-      await fetch('/api/admin/concept-mappings', {
+      await apiFetch('/api/admin/concept-mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

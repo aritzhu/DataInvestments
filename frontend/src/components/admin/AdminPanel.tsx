@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
+import { apiFetch } from '../../utils/api';
 import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
 import '../../styles/admin.css';
@@ -214,7 +215,7 @@ export function AdminPanel() {
   const loadSP500 = async () => {
     setSp500Loading(true);
     try {
-      const res = await fetch('/api/admin/sp500-list');
+      const res = await apiFetch('/api/admin/sp500-list');
       const data = await res.json();
       const tickers = data.stocks.map((s: { ticker: string }) => s.ticker);
       const existing = bulkTickers.split(/[\n,;]+/).map(t => t.trim().toUpperCase()).filter(t => t.length > 0);
@@ -241,7 +242,7 @@ export function AdminPanel() {
     setBulkComplete(null);
 
     try {
-      const res = await fetch('/api/admin/companies/bulk-import', {
+      const res = await apiFetch('/api/admin/companies/bulk-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tickers, years: bulkYears }),
@@ -298,7 +299,7 @@ export function AdminPanel() {
     setResyncComplete(null);
 
     try {
-      const res = await fetch('/api/admin/companies/batch-resync', {
+      const res = await apiFetch('/api/admin/companies/batch-resync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ years: 5 }),

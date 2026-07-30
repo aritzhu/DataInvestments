@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Building2, Wrench, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 interface FieldCoverage {
   populated: number;
@@ -235,7 +236,7 @@ export function DataStatsSection() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/data-stats');
+      const res = await apiFetch('/api/admin/data-stats');
       if (!res.ok) throw new Error('Error fetching stats');
       const data = await res.json();
       setStats(data);

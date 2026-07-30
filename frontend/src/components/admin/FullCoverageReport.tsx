@@ -10,6 +10,7 @@ import {
   ChevronUp,
   TrendingUp,
 } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 import { guessField, FIELD_LABELS } from '../../utils/tagDiscovery';
 
 interface DetailedFieldEntry {
@@ -80,7 +81,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
     try {
       setLoading(true);
       // Fetch data for all years, not just the latest
-      const res = await fetch(`/api/admin/companies/${ticker}/year-data`);
+      const res = await apiFetch(`/api/admin/companies/${ticker}/year-data`);
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Error fetching comprehensive report');
@@ -89,7 +90,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
       setYearsData(data);
 
       // Fetch import timeline
-      const timelineRes = await fetch(`/api/admin/companies/${ticker}/import-timeline`);
+      const timelineRes = await apiFetch(`/api/admin/companies/${ticker}/import-timeline`);
       if (timelineRes.ok) {
         const timelineData = await timelineRes.json();
         setImportHistory(timelineData);
@@ -108,14 +109,14 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
     const conceptName = colonIdx >= 0 ? concept.substring(colonIdx + 1) : concept;
 
     try {
-      const res = await fetch('/api/admin/field-config', {
+      const res = await apiFetch('/api/admin/field-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fieldName, source: 'european', customTags: [concept] }),
       });
       if (!res.ok) throw new Error('Error adding field mapping');
 
-      await fetch('/api/admin/concept-mappings', {
+      await apiFetch('/api/admin/concept-mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conceptName, fieldName, source: 'european', confirmedBy: 'admin' }),

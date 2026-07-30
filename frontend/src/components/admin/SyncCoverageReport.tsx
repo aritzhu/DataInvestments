@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, BarChart3, X, Loader2, Plus, Check } from 'lucide-react';
 import { FIELD_LABELS, guessField } from '../../utils/tagDiscovery';
+import { apiFetch } from '../../utils/api';
 
 interface FieldEntry {
   fieldName: string;
@@ -51,19 +52,19 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
       const colonIdx = tag.indexOf(':');
       const conceptName = colonIdx >= 0 ? tag.substring(colonIdx + 1) : tag;
 
-      const res = await fetch('/api/admin/field-config');
+      const res = await apiFetch('/api/admin/field-config');
       const { catalog } = await res.json();
       const field = catalog?.find((f: { fieldName: string }) => f.fieldName === fieldName);
       const existingCustom = field?.sources?.european?.customTags || [];
       const merged = [...new Set([...existingCustom, tag])];
 
-      await fetch('/api/admin/field-config', {
+      await apiFetch('/api/admin/field-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fieldName, source: 'european', customTags: merged }),
       });
 
-      await fetch('/api/admin/concept-mappings', {
+      await apiFetch('/api/admin/concept-mappings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ conceptName, fieldName, source: 'european', confirmedBy: 'admin' }),
@@ -81,7 +82,7 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
     const fetchReport = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/sync/${ticker}/coverage`);
+        const res = await apiFetch(`/api/admin/sync/${ticker}/coverage`);
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.error || 'Error fetching coverage');

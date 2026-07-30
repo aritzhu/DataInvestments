@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Trash2, Loader2, ExternalLink, Clock, X, BarChart3 } from 'lucide-react';
 import type { CompanyData } from './AdminPanel';
 import { FullCoverageReport } from './FullCoverageReport';
+import { apiFetch } from '../../utils/api';
 
 interface Props {
   company: CompanyData;
@@ -22,7 +23,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
     setSyncResult(null);
 
     try {
-      const res = await fetch(`/api/admin/sync/${company.ticker}`, {
+      const res = await apiFetch(`/api/admin/sync/${company.ticker}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ years }),
@@ -56,7 +57,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
     if (!confirm(`¿Eliminar ${company.ticker} y todos sus datos?`)) return;
     setDeleting(true);
     try {
-      await fetch(`/api/admin/companies/${company.id}`, { method: 'DELETE' });
+      await apiFetch(`/api/admin/companies/${company.id}`, { method: 'DELETE' });
       onDeleted();
     } catch {
       console.error('Error deleting');

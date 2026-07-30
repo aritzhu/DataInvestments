@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Settings, RefreshCw, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search, Plus, X } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 interface SourceData {
   baseTags: string[];
@@ -70,7 +71,7 @@ export function FieldConfigPanel() {
   const fetchConfig = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/field-config');
+      const res = await apiFetch('/api/admin/field-config');
       if (!res.ok) throw new Error('Error fetching field config');
       const result = await res.json();
       setData(result);
@@ -155,7 +156,7 @@ export function FieldConfigPanel() {
         });
       }
 
-      const res = await fetch('/api/admin/field-config/bulk', {
+      const res = await apiFetch('/api/admin/field-config/bulk', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: properUpdates }),
@@ -196,7 +197,7 @@ export function FieldConfigPanel() {
     try {
       setApplying(true);
       setApplyProgress({ type: 'start', total: 0 });
-      const res = await fetch('/api/admin/field-config/apply', { method: 'POST' });
+      const res = await apiFetch('/api/admin/field-config/apply', { method: 'POST' });
       if (!res.ok) throw new Error('Error applying field config');
       const reader = res.body?.getReader();
       if (!reader) throw new Error('No response body');

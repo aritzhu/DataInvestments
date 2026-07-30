@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, Plus, Loader2, CheckCircle2 } from 'lucide-react';
+import { apiFetch } from '../../utils/api';
 
 interface Props {
   onCompanyAdded: () => void;
@@ -21,7 +22,7 @@ export function AddCompanyForm({ onCompanyAdded }: Props) {
     setSuccess('');
 
     try {
-      const res = await fetch('/api/admin/companies', {
+      const res = await apiFetch('/api/admin/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker: trimmed }),
