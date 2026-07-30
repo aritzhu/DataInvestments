@@ -104,6 +104,7 @@ export interface YahooProfile {
   sector: string | null;
   industry: string | null;
   employees: number | null;
+  website: string | null;
 }
 
 export async function fetchYahooProfile(ticker: string): Promise<YahooProfile | null> {
@@ -124,6 +125,7 @@ export async function fetchYahooProfile(ticker: string): Promise<YahooProfile | 
       sector: profile.sector || null,
       industry: profile.industry || null,
       employees: profile.fullTimeEmployees || null,
+      website: profile.website || null,
     };
   } catch {
     return null;

@@ -901,12 +901,25 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           });
           console.log(`[Finnhub] Enriched ${ticker} profile with website/logo`);
         }
+        // Rate limit: 1.5s between Finnhub calls
+        await new Promise(r => setTimeout(r, 1500));
+      } else {
+        // Finnhub fallback: try Yahoo Finance for website + hunter.io logo
+        const yahooProfile = await fetchYahooProfile(ticker);
+        if (yahooProfile?.website) {
+          await prisma.company.update({
+            where: { id: companyForProfile.id },
+            data: {
+              website: yahooProfile.website,
+              logoUrl: buildLogoUrl(yahooProfile.website),
+            },
+          });
+          console.log(`[Yahoo] Enriched ${ticker} with website/logo`);
+        }
       }
-      // Rate limit: 1.5s between Finnhub profile calls
-      await new Promise(r => setTimeout(r, 1500));
     }
   } catch (err) {
-    console.error(`[Finnhub] Profile enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
+    console.error(`[Profile] Enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
   }
 
   // Calculate intrinsic value from available financial data + stock metrics
