@@ -1007,6 +1007,8 @@ export async function addCompanyFromTicker(ticker: string) {
           country: finnhubProfile.country,
           exchange: finnhubProfile.exchange,
           currency: finnhubProfile.currency,
+          website: finnhubProfile.weburl,
+          logoUrl: finnhubProfile.logo,
         },
       });
     }
