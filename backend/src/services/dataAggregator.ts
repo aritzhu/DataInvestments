@@ -877,6 +877,26 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           }
         }
       }
+
+      // Enrich company profile with Finnhub website and logo
+      try {
+        const finnhubProfile = await fetchFinnhubProfile(ticker);
+        if (finnhubProfile && companyForFinhub) {
+          const updateData: Record<string, string> = {};
+          if (finnhubProfile.weburl) updateData.website = finnhubProfile.weburl;
+          if (finnhubProfile.logo) updateData.logoUrl = finnhubProfile.logo;
+          if (Object.keys(updateData).length > 0) {
+            await prisma.company.update({
+              where: { id: companyForFinhub.id },
+              data: updateData,
+            });
+            result.finnhubSync = true;
+            console.log(`[Finnhub] Enriched ${ticker} profile with website/logo`);
+          }
+        }
+      } catch (err) {
+        console.error(`[Finnhub] Profile enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
+      }
     } catch (err) {
       console.error(`[Finnhub] Enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
     }
