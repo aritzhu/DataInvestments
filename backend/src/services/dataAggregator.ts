@@ -982,13 +982,32 @@ export async function addCompanyFromTicker(ticker: string) {
     if (cik) {
       const facts = await fetchCompanyFacts(cik);
       if (facts) {
-        return prisma.company.create({
+        const company = await prisma.company.create({
           data: {
             ticker: ticker.toUpperCase(),
             name: facts.entityName,
             cik,
           },
         });
+
+        // Enrich with Finnhub website and logo
+        try {
+          const finnhubProfile = await fetchFinnhubProfile(upperTicker);
+          if (finnhubProfile && (finnhubProfile.weburl || finnhubProfile.logo)) {
+            await prisma.company.update({
+              where: { id: company.id },
+              data: {
+                ...(finnhubProfile.weburl ? { website: finnhubProfile.weburl } : {}),
+                ...(finnhubProfile.logo ? { logoUrl: finnhubProfile.logo } : {}),
+              },
+            });
+            console.log(`[AddCompany] Enriched ${upperTicker} with Finnhub website/logo`);
+          }
+        } catch {
+          // Non-critical, company already created
+        }
+
+        return company;
       }
     }
   } catch (error) {
