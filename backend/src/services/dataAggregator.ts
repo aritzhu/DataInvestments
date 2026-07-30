@@ -58,7 +58,7 @@ import {
 } from './sec';
 
 import { fetchYahooQuote, fetchYahooProfile } from './yahoo';
-import { fetchFinnhubMetrics } from './finnhub';
+import { fetchFinnhubMetrics, fetchFinnhubProfile } from './finnhub';
 import { fetchEuropeanFinancials } from './europeanData';
 import {
   fetchYFinanceQuarterly,
@@ -993,6 +993,25 @@ export async function addCompanyFromTicker(ticker: string) {
     }
   } catch (error) {
     console.error(`[SEC] Error fetching data for ${ticker}:`, error instanceof Error ? error.message : error);
+  }
+
+  // Finnhub fallback: try to create company via Finnhub profile API
+  try {
+    const finnhubProfile = await fetchFinnhubProfile(upperTicker);
+    if (finnhubProfile) {
+      console.log(`[AddCompany] Creating ${upperTicker} via Finnhub fallback`);
+      return prisma.company.create({
+        data: {
+          ticker: upperTicker,
+          name: finnhubProfile.name,
+          country: finnhubProfile.country,
+          exchange: finnhubProfile.exchange,
+          currency: finnhubProfile.currency,
+        },
+      });
+    }
+  } catch (error) {
+    console.error(`[Finnhub] Error fetching profile for ${ticker}:`, error instanceof Error ? error.message : error);
   }
 
   // European fallback: try to create company from European XBRL data
