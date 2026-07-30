@@ -69,6 +69,7 @@ import {
   mapBalanceRecord,
   type YFinanceRecord,
 } from './yfinanceSidecar';
+import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
@@ -886,7 +887,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   try {
     const companyForProfile = await prisma.company.findUnique({
       where: { ticker: ticker.toUpperCase() },
-      select: { id: true, logoUrl: true, website: true },
+      select: { id: true, logoUrl: true, website: true, cik: true },
     });
     if (companyForProfile && !companyForProfile.logoUrl) {
       const finnhubProfile = await fetchFinnhubProfile(ticker);
@@ -915,6 +916,35 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             },
           });
           console.log(`[Yahoo] Enriched ${ticker} with website/logo`);
+        }
+      }
+
+      // SEC fallback: get website from SEC submissions endpoint (gratuito, sin API key)
+      if (companyForProfile.cik && !companyForProfile.website) {
+        try {
+          const paddedCik = companyForProfile.cik.padStart(10, '0');
+          const secResponse = await axios.get(
+            `https://data.sec.gov/submissions/CIK${paddedCik}.json`,
+            {
+              headers: {
+                'User-Agent': process.env.SEC_USER_AGENT || 'DataInvestments/1.0',
+              },
+              timeout: 15000,
+            }
+          );
+          const secWebsite = secResponse.data?.website;
+          if (secWebsite) {
+            await prisma.company.update({
+              where: { id: companyForProfile.id },
+              data: {
+                website: secWebsite,
+                logoUrl: buildLogoUrl(secWebsite),
+              },
+            });
+            console.log(`[SEC] Enriched ${ticker} with website/logo`);
+          }
+        } catch (err) {
+          console.error(`[SEC] Website fetch failed for ${ticker}:`, err instanceof Error ? err.message : err);
         }
       }
     }
