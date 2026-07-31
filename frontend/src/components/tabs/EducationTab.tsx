@@ -1,5 +1,6 @@
 import type { CompanyProfile } from '../CompanyPage';
 import { SectionReveal } from '../ui/SectionReveal';
+import { AbbrTip } from '../ui/AbbrTip';
 import { formatNum } from '../../utils/format';
 import '../../styles/education.css';
 
@@ -20,10 +21,10 @@ export function EducationTab({ financial, balanceSheet, stock }: Props) {
 
   const per100 = [
     { label: 'Ingresos por ventas', value: 100, color: '#2563eb', type: 'total' as const },
-    { label: 'Costos directos (COGS)', value: -((f.costOfRevenue / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
+    { label: <>Costos directos (<AbbrTip abbr="COGS" />)</>, value: -((f.costOfRevenue / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
     { label: 'Beneficio bruto', value: (grossProfit / f.revenue) * 100, color: '#10b981', type: 'subtotal' as const },
-    { label: 'Gastos comerciales (SGA)', value: -((f.sgaExpense / f.revenue) * 100), color: '#f97316', type: 'expense' as const },
-    { label: 'I+D', value: -((f.rdExpense / f.revenue) * 100), color: '#f59e0b', type: 'expense' as const },
+    { label: <>Gastos comerciales (<AbbrTip abbr="SGA" />)</>, value: -((f.sgaExpense / f.revenue) * 100), color: '#f97316', type: 'expense' as const },
+    { label: <AbbrTip abbr="I+D" />, value: -((f.rdExpense / f.revenue) * 100), color: '#f59e0b', type: 'expense' as const },
     { label: 'Otros gastos operativos', value: -((otherOpex / f.revenue) * 100), color: '#fb923c', type: 'expense' as const },
     { label: 'Intereses', value: -((f.interestExpense / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
     { label: 'Impuestos', value: -((f.taxExpense / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
@@ -222,7 +223,7 @@ export function EducationTab({ financial, balanceSheet, stock }: Props) {
                 {/* Per-share metrics */}
                 <div className="edu-ownership-metrics">
                   <div className="edu-ownership-metric">
-                    <span className="edu-ownership-metric-label">P/B implícito</span>
+                    <span className="edu-ownership-metric-label"><AbbrTip abbr="P/B" /> implícito</span>
                     <span className="edu-ownership-metric-value">{pbPerShare?.toFixed(2) ?? '—'}</span>
                   </div>
                   <div className="edu-ownership-metric">

@@ -17,6 +17,7 @@ import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote } from './services/yahoo';
+import { getRecommendedModel } from './services/valuationService';
 import { requireAuth, requireAdmin, type AuthRequest } from './middleware/jwt';
 
 const app = express();
@@ -169,28 +170,43 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
 
 // ── Sector companies ──────────────────────────────────────────────────────
 
+async function getRecommendedValuations() {
+  const companies = await prisma.company.findMany({
+    select: {
+      id: true,
+      ticker: true,
+      name: true,
+      logoUrl: true,
+      sector: true,
+      industry: true,
+      stockMetrics: { orderBy: { date: 'desc' }, take: 1 },
+    },
+  });
+
+  return companies
+    .filter(c => c.stockMetrics.length > 0)
+    .map(c => {
+      const m = c.stockMetrics[0];
+      return {
+        ticker: c.ticker,
+        name: c.name,
+        logoUrl: c.logoUrl,
+        sector: c.sector,
+        currentPrice: m.currentPrice,
+        intrinsicValue: m.intrinsicValue,
+        marginOfSafety: m.marginOfSafety,
+        recommendedModel: getRecommendedModel(c.sector, c.industry),
+      };
+    });
+}
+
 app.get('/api/companies/undervalued', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-    const metrics = await prisma.stockMetric.findMany({
-      where: { marginOfSafety: { gt: 0 }, intrinsicValue: { not: null } },
-      orderBy: { marginOfSafety: 'desc' },
-      take: limit,
-      include: {
-        company: {
-          select: { ticker: true, name: true, logoUrl: true, sector: true },
-        },
-      },
-    });
-    const data = metrics.map(m => ({
-      ticker: m.company.ticker,
-      name: m.company.name,
-      logoUrl: m.company.logoUrl,
-      sector: m.company.sector,
-      currentPrice: m.currentPrice,
-      intrinsicValue: m.intrinsicValue,
-      marginOfSafety: m.marginOfSafety,
-    }));
+    const data = (await getRecommendedValuations())
+      .filter(v => v.marginOfSafety != null && v.marginOfSafety > 0)
+      .sort((a, b) => (b.marginOfSafety ?? 0) - (a.marginOfSafety ?? 0))
+      .slice(0, limit);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching undervalued companies' });
@@ -200,25 +216,10 @@ app.get('/api/companies/undervalued', async (req, res) => {
 app.get('/api/companies/overvalued', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
-    const metrics = await prisma.stockMetric.findMany({
-      where: { marginOfSafety: { lt: 0 }, intrinsicValue: { not: null } },
-      orderBy: { marginOfSafety: 'asc' },
-      take: limit,
-      include: {
-        company: {
-          select: { ticker: true, name: true, logoUrl: true, sector: true },
-        },
-      },
-    });
-    const data = metrics.map(m => ({
-      ticker: m.company.ticker,
-      name: m.company.name,
-      logoUrl: m.company.logoUrl,
-      sector: m.company.sector,
-      currentPrice: m.currentPrice,
-      intrinsicValue: m.intrinsicValue,
-      marginOfSafety: m.marginOfSafety,
-    }));
+    const data = (await getRecommendedValuations())
+      .filter(v => v.marginOfSafety != null && v.marginOfSafety < 0)
+      .sort((a, b) => (a.marginOfSafety ?? 0) - (b.marginOfSafety ?? 0))
+      .slice(0, limit);
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: 'Error fetching overvalued companies' });

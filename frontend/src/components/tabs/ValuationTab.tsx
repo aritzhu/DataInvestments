@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { CompanyProfile } from '../CompanyPage';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { ValuationChart } from '../ui/ValuationChart';
 import { formatPct } from '../../utils/format';
@@ -181,7 +182,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               {recommendedFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${recommendedFair.toFixed(2)}` : '—'}
             </span>
             <span className="val-hero-label">Valor justo</span>
-            <span className="val-hero-method">{METHOD_NAMES[recommendedModel] || recommendedModel}</span>
+            <span className="val-hero-method"><AbbrTip abbr={METHOD_NAMES[recommendedModel] || recommendedModel} /></span>
           </div>
 
           <div className="val-hero-center">
@@ -224,7 +225,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         </div>
         {periodInfo.isTTM && (
           <p className="val-ttm-legend">
-            TTM = <strong>Trailing Twelve Months</strong> — últimos 12 meses acumulados. Último trimestre disponible: <strong>Q{periodInfo.quarter} {periodInfo.year}</strong>. Los ingresos/beneficio se suman de los 4 trimestres más recientes; el balance corresponde al último trimestre.
+            <AbbrTip abbr="TTM" /> = <strong>Trailing Twelve Months</strong> — últimos 12 meses acumulados. Último trimestre disponible: <strong>Q{periodInfo.quarter} {periodInfo.year}</strong>. Los ingresos/beneficio se suman de los 4 trimestres más recientes; el balance corresponde al último trimestre.
           </p>
         )}
         <p className="verdict-explanation">
@@ -489,42 +490,42 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
           <h4 className="val-quality-title">Calidad y solidez financiera</h4>
           <div className="val-quality-grid">
             <div className="val-q-card">
-              <span className="val-q-label">ROE</span>
+              <span className="val-q-label"><AbbrTip abbr="ROE" /></span>
               <span className="val-q-value">{stock.roe != null ? formatPct(stock.roe) : '—'}</span>
               <span className="val-q-desc">Rentabilidad sobre patrimonio</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">ROA</span>
+              <span className="val-q-label"><AbbrTip abbr="ROA" /></span>
               <span className="val-q-value">{stock.roa != null ? formatPct(stock.roa) : '—'}</span>
               <span className="val-q-desc">Rentabilidad sobre activos</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">ROIC</span>
+              <span className="val-q-label"><AbbrTip abbr="ROIC" /></span>
               <span className="val-q-value">{stock.roic != null ? formatPct(stock.roic) : '—'}</span>
               <span className="val-q-desc">Rentabilidad sobre capital invertido</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">Current Ratio</span>
+              <span className="val-q-label"><AbbrTip abbr="Current Ratio" /></span>
               <span className="val-q-value">{stock.currentRatio?.toFixed(2) || '—'}</span>
               <span className="val-q-desc">Liquidez a corto plazo</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">Debt/Equity</span>
+              <span className="val-q-label"><AbbrTip abbr="Debt/Equity" /></span>
               <span className="val-q-value">{stock.debtToEquity?.toFixed(2) || '—'}</span>
               <span className="val-q-desc">Apalancamiento</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">Altman Z-Score</span>
+              <span className="val-q-label"><AbbrTip abbr="Altman Z-Score" /></span>
               <span className="val-q-value">{stock.altmanZ?.toFixed(2) || '—'}</span>
               <span className="val-q-desc">Riesgo de quiebra</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">Piotroski</span>
+              <span className="val-q-label"><AbbrTip abbr="Piotroski" /></span>
               <span className="val-q-value">{stock.piotroskiScore != null ? `${stock.piotroskiScore}/9` : '—'}</span>
               <span className="val-q-desc">Fortaleza financiera</span>
             </div>
             <div className="val-q-card">
-              <span className="val-q-label">Dividend Yield</span>
+              <span className="val-q-label"><AbbrTip abbr="Dividend Yield" /></span>
               <span className="val-q-value">{stock.dividendYield != null ? formatPct(stock.dividendYield) : '—'}</span>
               <span className="val-q-desc">Rendimiento por dividendo</span>
             </div>

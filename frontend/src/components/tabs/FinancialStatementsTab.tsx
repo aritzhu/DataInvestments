@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CompanyProfile } from '../CompanyPage';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { SkeletonTable } from '../ui/Skeleton';
 import { formatNum, pctOf, safeDiv } from '../../utils/format';
@@ -43,10 +44,10 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
     { label: 'Ingresos', value: f.revenue, level: 0 },
     { label: 'Costo de ventas', value: f.costOfRevenue, level: 1 },
     { label: 'Beneficio bruto', value: grossProfit, level: 0, bold: true },
-    { label: 'SGA', value: f.sgaExpense, level: 1 },
-    { label: 'I+D', value: f.rdExpense, level: 1 },
+    { label: <AbbrTip abbr="SGA" />, value: f.sgaExpense, level: 1 },
+    { label: <AbbrTip abbr="I+D" />, value: f.rdExpense, level: 1 },
     { label: 'Otros gastos operativos', value: otherOpex, level: 1 },
-    { label: 'EBIT', value: operatingProfit, level: 0, bold: true },
+    { label: <AbbrTip abbr="EBIT" />, value: operatingProfit, level: 0, bold: true },
     { label: 'Intereses', value: f.interestExpense, level: 1 },
     { label: 'Impuestos', value: f.taxExpense, level: 1 },
     { label: 'Beneficio neto', value: f.netIncome, level: 0, bold: true },
@@ -68,7 +69,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
   const distribution = [
     { label: 'Dividendos', value: f.dividendsPaid || 0, color: '#2563eb' },
     { label: 'Recompra acciones', value: f.shareRepurchases || 0, color: '#8b5cf6' },
-    { label: 'Inversión (CapEx)', value: f.capex, color: '#f59e0b' },
+    { label: <>Inversión (<AbbrTip abbr="CapEx" />)</>, value: f.capex, color: '#f59e0b' },
     { label: 'Free Cash Flow', value: f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : 0), color: '#10b981' },
   ];
   const totalDist = distribution.reduce((s, d) => s + d.value, 0);
@@ -104,28 +105,28 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
                   <>
                     {currentPE != null && currentPE > 0 && (
                       <div className="fs-verdict-metric">
-                        <span className="fs-verdict-metric-label">P/E ratio</span>
+                        <span className="fs-verdict-metric-label"><AbbrTip abbr="P/E" /> ratio</span>
                         <span className="fs-verdict-metric-value">{currentPE.toFixed(1)}x</span>
                         <span className={`fs-verdict-signal fs-verdict-signal--${peSignal}`}>{signalText[peSignal!]} ({signalRange[peSignal!]})</span>
                       </div>
                     )}
                     {currentPS != null && currentPS > 0 && (
                       <div className="fs-verdict-metric">
-                        <span className="fs-verdict-metric-label">P/S ratio</span>
+                        <span className="fs-verdict-metric-label"><AbbrTip abbr="P/S" /> ratio</span>
                         <span className="fs-verdict-metric-value">{currentPS.toFixed(1)}x</span>
                         <span className={`fs-verdict-signal fs-verdict-signal--${psSignal}`}>{signalText[psSignal!]} ({psRange[psSignal!]})</span>
                       </div>
                     )}
                     {evEbitda != null && (
                       <div className="fs-verdict-metric">
-                        <span className="fs-verdict-metric-label">EV/EBITDA</span>
+                        <span className="fs-verdict-metric-label"><AbbrTip abbr="EV/EBITDA" /></span>
                         <span className="fs-verdict-metric-value">{evEbitda.toFixed(1)}x</span>
                         <span className={`fs-verdict-signal fs-verdict-signal--${evEbitdaSignal}`}>{signalText[evEbitdaSignal!]} ({evRange[evEbitdaSignal!]})</span>
                       </div>
                     )}
                     {eps != null && (
                       <div className="fs-verdict-metric">
-                        <span className="fs-verdict-metric-label">EPS</span>
+                        <span className="fs-verdict-metric-label"><AbbrTip abbr="EPS" /></span>
                         <span className="fs-verdict-metric-value">${eps.toFixed(2)}</span>
                         <span className="fs-verdict-signal fs-verdict-signal--info">Beneficio por acción</span>
                       </div>

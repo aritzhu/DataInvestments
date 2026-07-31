@@ -248,6 +248,45 @@ export function getSectorConfigs(sector: string | null | undefined, industry?: s
   return DEFAULT_CONFIGS;
 }
 
+const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
+  banking: 'pb',
+  'financial services': 'pb',
+  insurance: 'pb',
+  utilities: 'ddm',
+  energy: 'ev_ebitda',
+  'oil & gas': 'ev_ebitda',
+  airlines: 'ev_ebitda',
+  'air transport': 'ev_ebitda',
+  'auto - manufacturers': 'ev_ebitda',
+  'auto manufacturers': 'ev_ebitda',
+  reit: 'fcf_yield',
+  'real estate': 'fcf_yield',
+  technology: 'dcf',
+  semiconductors: 'dcf',
+  'internet content': 'ps',
+  'internet - content': 'ps',
+  'internet content & information': 'ps',
+  'internet retail': 'ps',
+  'consumer electronics': 'ps',
+  'drug manufacturers': 'dcf',
+  'specialty retail': 'pe',
+  default: 'dcf',
+};
+
+export function getRecommendedModel(sector: string | null | undefined, industry?: string | null): string {
+  const text = `${sector || ''} ${industry || ''}`.toLowerCase();
+  for (const [key, modelId] of Object.entries(SECTOR_RECOMMENDED_MODEL)) {
+    if (key !== 'default' && text.includes(key)) return modelId;
+  }
+  return SECTOR_RECOMMENDED_MODEL.default;
+}
+
+export function getRecommendedFairValue(results: ValuationResult[], sector: string | null | undefined, industry?: string | null): { model: string; fairValue: number | null } {
+  const model = getRecommendedModel(sector, industry);
+  const fairValue = results.find(r => r.id === model)?.fairValue ?? null;
+  return { model, fairValue };
+}
+
 export function computeAll(input: ValuationInput, configs: ValuationConfigs): ValuationResult[] {
   const currentPrice = input.stock?.currentPrice ?? 0;
   const results = [

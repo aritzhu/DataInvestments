@@ -39,6 +39,19 @@ const COUNTRY_NAMES: Record<string, string> = {
 
 const colorNames = ['blue', 'emerald', 'purple', 'amber', 'rose', 'cyan', 'blue'] as const;
 
+const METHOD_NAMES: Record<string, string> = {
+  dcf: 'DCF',
+  per: 'P/E',
+  pb: 'P/B',
+  ps: 'P/S',
+  ev_ebitda: 'EV/EBITDA',
+  ev_ebit: 'EV/EBIT',
+  ddm: 'DDM',
+  graham: 'Nº de Graham',
+  fcf_yield: 'FCF Yield',
+  net_net: 'Net-Net',
+};
+
 export function Landing() {
   const { user, favorites, isFavorite, addFavorite, removeFavorite } = useAuth();
   const navigate = useNavigate();
@@ -226,6 +239,7 @@ export function Landing() {
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
                               <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--green">
                               <span className="valuation-metric-label">Margen de seguridad</span>
@@ -273,6 +287,7 @@ export function Landing() {
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
                               <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--red">
                               <span className="valuation-metric-label">Sobrevaloración</span>

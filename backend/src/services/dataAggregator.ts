@@ -73,6 +73,7 @@ import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
+import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
 
 function safeInt(val: unknown): number | null {
@@ -137,6 +138,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           ticker: ticker.toUpperCase(),
           name: facts.entityName,
           cik: cik,
+          country: 'US',
           sector: known?.sector || sp500Sector || yahooProfile?.sector || null,
           industry: known?.industry || yahooProfile?.industry || null,
         },
@@ -151,6 +153,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         data: {
           name: facts.entityName,
           cik: company.cik || cik,
+          country: company.country === 'United States' ? 'US' : (company.country || 'US'),
           sector: known?.sector || sp500Sector || yahooProfile?.sector || null,
           industry: company.industry || known?.industry || yahooProfile?.industry || null,
         },
@@ -161,6 +164,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         data: {
           name: facts.entityName,
           cik: company.cik || cik,
+          country: company.country === 'United States' ? 'US' : (company.country || 'US'),
         },
       });
     }
@@ -942,7 +946,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     console.error(`[Profile] Enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
   }
 
-  // Calculate intrinsic value from available financial data + stock metrics
+  // Calculate intrinsic value using the recommended valuation method for the sector
   try {
     const stockForValuation = await prisma.stockMetric.findFirst({
       where: { company: { ticker: ticker.toUpperCase() } },
@@ -957,33 +961,24 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           where: { companyId: companyForVal.id },
           orderBy: { year: 'desc' },
         });
-        const fcfValues = allFinancials
-          .map(f => f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : null))
-          .filter((v): v is number => v !== null && v > 0);
-        if (fcfValues.length > 0) {
-          const avgFcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
-          const growthRate = 0.05;
-          const discountRate = 0.10;
-          const horizonYears = 10;
-          const terminalGrowth = 0.03;
+        const allBalanceSheets = await prisma.balanceSheet.findMany({
+          where: { companyId: companyForVal.id },
+          orderBy: { year: 'desc' },
+        });
+        if (allFinancials.length > 0) {
+          const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
+          const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs);
+          const { fairValue } = getRecommendedFairValue(results, companyForVal.sector, companyForVal.industry);
+          if (fairValue != null && fairValue > 0) {
+            const marginOfSafety = stockForValuation.currentPrice > 0
+              ? (fairValue - stockForValuation.currentPrice) / stockForValuation.currentPrice
+              : null;
 
-          let totalPV = 0;
-          for (let n = 1; n <= horizonYears; n++) {
-            totalPV += (avgFcf * Math.pow(1 + growthRate, n)) / Math.pow(1 + discountRate, n);
+            await prisma.stockMetric.update({
+              where: { id: stockForValuation.id },
+              data: { intrinsicValue: fairValue, marginOfSafety },
+            });
           }
-          const terminalValue = (avgFcf * Math.pow(1 + growthRate, horizonYears) * (1 + terminalGrowth)) / (discountRate - terminalGrowth);
-          const terminalPV = terminalValue / Math.pow(1 + discountRate, horizonYears);
-          const totalValue = totalPV + terminalPV;
-          const intrinsicPerShare = totalValue / stockForValuation.sharesOutstanding;
-
-          const marginOfSafety = stockForValuation.currentPrice > 0
-            ? (intrinsicPerShare - stockForValuation.currentPrice) / stockForValuation.currentPrice
-            : null;
-
-          await prisma.stockMetric.update({
-            where: { id: stockForValuation.id },
-            data: { intrinsicValue: intrinsicPerShare, marginOfSafety },
-          });
         }
       }
     }
@@ -1047,6 +1042,7 @@ export async function addCompanyFromTicker(ticker: string) {
             ticker: ticker.toUpperCase(),
             name: facts.entityName,
             cik,
+            country: 'US',
           },
         });
 

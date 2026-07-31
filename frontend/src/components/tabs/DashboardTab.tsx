@@ -1,6 +1,7 @@
 import { TrendingUp, BarChart3, DollarSign, Landmark, Shield, PieChart } from 'lucide-react';
 import type { CompanyProfile } from '../CompanyPage';
 import { AnimatedNumber } from '../ui/AnimatedNumber';
+import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { formatPct, safeDiv } from '../../utils/format';
 import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, type ValuationInput, getSectorConfigs } from '../../utils/valuation';
@@ -45,8 +46,8 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
             </span>
           </div>
           <div className="dash-card-sub">
-            {marketCap && <span>Market Cap: <AnimatedNumber value={marketCap} /></span>}
-            {ev && <span>EV: <AnimatedNumber value={ev} /></span>}
+            {marketCap && <span><AbbrTip abbr="Market Cap" />: <AnimatedNumber value={marketCap} /></span>}
+            {ev && <span><AbbrTip abbr="EV" />: <AnimatedNumber value={ev} /></span>}
           </div>
         </div>
       </SectionReveal>
@@ -134,7 +135,7 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
                 <span className="dash-margin-value">{netMargin != null ? formatPct(netMargin) : '—'}</span>
               </div>
               <div className="dash-margin-item">
-                <span className="dash-margin-label">EBITDA</span>
+                <span className="dash-margin-label"><AbbrTip abbr="EBITDA" /></span>
                 <span className="dash-margin-value">{ebitdaMargin != null ? formatPct(ebitdaMargin) : '—'}</span>
               </div>
             </div>
@@ -151,25 +152,25 @@ export function DashboardTab({ company, financial, financials, balanceSheets, st
             <div className="dash-ratios">
               {stock?.peRatio != null && (
                 <div className="dash-ratio">
-                  <span className="dash-ratio-label">P/E</span>
+                  <span className="dash-ratio-label"><AbbrTip abbr="P/E" /></span>
                   <span className="dash-ratio-value">{stock.peRatio.toFixed(1)}</span>
                 </div>
               )}
               {stock?.pbRatio != null && (
                 <div className="dash-ratio">
-                  <span className="dash-ratio-label">P/B</span>
+                  <span className="dash-ratio-label"><AbbrTip abbr="P/B" /></span>
                   <span className="dash-ratio-value">{stock.pbRatio.toFixed(1)}</span>
                 </div>
               )}
               {stock?.roe != null && (
                 <div className="dash-ratio">
-                  <span className="dash-ratio-label">ROE</span>
+                  <span className="dash-ratio-label"><AbbrTip abbr="ROE" /></span>
                   <span className="dash-ratio-value">{formatPct(stock.roe)}</span>
                 </div>
               )}
               {stock?.roa != null && (
                 <div className="dash-ratio">
-                  <span className="dash-ratio-label">ROA</span>
+                  <span className="dash-ratio-label"><AbbrTip abbr="ROA" /></span>
                   <span className="dash-ratio-value">{formatPct(stock.roa)}</span>
                 </div>
               )}

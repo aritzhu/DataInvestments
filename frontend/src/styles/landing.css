@@ -343,6 +343,20 @@
   color: var(--text-primary);
 }
 
+.valuation-method-badge {
+  margin-top: 0.15rem;
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  background: var(--surface-1);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+}
+
 .valuation-metric--green .valuation-metric-value {
   color: #10b981;
 }
