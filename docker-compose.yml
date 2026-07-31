@@ -2,12 +2,18 @@ services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
-    ports:
-      - "5435:5432"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run/postgresql
+    mem_limit: 1g
+    cpus: 2
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-datainvestments}
@@ -21,8 +27,6 @@ services:
     build: ./backend/python
     container_name: datainvestments-yfinance
     restart: unless-stopped
-    ports:
-      - "8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -34,8 +38,6 @@ services:
     build: ./backend
     container_name: datainvestments-backend
     restart: unless-stopped
-    ports:
-      - "3005:3001"
     depends_on:
       db:
         condition: service_healthy
@@ -47,6 +49,7 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-datainvestments}
       SESSION_SECRET: ${SESSION_SECRET:-di-dev-session-secret-change-in-production}
+      JWT_SECRET: ${JWT_SECRET}
       YFINANCE_URL: http://yfinance-service:8000
 
 volumes:

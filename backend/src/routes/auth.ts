@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../infrastructure/prisma/client';
-import { generateToken } from '../middleware/jwt';
+import { generateToken, verifyToken } from '../middleware/jwt';
 
 const router: ExpressRouter = Router();
 
@@ -83,9 +83,7 @@ router.get('/me', async (req, res) => {
   }
 
   try {
-    const jwt = await import('jsonwebtoken');
-    const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'di-dev-jwt-secret';
-    const decoded = jwt.default.verify(header.slice(7), secret) as { id: string; role: string };
+    const decoded = verifyToken(header.slice(7));
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
@@ -111,9 +109,7 @@ router.post('/invite', async (req, res) => {
   }
 
   try {
-    const jwt = await import('jsonwebtoken');
-    const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'di-dev-jwt-secret';
-    const decoded = jwt.default.verify(header.slice(7), secret) as { id: string; role: string };
+    const decoded = verifyToken(header.slice(7));
 
     if (decoded.role !== 'admin') {
       res.status(403).json({ error: 'Admin access required' });

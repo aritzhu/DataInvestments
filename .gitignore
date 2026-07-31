@@ -4,6 +4,8 @@ dist
 .env.prod
 .env.local
 .env.*.local
+docker-compose.dev.yml
+backups/
 *.log
 *.tsbuildinfo
 .DS_Store
