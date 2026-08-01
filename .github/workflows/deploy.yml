@@ -3,6 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches: [dev]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -25,11 +26,14 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
+          command_timeout: 30m
           envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,SESSION_SECRET,SEC_USER_AGENT,COOKIE_SECURE,NODE_ENV
           script: |
+            set -e
             cd /home/deploy/DataInvestments
-            git checkout dev
-            git pull origin dev
+            git fetch origin dev
+            git reset --hard origin/dev
+            git clean -fd
 
             # Strip trailing newlines that GitHub secrets sometimes include
             POSTGRES_PASSWORD=$(printf '%s' "$POSTGRES_PASSWORD" | tr -d '\n')
@@ -77,10 +81,11 @@ jobs:
             for i in $(seq 1 15); do
               curl -sf http://localhost:3001/health > /dev/null 2>&1 && break || sleep 2
             done
+            curl -sf http://localhost:3001/health > /dev/null 2>&1 || { echo "Backend failed to become healthy"; exit 1; }
 
             # Backfill missing company metadata (logos, websites, sectors) for any new/updated tickers
             echo "Running metadata backfill..."
-            $DC run --rm backend node dist/scripts/backfillCompanyMeta.js || true
+            $DC run --rm backend node dist/scripts/backfillCompanyMeta.js
 
             # Reload gateway nginx so it picks up any changes
             echo "Reloading gateway nginx..."
