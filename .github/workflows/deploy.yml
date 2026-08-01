@@ -78,10 +78,10 @@ jobs:
 
             # Wait for backend to be ready before reloading nginx
             echo "Waiting for backend..."
-            for i in $(seq 1 15); do
-              curl -sf http://localhost:3001/health > /dev/null 2>&1 && break || sleep 2
+            for i in $(seq 1 30); do
+              $DC exec -T backend wget --no-verbose --tries=1 --spider http://localhost:3001/health > /dev/null 2>&1 && break || sleep 2
             done
-            curl -sf http://localhost:3001/health > /dev/null 2>&1 || { echo "Backend failed to become healthy"; exit 1; }
+            $DC exec -T backend wget --no-verbose --tries=1 --spider http://localhost:3001/health > /dev/null 2>&1 || { echo "Backend failed to become healthy"; exit 1; }
 
             # Backfill missing company metadata (logos, websites, sectors) for any new/updated tickers
             echo "Running metadata backfill..."
