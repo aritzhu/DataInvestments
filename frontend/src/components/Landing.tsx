@@ -220,10 +220,10 @@ export function Landing() {
                       <SectionReveal key={c.ticker} delay={40 + i * 60}>
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green">
                           <div className="valuation-card-left">
-                            {c.logoUrl ? (
-                              <img src={c.logoUrl} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                            {(c.logoUrl || companyLogoUrl(c.website)) ? (
+                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
                             ) : null}
-                            <div className={`valuation-avatar valuation-avatar--green ${c.logoUrl ? 'valuation-avatar--hidden' : ''}`}>
+                            <div className={`valuation-avatar valuation-avatar--green ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
                               {c.ticker.slice(0, 2)}
                             </div>
                             <div>
@@ -268,10 +268,10 @@ export function Landing() {
                       <SectionReveal key={c.ticker} delay={140 + i * 60}>
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red">
                           <div className="valuation-card-left">
-                            {c.logoUrl ? (
-                              <img src={c.logoUrl} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                            {(c.logoUrl || companyLogoUrl(c.website)) ? (
+                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
                             ) : null}
-                            <div className={`valuation-avatar valuation-avatar--red ${c.logoUrl ? 'valuation-avatar--hidden' : ''}`}>
+                            <div className={`valuation-avatar valuation-avatar--red ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
                               {c.ticker.slice(0, 2)}
                             </div>
                             <div>

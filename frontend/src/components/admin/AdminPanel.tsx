@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { apiFetch } from '../../utils/api';
@@ -54,6 +54,8 @@ export function AdminPanel() {
   const [isResyncing, setIsResyncing] = useState(false);
   const [resyncProgress, setResyncProgress] = useState<ProgressUpdate | null>(null);
   const [resyncComplete, setResyncComplete] = useState<{ succeeded: number; failed: number; errors: Array<{ ticker: string; error: string }> } | null>(null);
+  const [isFixingSectors, setIsFixingSectors] = useState(false);
+  const [fixSectorsResult, setFixSectorsResult] = useState<{ total: number; updated: number } | null>(null);
   const [companySearch, setCompanySearch] = useState('');
   const [heroSettings, setHeroSettings] = useState<Record<string, string>>({});
   const [heroSaving, setHeroSaving] = useState(false);
@@ -344,6 +346,24 @@ export function AdminPanel() {
   };
 
   const bulkTickerCount = parseTickersFromText(bulkTickers).length;
+
+  const fixSectors = async () => {
+    setIsFixingSectors(true);
+    setFixSectorsResult(null);
+    try {
+      const res = await apiFetch('/api/admin/companies/fix-sectors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      setFixSectorsResult({ total: data.total ?? 0, updated: data.updated ?? 0 });
+      fetchCompanies();
+    } catch {
+      setFixSectorsResult(null);
+    } finally {
+      setIsFixingSectors(false);
+    }
+  };
 
   const filteredCompanies = companies.filter((c) =>
     c.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
@@ -851,6 +871,48 @@ export function AdminPanel() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Fix Missing Sectors */}
+        <div className="admin-form-section" style={{ border: '2px solid #dbeafe', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+              <Tag size={18} />
+            </div>
+            <div>
+              <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Corregir Sectores</h2>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
+                Rellena el sector e industria faltantes usando mapas estaticos + Yahoo Finance
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={fixSectors}
+              disabled={isFixingSectors}
+              className="admin-form-btn"
+              style={{
+                background: !isFixingSectors ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#e2e8f0',
+                color: !isFixingSectors ? 'white' : '#94a3b8',
+                fontWeight: 600,
+                padding: '0.6rem 1.5rem',
+              }}
+            >
+              {isFixingSectors ? (
+                <><Loader2 size={16} className="admin-spinner" /> Corrigiendo...</>
+              ) : (
+                <><Tag size={16} /> Corregir sectores</>
+              )}
+            </button>
+
+            {fixSectorsResult && (
+              <span className="bulk-badge bulk-badge--success">
+                <CheckCircle2 size={14} />
+                {fixSectorsResult.updated} de {fixSectorsResult.total} sectores actualizados
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Companies Table */}

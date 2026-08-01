@@ -1,9 +1,4 @@
-function buildLogoUrl(website: string | null | undefined): string | null {
-  if (!website) return null;
-  const domain = website.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
-  if (!domain) return null;
-  return `https://logos.hunter.io/${domain}`;
-}
+import { buildLogoUrl, isEuropeanTicker, resolveCompanyMeta } from './companyMeta';
 
 function inferCurrency(ticker: string): string {
   const t = ticker.toUpperCase();
@@ -411,9 +406,11 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   console.log(`[SEC] Completed for ${ticker}: ${result.financialRecords} records, ${result.balanceSheets} balance sheets`);
   } // end-if cik && facts
 
-  // European fallback: if SEC didn't produce data, try European XBRL
+  // European fallback: if SEC didn't produce data, try European XBRL.
+  // For European-suffixed tickers always run it, even if SEC produced data,
+  // so the correct European metadata overrides any misresolved US data.
   let europeanAvailableTags: string[] | undefined;
-  if (!result.secSync) {
+  if (!result.secSync || isEuropeanTicker(ticker)) {
     console.log(`[European] Trying European data for ${ticker}...`);
 
     const suffix = ticker.includes('.') ? ticker.split('.').pop()?.toUpperCase() : '';
@@ -498,8 +495,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
               : yfSector
                 ? { sector: yfSector, industry: yfIndustry }
-                : TICKER_SECTORS[ticker]
-                  ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+                : TICKER_SECTORS[ticker.toUpperCase()]
+                  ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
                   : null;
             if (sectorData) {
               await prisma.company.update({ where: { id: company.id }, data: sectorData });
@@ -649,8 +646,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           } else if (!company.sector) {
             const sectorData = stoxxEntry?.sector
               ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
-              : TICKER_SECTORS[ticker]
-                ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+              : TICKER_SECTORS[ticker.toUpperCase()]
+                ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
                 : null;
             if (sectorData) {
               await prisma.company.update({
@@ -821,12 +818,19 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           if (existingCompany && !existingCompany.sector) {
             const sectorData = stoxxEntry?.sector
               ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
-              : TICKER_SECTORS[ticker]
-                ? { sector: TICKER_SECTORS[ticker].sector, industry: TICKER_SECTORS[ticker].industry }
+              : TICKER_SECTORS[ticker.toUpperCase()]
+                ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
                 : null;
+            if (sectorData) {
+              await prisma.company.update({
+                where: { id: existingCompany.id },
+                data: sectorData,
+              });
+              console.log(`[European] Updated ${ticker} sector → ${sectorData.sector}`);
             }
           }
         }
+      }
       } catch (error) {
         console.error(`[European] Error for ${ticker}:`, error instanceof Error ? error.message : error);
         result.error = `European error: ${error instanceof Error ? error.message : 'unknown'}`;
@@ -1032,42 +1036,45 @@ export async function addCompanyFromTicker(ticker: string) {
     return existing;
   }
 
-  try {
-    const cik = await getCikForTicker(ticker);
-    if (cik) {
-      const facts = await fetchCompanyFacts(cik);
-      if (facts) {
-        const company = await prisma.company.create({
-          data: {
-            ticker: ticker.toUpperCase(),
-            name: facts.entityName,
-            cik,
-            country: 'US',
-          },
-        });
+  // SEC EDGAR only covers US-listed companies; European tickers go to the European path.
+  if (!isEuropeanTicker(ticker)) {
+    try {
+      const cik = await getCikForTicker(ticker);
+      if (cik) {
+        const facts = await fetchCompanyFacts(cik);
+        if (facts) {
+          const company = await prisma.company.create({
+            data: {
+              ticker: ticker.toUpperCase(),
+              name: facts.entityName,
+              cik,
+              country: 'US',
+            },
+          });
 
-        // Enrich with Finnhub website and logo
-        try {
-          const finnhubProfile = await fetchFinnhubProfile(upperTicker);
-          if (finnhubProfile && (finnhubProfile.weburl || finnhubProfile.logo)) {
-            await prisma.company.update({
-              where: { id: company.id },
-              data: {
-                ...(finnhubProfile.weburl ? { website: finnhubProfile.weburl } : {}),
-                ...(finnhubProfile.logo ? { logoUrl: finnhubProfile.logo } : {}),
-              },
-            });
-            console.log(`[AddCompany] Enriched ${upperTicker} with Finnhub website/logo`);
+          // Enrich with Finnhub website and logo
+          try {
+            const finnhubProfile = await fetchFinnhubProfile(upperTicker);
+            if (finnhubProfile && (finnhubProfile.weburl || finnhubProfile.logo)) {
+              await prisma.company.update({
+                where: { id: company.id },
+                data: {
+                  ...(finnhubProfile.weburl ? { website: finnhubProfile.weburl } : {}),
+                  ...(finnhubProfile.logo ? { logoUrl: finnhubProfile.logo } : {}),
+                },
+              });
+              console.log(`[AddCompany] Enriched ${upperTicker} with Finnhub website/logo`);
+            }
+          } catch {
+            // Non-critical, company already created
           }
-        } catch {
-          // Non-critical, company already created
-        }
 
-        return company;
+          return company;
+        }
       }
+    } catch (error) {
+      console.error(`[SEC] Error fetching data for ${ticker}:`, error instanceof Error ? error.message : error);
     }
-  } catch (error) {
-    console.error(`[SEC] Error fetching data for ${ticker}:`, error instanceof Error ? error.message : error);
   }
 
   // Finnhub fallback: try to create company via Finnhub profile API
@@ -1119,8 +1126,11 @@ export async function addCompanyFromTicker(ticker: string) {
   if (countryCode) {
     try {
       const yahooQuote = await fetchYahooQuote(ticker);
-      const companyName = yahooQuote?.name || undefined;
+      const yfInfo = await fetchYFinanceInfo(upperTicker);
+      const info = yfInfo?.info || {};
+      const companyName = yahooQuote?.name || info.longName || info.shortName || undefined;
       const stoxxEntry = STOXX600_UNIQUE_TICKERS.find(t => t.ticker === ticker);
+      const website = info.website || null;
       console.log(`[AddCompany] Trying European data for ${upperTicker} (${countryCode})...`);
 
       const company = await prisma.company.create({
@@ -1130,8 +1140,10 @@ export async function addCompanyFromTicker(ticker: string) {
           country: countryCode,
           exchange: yahooQuote?.exchange || null,
           currency: inferCurrency(upperTicker),
-          sector: stoxxEntry?.sector || null,
-          industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
+          sector: stoxxEntry?.sector || info.sector || null,
+          industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : info.industry || null,
+          website,
+          logoUrl: buildLogoUrl(website),
         },
       });
       console.log(`[AddCompany] Created ${upperTicker} via European fallback (id: ${company.id})`);

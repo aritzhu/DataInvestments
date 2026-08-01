@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { isEuropeanTicker } from './companyMeta';
 
 const SEC_BASE = 'https://data.sec.gov';
 const USER_AGENT = process.env.SEC_USER_AGENT || 'DataInvestments admin@datainvestments.com';
@@ -31,6 +32,11 @@ export async function getTickerToCikMap(): Promise<Record<string, string>> {
 }
 
 export async function getCikForTicker(ticker: string): Promise<string | null> {
+  // SEC EDGAR only covers US-listed companies. European-suffixed tickers
+  // (e.g. DTE.DE) must never be resolved against the stripped base ticker,
+  // which would match the wrong US company.
+  if (isEuropeanTicker(ticker)) return null;
+
   const map = await getTickerToCikMap();
   const cik = map[ticker.toUpperCase()];
   if (cik) return cik;

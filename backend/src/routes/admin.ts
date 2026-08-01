@@ -5,6 +5,8 @@ import { buildCoverageReport } from '../services/coverageReporter';
 import { buildComprehensiveYearReport, getImportTimeline } from '../services/adminReporting';
 import { TICKER_SECTORS } from '../data/sectors';
 import { SP500_SECTORS } from '../data/sp500';
+import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
+import { STOXX_SECTOR_INDUSTRY, resolveCompanyMeta } from '../services/companyMeta';
 import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 
@@ -316,25 +318,35 @@ router.post('/companies/batch-resync', async (req, res) => {
   res.end();
 });
 
-// POST /api/admin/companies/fix-sectors — bulk update missing sectors from hardcoded mappings
+// POST /api/admin/companies/fix-sectors — bulk update missing sectors from hardcoded mappings + yfinance
 router.post('/companies/fix-sectors', async (_req, res) => {
   try {
     const companies = await prisma.company.findMany({
       where: { sector: null },
-      select: { id: true, ticker: true },
+      select: { id: true, ticker: true, industry: true },
     });
 
     let updated = 0;
     for (const c of companies) {
-      const known = TICKER_SECTORS[c.ticker];
-      const sp500 = SP500_SECTORS[c.ticker];
-      const sector = known?.sector || sp500 || null;
-      const industry = known?.industry || null;
+      const upper = c.ticker.toUpperCase();
+      const known = TICKER_SECTORS[upper];
+      const sp500 = SP500_SECTORS[upper];
+      const stoxxEntry = STOXX600_UNIQUE_TICKERS.find(t => t.ticker === upper);
+
+      let sector = known?.sector || sp500 || stoxxEntry?.sector || null;
+      let industry = known?.industry || (stoxxEntry?.sector ? STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] : null) || null;
+
+      if (!sector) {
+        const meta = await resolveCompanyMeta(upper);
+        sector = meta.sector || null;
+        industry = meta.industry || null;
+        await new Promise(r => setTimeout(r, 250));
+      }
 
       if (sector) {
         await prisma.company.update({
           where: { id: c.id },
-          data: { sector, industry },
+          data: { sector, industry: industry || c.industry },
         });
         updated++;
       }

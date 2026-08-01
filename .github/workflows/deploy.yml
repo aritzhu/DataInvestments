@@ -75,8 +75,12 @@ jobs:
             # Wait for backend to be ready before reloading nginx
             echo "Waiting for backend..."
             for i in $(seq 1 15); do
-              curl -sf http://localhost:3001/api/health > /dev/null 2>&1 && break || sleep 2
+              curl -sf http://localhost:3001/health > /dev/null 2>&1 && break || sleep 2
             done
+
+            # Backfill missing company metadata (logos, websites, sectors) for any new/updated tickers
+            echo "Running metadata backfill..."
+            $DC run --rm backend node dist/scripts/backfillCompanyMeta.js || true
 
             # Reload gateway nginx so it picks up any changes
             echo "Reloading gateway nginx..."
