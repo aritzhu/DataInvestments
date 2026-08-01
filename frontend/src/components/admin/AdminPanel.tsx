@@ -292,7 +292,7 @@ export function AdminPanel() {
     return text
       .split(/[\n,;]+/)
       .map((t) => t.trim().toUpperCase())
-      .filter((t) => t.length > 0 && t.length <= 6 && /^[A-Z.]+$/.test(t));
+      .filter((t) => t.length > 0 && t.length <= 12 && /^[A-Z.]+$/.test(t));
   };
 
   const startBatchResync = async () => {
