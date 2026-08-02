@@ -205,12 +205,44 @@ export function extractDepreciation(facts: SECCompanyFacts): { year: number; val
   ]);
 }
 
+function toYearMap(values: { year: number; value: number }[]): Map<number, number> {
+  return new Map(values.map((v) => [v.year, v.value]));
+}
+
 export function extractTotalLiabilities(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['Liabilities', 'LiabilitiesCurrent']);
+  const liabs = toYearMap(extractAnnualValues(facts, 'Liabilities'));
+  const current = toYearMap(extractAnnualValues(facts, 'LiabilitiesCurrent'));
+  const nonCurrent = toYearMap(extractAnnualValues(facts, 'LiabilitiesNoncurrent'));
+  const assets = toYearMap(extractAnnualValues(facts, 'Assets'));
+  const equityInclNci = toYearMap(extractAnnualValues(facts, 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest'));
+  const equity = toYearMap(extractAnnualValues(facts, 'StockholdersEquity'));
+
+  const years = new Set([...liabs.keys(), ...current.keys(), ...nonCurrent.keys(), ...assets.keys()]);
+  const result: { year: number; value: number }[] = [];
+  for (const year of years) {
+    let value = liabs.get(year) ?? null;
+    if (value == null) {
+      const cur = current.get(year);
+      const nonCur = nonCurrent.get(year);
+      if (cur != null && nonCur != null) value = cur + nonCur;
+    }
+    if (value == null) {
+      const a = assets.get(year);
+      const eq = equityInclNci.get(year) ?? equity.get(year);
+      if (a != null && eq != null) value = a - eq;
+    }
+    if (value != null) result.push({ year, value });
+  }
+  return result.sort((a, b) => a.year - b.year);
 }
 
 export function extractTotalEquity(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['StockholdersEquity', 'Equity']);
+  return extractBestTag(facts, [
+    'StockholdersEquity',
+    'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest',
+    'Equity',
+    'EquityAttributableToParent',
+  ]);
 }
 
 export function extractGrossProfit(facts: SECCompanyFacts): { year: number; value: number }[] {
@@ -300,7 +332,12 @@ export function extractSharesOutstanding(facts: SECCompanyFacts): number | null 
 }
 
 export function extractCash(facts: SECCompanyFacts): { year: number; value: number }[] {
-  return extractBestTag(facts, ['CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsAndShortTermInvestments']);
+  return extractBestTag(facts, [
+    'CashAndCashEquivalentsAtCarryingValue',
+    'CashCashEquivalentsAndShortTermInvestments',
+    'Cash',
+    'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
+  ]);
 }
 
 export function extractReceivables(facts: SECCompanyFacts): { year: number; value: number }[] {
