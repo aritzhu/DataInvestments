@@ -15,7 +15,8 @@
     "backfill:meta": "tsx src/scripts/backfillCompanyMeta.ts",
     "backfill:logos": "tsx src/scripts/backfillLogos.ts",
     "backfill:finnhub": "tsx src/scripts/backfillFinnhubLogos.ts",
-    "backfill:websites": "tsx src/scripts/backfillWebsites.ts"
+    "backfill:websites": "tsx src/scripts/backfillWebsites.ts",
+    "fix:eu": "tsx src/scripts/fixEuropeanData.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
