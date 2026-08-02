@@ -355,6 +355,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
 
   try {
     const yahooQuote = await fetchYahooQuote(ticker);
+    const yfInfo = await fetchYFinanceInfo(ticker);
+    const info = yfInfo?.info;
     if (yahooQuote && yahooQuote.currentPrice > 0) {
       const shares = sharesOutstanding ?? (yahooQuote.sharesOutstanding > 0 ? yahooQuote.sharesOutstanding
         : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0 ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice) : null));
@@ -371,19 +373,19 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         companyId: company.id,
         date: new Date(),
         currentPrice: yahooQuote.currentPrice,
-        peRatio: latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null,
-        pbRatio: latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null,
-        psRatio: latestRevenue > 0 && mcap ? mcap / latestRevenue : null,
-        dividendYield: null,
+        peRatio: info?.trailingPE ?? (latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null),
+        pbRatio: info?.priceToBook ?? (latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null),
+        psRatio: info?.priceToSalesTrailing12Months ?? (latestRevenue > 0 && mcap ? mcap / latestRevenue : null),
+        dividendYield: info?.dividendYield ?? null,
         marketCap: mcap,
-        enterpriseValue: mcap != null
+        enterpriseValue: info?.enterpriseValue ?? (mcap != null
           ? mcap + (latestLiabilities || 0) - (cashMap.get(latestYear || 0) || 0)
-          : null,
+          : null),
         sharesOutstanding: shares,
-        roe: latestNetIncome > 0 && latestEquity && latestEquity > 0 ? (latestNetIncome / latestEquity) * 100 : null,
-        roa: latestNetIncome > 0 && latestAssets && latestAssets > 0 ? (latestNetIncome / latestAssets) * 100 : null,
+        roe: info?.returnOnEquity != null ? info.returnOnEquity * 100 : (latestNetIncome > 0 && latestEquity && latestEquity > 0 ? (latestNetIncome / latestEquity) * 100 : null),
+        roa: info?.returnOnAssets != null ? info.returnOnAssets * 100 : (latestNetIncome > 0 && latestAssets && latestAssets > 0 ? (latestNetIncome / latestAssets) * 100 : null),
         roic: null,
-        currentRatio: latestCurrentAssets != null && latestCurrentLiabilities != null && latestCurrentLiabilities > 0 ? latestCurrentAssets / latestCurrentLiabilities : null,
+        currentRatio: info?.currentRatio ?? (latestCurrentAssets != null && latestCurrentLiabilities != null && latestCurrentLiabilities > 0 ? latestCurrentAssets / latestCurrentLiabilities : null),
         debtToEquity: latestLiabilities && latestEquity && latestEquity > 0 ? latestLiabilities / latestEquity : null,
         altmanZ: null,
         piotroskiScore: null,
