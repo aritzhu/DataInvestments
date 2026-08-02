@@ -448,7 +448,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
       'Basic Materials': 'Specialty Chemicals',
     };
 
-    if (countryCode) {
+    if (countryCode || !result.secSync) {
       try {
         const yahooQuote = await fetchYahooQuote(ticker);
         const yahooName = yahooQuote?.name;
@@ -1150,8 +1150,8 @@ export async function addCompanyFromTicker(ticker: string) {
         data: {
           ticker: upperTicker,
           name: companyName || upperTicker,
-          country: countryCode,
-          exchange: yahooQuote?.exchange || null,
+                country: countryCode || 'US',
+                exchange: yahooQuote?.exchange || null,
           currency: inferCurrency(upperTicker),
           sector: stoxxEntry?.sector || info.sector || null,
           industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : info.industry || null,

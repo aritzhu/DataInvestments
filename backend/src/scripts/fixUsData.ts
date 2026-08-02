@@ -59,12 +59,12 @@ async function main() {
     if (i < targets.length - 1) await new Promise((r) => setTimeout(r, DELAY_MS));
   }
 
-  const ok = results.filter((r) => r.ok && r.sync?.secSync).length;
+  const ok = results.filter((r) => r.ok && (r.sync?.financialRecords ?? 0) > 0).length;
   const failed = results.length - ok;
-  console.log(`\nDone. secSync ok: ${ok}/${results.length}, failed: ${failed}`);
+  console.log(`\nDone. con datos: ${ok}/${results.length}, sin datos: ${failed}`);
   for (const r of results) {
-    if (!r.ok || !r.sync?.secSync) {
-      console.log(`  - ${r.ticker}: ${r.ok ? r.sync?.error || 'no secSync' : r.error}`);
+    if (!r.ok || (r.sync?.financialRecords ?? 0) === 0) {
+      console.log(`  - ${r.ticker}: ${r.ok ? r.sync?.error || 'sin datos financieros' : r.error}`);
     }
   }
 }
