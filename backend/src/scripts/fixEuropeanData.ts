@@ -66,7 +66,7 @@ async function main() {
   const tickerArg = process.argv.find((a) => a.startsWith('--ticker='))?.split('=')[1];
 
   const companies = await prisma.company.findMany({
-    where: { cik: { not: null } },
+    where: tickerArg ? undefined : { cik: { not: null } },
     select: { id: true, ticker: true, name: true, country: true, sector: true, industry: true, website: true, logoUrl: true, cik: true },
     orderBy: { ticker: 'asc' },
   });
