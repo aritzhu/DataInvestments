@@ -4,6 +4,13 @@ import { syncCompanyData, type SyncResult } from '../services/dataAggregator';
 
 const DELAY_MS = 400;
 
+// Nombres verificados (GLEIF / listado) para tickers sin cobertura de yfinance,
+// donde resolveCompanyMeta no puede aportar el nombre correcto.
+const NAME_FIXES: Record<string, string> = {
+  'ROG.SW': 'Roche Holding AG',
+  'HL.L': 'Hargreaves Lansdown Limited',
+};
+
 const TICKER_COUNTRY: Record<string, string> = {
   DE: 'DE', F: 'DE', D: 'DE',
   PA: 'FR', L: 'GB', MC: 'ES', AS: 'NL', BR: 'BE',
@@ -33,7 +40,9 @@ async function fixCompany(c: {
   const meta = await resolveCompanyMeta(c.ticker);
 
   const data: Record<string, string | null> = {};
+  const fixedName = NAME_FIXES[c.ticker.toUpperCase()];
   if (meta.name && norm(meta.name) !== norm(c.name)) data.name = meta.name;
+  else if (fixedName && norm(fixedName) !== norm(c.name)) data.name = fixedName;
   const country = countryFromTicker(c.ticker);
   if (country && c.country !== country) data.country = country;
   if (meta.sector && c.sector !== meta.sector) data.sector = meta.sector;
