@@ -105,9 +105,12 @@ export function extractAnnualValues(facts: SECCompanyFacts, concept: string, nam
 
     const byYear = new Map<number, SECFact>();
     for (const fact of annual) {
-      const existing = byYear.get(fact.fy);
+      if (!fact.end) continue;
+      const endYear = new Date(fact.end).getFullYear();
+      if (Number.isNaN(endYear)) continue;
+      const existing = byYear.get(endYear);
       if (!existing || new Date(fact.filed) > new Date(existing.filed)) {
-        byYear.set(fact.fy, fact);
+        byYear.set(endYear, fact);
       }
     }
 
