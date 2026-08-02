@@ -996,6 +996,11 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   });
 
   if (company) {
+    // If a European/yfinance sync succeeded, the missing-SEC-CIK message is not a failure
+    if (result.yfinanceSync || result.europeanSync) {
+      result.error = undefined;
+    }
+
     // If European sync was successful, store available tags for coverage reporting
     const tagsToStore = result.europeanSync && europeanAvailableTags ? europeanAvailableTags : [];
 
