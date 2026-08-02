@@ -586,12 +586,15 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               orderBy: { date: 'desc' },
             });
 
+            const rawPrice = yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0;
+            const isGbPence = (yfInfo.info.currency ?? '').toUpperCase() === 'GBP';
+            const currentPrice = rawPrice > 0 && isGbPence ? rawPrice / 100 : rawPrice;
             const stockData = {
               companyId: company.id,
               date: new Date(),
-              currentPrice: yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0,
+              currentPrice,
               sharesOutstanding: yfInfo.info.sharesOutstanding ?? 0,
-              marketCap: (yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0) * (yfInfo.info.sharesOutstanding ?? 0) || yfInfo.info.marketCap,
+              marketCap: yfInfo.info.marketCap > 0 ? yfInfo.info.marketCap : (currentPrice * (yfInfo.info.sharesOutstanding ?? 0)) || null,
               enterpriseValue: yfInfo.info.enterpriseValue ?? null,
               peRatio: yfInfo.info.trailingPE ?? null,
               pbRatio: yfInfo.info.priceToBook ?? null,
@@ -772,9 +775,14 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice)
               : (europeanData.data.find(d => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? 0));
 
-            const mcap = stockSharesOutstanding > 0 && yahooQuote.currentPrice > 0
-              ? yahooQuote.currentPrice * stockSharesOutstanding
-              : (yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null);
+            const priceIsGbPence = (yahooQuote.currency ?? '').toUpperCase() === 'GBP';
+            const stockPrice = yahooQuote.currentPrice > 0 && priceIsGbPence
+              ? yahooQuote.currentPrice / 100
+              : yahooQuote.currentPrice;
+
+            const mcap = yahooQuote.marketCap > 0
+              ? yahooQuote.marketCap
+              : (stockSharesOutstanding > 0 && stockPrice > 0 ? stockPrice * stockSharesOutstanding : null);
 
             console.log(`[European] ${ticker}: Yahoo quote price=${yahooQuote.currentPrice}, shares=${yahooQuote.sharesOutstanding}, mcap=${mcap}`);
             console.log(`[European] ${ticker}: XBRL shares=${europeanData.data[0]?.sharesOutstanding}, computed stockSharesOutstanding=${stockSharesOutstanding}`);
@@ -782,7 +790,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const stockData = {
               companyId: company.id,
               date: new Date(),
-              currentPrice: yahooQuote.currentPrice,
+              currentPrice: stockPrice,
               peRatio: latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null,
               pbRatio: latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null,
               psRatio: latestRevenue > 0 && mcap ? mcap / latestRevenue : null,
