@@ -72,14 +72,16 @@ async function main() {
   });
 
   const affected = companies.filter((c) => isEuropeanTicker(c.ticker));
-  const targets = tickerArg ? affected.filter((c) => c.ticker.toUpperCase() === tickerArg.toUpperCase()) : affected;
+  const targets = tickerArg
+    ? companies.filter((c) => isEuropeanTicker(c.ticker) && c.ticker.toUpperCase() === tickerArg.toUpperCase())
+    : affected;
 
   if (tickerArg && targets.length === 0) {
-    console.error(`No se encontró "${tickerArg}" entre las europeas con CIK.`);
+    console.error(`No se encontró "${tickerArg}" entre las tickers europeas.`);
     process.exit(1);
   }
 
-  console.log(`Empresas europeas con CIK: ${affected.length}. A procesar: ${targets.length}`);
+  console.log(`Empresas europeas con CIK: ${affected.length}. A procesar: ${targets.length}${tickerArg ? ` (--ticker=${tickerArg})` : ''}`);
 
   const results: Array<
     | { ticker: string; ok: true; changes: string[]; deleted: number; sync: SyncResult }

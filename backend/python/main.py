@@ -23,6 +23,16 @@ _crumb: str | None = None
 _crumb_time: float = 0
 _CRUMB_TTL = 300
 
+# App ticker → Yahoo native symbol where Yahoo uses a different format.
+SYMBOL_OVERRIDES = {
+    "STM.PA": "STMPA.PA",
+    "STM.MI": "STMMI.MI",
+}
+
+
+def _resolve_symbol(ticker: str) -> str:
+    return SYMBOL_OVERRIDES.get(ticker.upper(), ticker)
+
 
 def _ensure_crumb():
     global _crumb, _crumb_time
@@ -373,12 +383,13 @@ async def get_quarterly(ticker: str):
     Falls back to quoteSummary for any quarters where timeseries is missing
     critical fields (revenue, netIncome)."""
     try:
-        field_data = _yahoo_fundamentals_timeseries(ticker)
+        symbol = _resolve_symbol(ticker)
+        field_data = _yahoo_fundamentals_timeseries(symbol)
 
         if not field_data:
             # Full fallback to quoteSummary
             modules = "incomeStatementHistoryQuarterly,balanceSheetHistoryQuarterly,cashflowStatementHistoryQuarterly"
-            result = _yahoo_quote_summary(ticker, modules)
+            result = _yahoo_quote_summary(symbol, modules)
             if not result:
                 return {"ticker": ticker, "hasQuarterly": False, "income": [], "balance": [], "cashflow": []}
             income = _parse_statements(result, "incomeStatementHistoryQuarterly", "incomeStatementHistory")
@@ -390,7 +401,7 @@ async def get_quarterly(ticker: str):
 
         # Merge: fill missing revenue/netIncome from quoteSummary for incomplete quarters
         modules = "incomeStatementHistoryQuarterly"
-        result = _yahoo_quote_summary(ticker, modules)
+        result = _yahoo_quote_summary(symbol, modules)
         if result:
             qs_income = _parse_statements(result, "incomeStatementHistoryQuarterly", "incomeStatementHistory")
             # Index quoteSummary records by date, mapping raw Yahoo names to our names
@@ -448,8 +459,9 @@ async def get_quarterly(ticker: str):
 async def get_annual(ticker: str):
     """Annual data via legacy quoteSummary (fallback)."""
     try:
+        symbol = _resolve_symbol(ticker)
         modules = "incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory"
-        result = _yahoo_quote_summary(ticker, modules)
+        result = _yahoo_quote_summary(symbol, modules)
 
         if not result:
             return {
@@ -480,8 +492,9 @@ async def get_annual(ticker: str):
 async def get_info(ticker: str):
     """Company info + stock metrics via quoteSummary."""
     try:
+        symbol = _resolve_symbol(ticker)
         modules = "assetProfile,defaultKeyStatistics,financialData,summaryDetail,price"
-        result = _yahoo_quote_summary(ticker, modules)
+        result = _yahoo_quote_summary(symbol, modules)
 
         if not result:
             return {"ticker": ticker, "info": {}}
