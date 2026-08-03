@@ -1,5 +1,5 @@
 import prisma from '../infrastructure/prisma/client';
-import { computeAll, weightedAverage, getSectorConfigs } from '../services/valuationService';
+import { computeAll, getRecommendedFairValue, getSectorConfigs } from '../services/valuationService';
 
 async function main() {
   const companies = await prisma.company.findMany({
@@ -31,7 +31,7 @@ async function main() {
 
       const configs = getSectorConfigs(c.sector, c.industry);
       const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs);
-      const avg = weightedAverage(results);
+      const { fairValue: avg } = getRecommendedFairValue(results, c.sector, c.industry);
 
       const intrinsicValue = avg != null && avg > 0 ? avg : null;
       const marginOfSafety =

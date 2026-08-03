@@ -11,6 +11,29 @@ function inferCurrency(ticker: string): string {
   return 'USD';
 }
 
+// Manual total-shares overrides for tickers where the data source reports only
+// one share class (e.g. preferred stock) or an inconsistent count, while the
+// consolidated income statement / balance sheet cover the whole company.
+const SHARES_OVERRIDES: Record<string, number> = {
+  'VOW3.DE': 2950000000,
+};
+
+function resolveShares(
+  ticker: string,
+  infoShares: number | null | undefined,
+  quoteShares: number,
+  quoteMcap: number,
+  quotePrice: number,
+  fallbackShares: number | null,
+): number {
+  const t = ticker.toUpperCase();
+  if (SHARES_OVERRIDES[t] != null && SHARES_OVERRIDES[t] > 0) return SHARES_OVERRIDES[t];
+  if (infoShares != null && infoShares > 0) return infoShares;
+  if (quoteShares > 0) return quoteShares;
+  if (quoteMcap > 0 && quotePrice > 0) return Math.round(quoteMcap / quotePrice);
+  return fallbackShares ?? 0;
+}
+
 import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
 import {
   getCikForTicker,
@@ -68,7 +91,7 @@ import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
-import { computeAll, weightedAverage, getSectorConfigs } from './valuationService';
+import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
 
 function safeInt(val: unknown): number | null {
@@ -358,8 +381,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     const yfInfo = await fetchYFinanceInfo(ticker);
     const info = yfInfo?.info;
     if (yahooQuote && yahooQuote.currentPrice > 0) {
-      const shares = sharesOutstanding ?? (yahooQuote.sharesOutstanding > 0 ? yahooQuote.sharesOutstanding
-        : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0 ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice) : null));
+      const shares = sharesOutstanding ?? resolveShares(ticker, info?.sharesOutstanding, yahooQuote.sharesOutstanding, yahooQuote.marketCap, yahooQuote.currentPrice, null);
       const mcap = shares && yahooQuote.currentPrice > 0
         ? yahooQuote.currentPrice * shares
         : (yahooQuote.marketCap && yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null);
@@ -562,10 +584,17 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           }
 
           // Balance sheets from yfinance
+          let lastShortTermDebt: number | null = null;
+          let lastLongTermDebt: number | null = null;
           for (const bsRec of yfData.balance) {
             const { year, quarter } = parseYFinanceDate(bsRec.date);
             const bsMapped = mapBalanceRecord(bsRec);
             if (bsMapped.totalAssets == null && bsMapped.totalLiabilities == null) continue;
+
+            if (bsMapped.shortTermDebt != null) lastShortTermDebt = bsMapped.shortTermDebt;
+            if (bsMapped.longTermDebt != null) lastLongTermDebt = bsMapped.longTermDebt;
+            if (bsMapped.shortTermDebt == null && lastShortTermDebt != null) bsMapped.shortTermDebt = lastShortTermDebt;
+            if (bsMapped.longTermDebt == null && lastLongTermDebt != null) bsMapped.longTermDebt = lastLongTermDebt;
 
             const bsExisting = await prisma.balanceSheet.findUnique({
               where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
@@ -591,12 +620,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const rawPrice = yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0;
             const isGbPence = (yfInfo.info.currency ?? '').toUpperCase() === 'GBP';
             const currentPrice = rawPrice > 0 && isGbPence ? rawPrice / 100 : rawPrice;
+            const yfShares = resolveShares(ticker, yfInfo.info.sharesOutstanding, yahooQuote?.sharesOutstanding ?? 0, yahooQuote?.marketCap ?? 0, yahooQuote?.currentPrice ?? 0, 0);
             const stockData = {
               companyId: company.id,
               date: new Date(),
               currentPrice,
-              sharesOutstanding: yfInfo.info.sharesOutstanding ?? 0,
-              marketCap: yfInfo.info.marketCap > 0 ? yfInfo.info.marketCap : (currentPrice * (yfInfo.info.sharesOutstanding ?? 0)) || null,
+              sharesOutstanding: yfShares,
+              marketCap: yfShares > 0 && currentPrice > 0 ? currentPrice * yfShares : (yfInfo.info.marketCap ?? null),
               enterpriseValue: yfInfo.info.enterpriseValue ?? null,
               peRatio: yfInfo.info.trailingPE ?? null,
               pbRatio: yfInfo.info.priceToBook ?? null,
@@ -771,20 +801,23 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const latestEquity = firstRecord?.totalEquity ?? null;
             const latestAssets = firstRecord?.totalAssets ?? null;
             const latestLiabilities = firstRecord?.totalLiabilities ?? null;
-            const stockSharesOutstanding = yahooQuote.sharesOutstanding > 0
-            ? yahooQuote.sharesOutstanding
-            : (yahooQuote.marketCap > 0 && yahooQuote.currentPrice > 0
-              ? Math.round(yahooQuote.marketCap / yahooQuote.currentPrice)
-              : (europeanData.data.find(d => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? 0));
+            const stockSharesOutstanding = resolveShares(
+              ticker,
+              yfInfo?.info?.sharesOutstanding,
+              yahooQuote.sharesOutstanding,
+              yahooQuote.marketCap,
+              yahooQuote.currentPrice,
+              europeanData.data.find(d => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? null,
+            );
 
             const priceIsGbPence = (yahooQuote.currency ?? '').toUpperCase() === 'GBP';
             const stockPrice = yahooQuote.currentPrice > 0 && priceIsGbPence
               ? yahooQuote.currentPrice / 100
               : yahooQuote.currentPrice;
 
-            const mcap = yahooQuote.marketCap > 0
-              ? yahooQuote.marketCap
-              : (stockSharesOutstanding > 0 && stockPrice > 0 ? stockPrice * stockSharesOutstanding : null);
+            const mcap = stockSharesOutstanding > 0 && stockPrice > 0
+              ? stockPrice * stockSharesOutstanding
+              : yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null;
 
             console.log(`[European] ${ticker}: Yahoo quote price=${yahooQuote.currentPrice}, shares=${yahooQuote.sharesOutstanding}, mcap=${mcap}`);
             console.log(`[European] ${ticker}: XBRL shares=${europeanData.data[0]?.sharesOutstanding}, computed stockSharesOutstanding=${stockSharesOutstanding}`);
@@ -982,7 +1015,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         if (allFinancials.length > 0) {
           const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
           const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs);
-          const fairValue = weightedAverage(results);
+          const fairValue = getRecommendedFairValue(results, companyForVal.sector, companyForVal.industry).fairValue;
           if (fairValue != null && fairValue > 0) {
             const marginOfSafety = stockForValuation.currentPrice > 0
               ? (fairValue - stockForValuation.currentPrice) / stockForValuation.currentPrice
