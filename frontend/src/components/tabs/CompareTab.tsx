@@ -75,7 +75,7 @@ export function CompareTab({ company, financial, stock }: Props) {
 
   const verdictConfig = {
     overvalued: { label: 'Sobrevalorada vs Mercado', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: TrendingUp },
-    undervalued: { label: 'Subvalorada vs Mercado', color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', icon: TrendingDown },
+    undervalued: { label: 'Subvalorada vs Mercado', color: '#4f8fb5', bg: 'rgba(79, 143, 181, 0.14)', border: 'rgba(79, 143, 181, 0.35)', icon: TrendingDown },
     fair: { label: 'Alineada con el Mercado', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: Minus },
   };
   const vConfig = verdictConfig[overallVerdict];
@@ -190,7 +190,7 @@ export function CompareTab({ company, financial, stock }: Props) {
                   } else {
                     isOver = m.companyVal! > m.marketVal;
                   }
-                  const diffColor = isOver === true ? '#dc2626' : isOver === false ? '#059669' : '#d97706';
+                  const diffColor = isOver === true ? '#dc2626' : isOver === false ? '#4f8fb5' : '#d97706';
                   const verdictLabel = isOver === true ? 'Sobrevalorada' : isOver === false ? 'Subvalorada' : 'Justa';
 
                   return (
@@ -206,7 +206,7 @@ export function CompareTab({ company, financial, stock }: Props) {
                         {diff >= 0 ? '+' : ''}{diffPct.toFixed(1)}%
                       </td>
                       <td className="cmp-metrics-center">
-                        <span className="cmp-metrics-verdict" style={{ color: diffColor, background: isOver ? '#fef2f2' : isOver === false ? '#ecfdf5' : '#fffbeb' }}>
+                        <span className="cmp-metrics-verdict" style={{ color: diffColor, background: isOver ? '#fef2f2' : isOver === false ? 'rgba(79, 143, 181, 0.14)' : '#fffbeb' }}>
                           {verdictLabel}
                         </span>
                       </td>

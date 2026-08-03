@@ -587,7 +587,7 @@ export function AdminPanel() {
               <h3 className="admin-source-card-title admin-source-card-title--emerald">
                 SEC EDGAR
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas US — Datos XBRL oficiales</p>
+              <p style={{ fontSize: '0.75rem', color: '#4f8fb5', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas US — Datos XBRL oficiales</p>
               <ul className="admin-source-list">
                 <li><strong>Company Facts:</strong> revenue, netIncome (10-K)</li>
                 <li><strong>CIK Mapping:</strong> identificador único SEC</li>
@@ -644,7 +644,7 @@ export function AdminPanel() {
           {/* European Indices Quick Import */}
           <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <Globe size={16} style={{ color: '#059669' }} />
+              <Globe size={16} style={{ color: '#4f8fb5' }} />
               <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Indices Europeos (ESEF/XBRL)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -668,7 +668,7 @@ export function AdminPanel() {
                 disabled={isImporting}
                 className="admin-form-btn"
                 style={{
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  background: 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)',
                   color: 'white', fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap',
                   padding: '0.5rem 1rem',
                 }}
@@ -759,7 +759,7 @@ export function AdminPanel() {
               className="admin-form-btn"
               style={{
                 background: bulkTickerCount > 0 && !isImporting
-                  ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                  ? 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)'
                   : '#e2e8f0',
                 color: bulkTickerCount > 0 && !isImporting ? 'white' : '#94a3b8',
                 fontWeight: 600,

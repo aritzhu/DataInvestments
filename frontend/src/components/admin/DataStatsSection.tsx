@@ -392,7 +392,7 @@ export function DataStatsSection() {
               ))}
             </div>
 
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669', marginBottom: '0.5rem' }}>Balance Sheet</h3>
+            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4f8fb5', marginBottom: '0.5rem' }}>Balance Sheet</h3>
             <div className="stats-coverage-grid" style={{ marginBottom: '1rem' }}>
               {Object.entries(stats.fieldCoverage.balanceSheet).map(([key, val]) => (
                 <CoverageBar key={key} fieldName={key} field={val} />

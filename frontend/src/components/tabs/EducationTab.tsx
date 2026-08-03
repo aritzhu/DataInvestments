@@ -22,13 +22,13 @@ export function EducationTab({ financial, balanceSheet, stock }: Props) {
   const per100 = [
     { label: 'Ingresos por ventas', value: 100, color: '#2563eb', type: 'total' as const },
     { label: <>Costos directos (<AbbrTip abbr="COGS" />)</>, value: -((f.costOfRevenue / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
-    { label: 'Beneficio bruto', value: (grossProfit / f.revenue) * 100, color: '#10b981', type: 'subtotal' as const },
+    { label: 'Beneficio bruto', value: (grossProfit / f.revenue) * 100, color: '#4f8fb5', type: 'subtotal' as const },
     { label: <>Gastos comerciales (<AbbrTip abbr="SGA" />)</>, value: -((f.sgaExpense / f.revenue) * 100), color: '#f97316', type: 'expense' as const },
     { label: <AbbrTip abbr="I+D" />, value: -((f.rdExpense / f.revenue) * 100), color: '#f59e0b', type: 'expense' as const },
     { label: 'Otros gastos operativos', value: -((otherOpex / f.revenue) * 100), color: '#fb923c', type: 'expense' as const },
     { label: 'Intereses', value: -((f.interestExpense / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
     { label: 'Impuestos', value: -((f.taxExpense / f.revenue) * 100), color: '#ef4444', type: 'expense' as const },
-    { label: 'Beneficio neto', value: (f.netIncome / f.revenue) * 100, color: '#10b981', type: 'total' as const },
+    { label: 'Beneficio neto', value: (f.netIncome / f.revenue) * 100, color: '#4f8fb5', type: 'total' as const },
   ];
 
   const netMargin = (f.netIncome / f.revenue) * 100;
@@ -203,7 +203,7 @@ export function EducationTab({ financial, balanceSheet, stock }: Props) {
                   <div className="edu-ownership-asset">
                     <div className="edu-ownership-asset-row">
                       <span className="edu-ownership-asset-label" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Beneficio neto</span>
-                      <span className="edu-ownership-asset-value" style={{ color: '#10b981' }}>
+                      <span className="edu-ownership-asset-value" style={{ color: '#4f8fb5' }}>
                         ${earningsPerShare?.toFixed(2)}
                       </span>
                     </div>

@@ -63,7 +63,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   financial: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b' },
   balanceSheet: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' },
-  stockMetric: { bg: '#f0fdf4', border: '#bbf7d0', text: '#166534' },
+  stockMetric: { bg: 'rgba(79, 143, 181, 0.14)', border: 'rgba(79, 143, 181, 0.35)', text: '#4f8fb5' },
   company: { bg: '#fffbeb', border: '#fde68a', text: '#d97706' },
 };
 
@@ -286,14 +286,14 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.75rem' }}>
               {Object.entries(toolAvailability).map(([tool, available]) => {
                 const color = available
-                  ? tool === 'dcf' ? '#059669'
+                  ? tool === 'dcf' ? '#4f8fb5'
                   : tool === 'per' ? '#2563eb'
                   : tool === 'pb' ? '#7c3aed'
                   : tool === 'ps' ? '#d97706'
                   : tool === 'evEbitda' ? '#dc2626'
                   : tool === 'evEbit' ? '#ea580c'
                   : tool === 'ddm' ? '#0891b2'
-                  : tool === 'graham' ? '#65a30d'
+                  : tool === 'graham' ? '#4f8fb5'
                   : tool === 'fcfYield' ? '#14b8a6'
                   : tool === 'netnet' ? '#ec4899'
                   : tool === 'sankeyCashflow' ? '#8b5cf6'
@@ -338,7 +338,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
                         <button
                           onClick={() => handleAddFieldMapping(fieldName, guessed)}
                           disabled={addedMappings.has(fieldName)}
-                          style={{ background: addedMappings.has(fieldName) ? '#10b981' : '#d97706', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem', cursor: addedMappings.has(fieldName) ? 'default' : 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          style={{ background: addedMappings.has(fieldName) ? '#4f8fb5' : '#d97706', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem', cursor: addedMappings.has(fieldName) ? 'default' : 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                         >
                           {addedMappings.has(fieldName) ? '✓' : '+'}
                         </button>
@@ -367,7 +367,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
             {importHistory.map((event, index) => (
               <div key={index} style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', minWidth: '2rem' }}>
-                  <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', background: event.event === 'success' ? '#10b981' : event.event === 'error' ? '#ef4444' : event.event === 'skipped' ? '#f59e0b' : '#3b82f6' }} />
+                  <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', background: event.event === 'success' ? '#4f8fb5' : event.event === 'error' ? '#ef4444' : event.event === 'skipped' ? '#f59e0b' : '#3b82f6' }} />
                   {index > 0 && <div style={{ width: '1px', height: '1rem', background: '#e2e8f0' }} />}
                 </div>
                 <div style={{ flex: 1 }}>

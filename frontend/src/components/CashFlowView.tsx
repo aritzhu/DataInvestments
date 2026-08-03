@@ -250,7 +250,7 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
     other_opex: '#6b7280',
     interest: '#ec4899',
     tax: '#eab308',
-    net_income: '#10b981',
+    net_income: '#4f8fb5',
     capex: '#f59e0b',
     depreciation: '#64748b',
   };

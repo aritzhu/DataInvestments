@@ -24,23 +24,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #d4a84d, #a89fc0);
   border-radius: 12px;
   color: white;
   flex-shrink: 0;
 }
 
 .pf-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
 .pf-subtitle {
   font-size: 0.85rem;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   margin: 0.25rem 0 0;
 }
 
@@ -49,7 +49,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.55rem 1.1rem;
-  background: #6366f1;
+  background: #d4a84d;
   color: white;
   border: none;
   border-radius: 8px;
@@ -62,7 +62,7 @@
 }
 
 .pf-btn-primary:hover {
-  background: #4f46e5;
+  background: #d4a84d;
 }
 
 .pf-btn-secondary {
@@ -70,9 +70,9 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.5rem 1rem;
-  background: white;
-  color: var(--text-secondary, #64748b);
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--surface-1);
+  color: var(--text-secondary, #aba59a);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 8px;
   font-size: 0.8rem;
   font-weight: 600;
@@ -81,9 +81,9 @@
 }
 
 .pf-btn-secondary:hover {
-  border-color: #6366f1;
-  color: #6366f1;
-  background: #eef2ff;
+  border-color: #d4a84d;
+  color: #d4a84d;
+  background: rgba(212, 168, 77, 0.14);
 }
 
 .pf-btn-icon {
@@ -92,7 +92,7 @@
   border-radius: 8px;
   border: none;
   background: none;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -101,25 +101,25 @@
 }
 
 .pf-btn-icon:hover {
-  background: var(--surface-2, #f1f5f9);
-  color: var(--text-primary, #0f172a);
+  background: var(--surface-2, #1b1e25);
+  color: var(--text-primary, #f2efe9);
 }
 
 .pf-btn-icon--danger:hover {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(201, 111, 95, 0.14);
+  color: #c96f5f;
 }
 
 .pf-btn-icon--edit:hover {
-  background: #eef2ff;
-  color: #6366f1;
+  background: rgba(212, 168, 77, 0.14);
+  color: #d4a84d;
 }
 
 /* ── Loading ── */
 .pf-loading {
   text-align: center;
   padding: 2rem;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   font-size: 0.85rem;
 }
 
@@ -133,8 +133,8 @@
 /* ── Portfolio Card (list item) ── */
 .pf-card {
   display: block;
-  background: white;
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--surface-1);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 12px;
   padding: 1.25rem;
   text-decoration: none;
@@ -143,7 +143,7 @@
 
 .pf-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-  border-color: #c7d2fe;
+  border-color: rgba(212, 168, 77, 0.35);
 }
 
 .pf-card-top {
@@ -163,7 +163,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #d4a84d, #a89fc0);
   color: white;
   display: flex;
   align-items: center;
@@ -172,16 +172,16 @@
 }
 
 .pf-card-name {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
 .pf-card-desc {
   font-size: 0.75rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -190,7 +190,7 @@
 }
 
 .pf-card-arrow {
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   flex-shrink: 0;
 }
 
@@ -202,12 +202,12 @@
 }
 
 .pf-card-meta-label {
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
 }
 
 .pf-card-meta-value {
   font-weight: 600;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
 }
 
 /* ── Detail Page ── */
@@ -222,13 +222,13 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.8rem;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   text-decoration: none;
   margin-bottom: 0.75rem;
 }
 
 .pf-back-link:hover {
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
 }
 
 .pf-detail-header {
@@ -248,7 +248,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #d4a84d, #a89fc0);
   color: white;
   display: flex;
   align-items: center;
@@ -257,16 +257,16 @@
 }
 
 .pf-detail-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
 .pf-detail-desc {
   font-size: 0.8rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
   margin: 0.15rem 0 0;
 }
 
@@ -284,34 +284,34 @@
 }
 
 .pf-summary-card {
-  background: white;
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--surface-1);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 12px;
   padding: 1rem;
 }
 
 .pf-summary-label {
   font-size: 0.7rem;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin: 0 0 0.3rem;
 }
 
 .pf-summary-value {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
 .pf-summary-value--positive {
-  color: #059669;
+  color: #4f8fb5;
 }
 
 .pf-summary-value--negative {
-  color: #dc2626;
+  color: #c96f5f;
 }
 
 /* ── Holdings Section ── */
@@ -323,10 +323,10 @@
 }
 
 .pf-holdings-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
@@ -338,8 +338,8 @@
 
 /* ── Holding Row ── */
 .pf-holding {
-  background: white;
-  border: 1px solid var(--border-light, #e2e8f0);
+  background: var(--surface-1);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 10px;
   padding: 1rem;
   display: flex;
@@ -368,15 +368,15 @@
 }
 
 .pf-holding-ticker {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
 }
 
 .pf-holding-name {
   font-size: 0.75rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -407,19 +407,19 @@
 
 .pf-holding-metric {
   font-size: 0.72rem;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
 }
 
 .pf-holding-metric-label {
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
 }
 
 .pf-holding-metric-positive {
-  color: #059669;
+  color: #4f8fb5;
 }
 
 .pf-holding-metric-negative {
-  color: #dc2626;
+  color: #c96f5f;
 }
 
 .pf-holding-actions {
@@ -445,27 +445,27 @@
   height: 60px;
   margin: 0 auto 1rem;
   border-radius: 50%;
-  background: var(--surface-2, #f1f5f9);
+  background: var(--surface-2, #1b1e25);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .pf-empty-icon svg {
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
 }
 
 .pf-empty-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0 0 0.35rem;
 }
 
 .pf-empty-text {
   font-size: 0.85rem;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   margin: 0 0 1.5rem;
 }
 
@@ -474,7 +474,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.6rem 1.2rem;
-  background: #6366f1;
+  background: #d4a84d;
   color: white;
   border: none;
   border-radius: 8px;
@@ -485,7 +485,7 @@
 }
 
 .pf-empty-action:hover {
-  background: #4f46e5;
+  background: #d4a84d;
 }
 
 /* ── Modal ── */
@@ -502,7 +502,7 @@
 }
 
 .pf-modal {
-  background: white;
+  background: var(--surface-1);
   border-radius: 14px;
   width: 100%;
   max-width: 480px;
@@ -514,14 +514,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
+  border-bottom: 1px solid var(--border-light, #262a34);
 }
 
 .pf-modal-header h2 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
   margin: 0;
 }
 
@@ -531,7 +531,7 @@
   border-radius: 8px;
   border: none;
   background: none;
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -540,7 +540,7 @@
 }
 
 .pf-modal-close:hover {
-  background: var(--surface-2, #f1f5f9);
+  background: var(--surface-2, #1b1e25);
 }
 
 .pf-modal-body {
@@ -555,7 +555,7 @@
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-light, #e2e8f0);
+  border-top: 1px solid var(--border-light, #262a34);
 }
 
 /* ── Form ── */
@@ -568,16 +568,16 @@
 .pf-form-group label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
 }
 
 .pf-input {
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 8px;
   font-size: 0.85rem;
-  color: var(--text-primary, #0f172a);
-  background: white;
+  color: var(--text-primary, #f2efe9);
+  background: var(--surface-1);
   font-family: inherit;
   transition: border-color 0.2s;
   outline: none;
@@ -586,8 +586,8 @@
 }
 
 .pf-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: #d4a84d;
+  box-shadow: 0 0 0 3px rgba(212, 168, 77, 0.1);
 }
 
 .pf-textarea {
@@ -611,7 +611,7 @@
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-tertiary, #94a3b8);
+  color: var(--text-tertiary, #7a766d);
   pointer-events: none;
 }
 
@@ -622,7 +622,7 @@
 /* Search results dropdown */
 .pf-search-results {
   margin-top: 0.25rem;
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -638,34 +638,34 @@
 }
 
 .pf-search-result:hover {
-  background: #eef2ff;
+  background: rgba(212, 168, 77, 0.14);
 }
 
 .pf-search-result-ticker {
   font-weight: 600;
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, #f2efe9);
 }
 
 .pf-search-result-name {
-  color: var(--text-secondary, #64748b);
+  color: var(--text-secondary, #aba59a);
 }
 
 .pf-search-selected {
   margin-top: 0.25rem;
   padding: 0.5rem 0.75rem;
-  background: #eef2ff;
+  background: rgba(212, 168, 77, 0.14);
   font-size: 0.85rem;
-  color: #4f46e5;
+  color: #d4a84d;
   border-radius: 8px;
 }
 
 /* ── Buttons inside modal ── */
 .pf-cancel-btn {
   padding: 0.5rem 1rem;
-  border: 1px solid var(--border-light, #e2e8f0);
+  border: 1px solid var(--border-light, #262a34);
   border-radius: 8px;
-  background: white;
-  color: var(--text-secondary, #64748b);
+  background: var(--surface-1);
+  color: var(--text-secondary, #aba59a);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -673,14 +673,14 @@
 }
 
 .pf-cancel-btn:hover {
-  background: var(--surface-2, #f1f5f9);
+  background: var(--surface-2, #1b1e25);
 }
 
 .pf-save-btn {
   padding: 0.5rem 1.25rem;
   border: none;
   border-radius: 8px;
-  background: #6366f1;
+  background: #d4a84d;
   color: white;
   font-size: 0.8rem;
   font-weight: 600;
@@ -689,7 +689,7 @@
 }
 
 .pf-save-btn:hover {
-  background: #4f46e5;
+  background: #d4a84d;
 }
 
 .pf-save-btn:disabled {

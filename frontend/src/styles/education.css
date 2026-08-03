@@ -14,7 +14,7 @@
 }
 
 .edu-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -70,7 +70,7 @@
 }
 
 .edu-value {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -84,17 +84,17 @@
 
 /* --- Insight --- */
 .edu-insight {
-  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
-  border: 1px solid #a7f3d0;
+  background: linear-gradient(135deg, rgba(79, 143, 181, 0.08), rgba(79, 143, 181, 0.05));
+  border: 1px solid rgba(79, 143, 181, 0.3);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
 }
 
 .edu-insight h4 {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.85rem;
-  font-weight: 700;
-  color: #15803d;
+  font-weight: 600;
+  color: #4f8fb5;
   margin-bottom: 0.5rem;
 }
 
@@ -159,7 +159,7 @@
 }
 
 .edu-ownership-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -202,7 +202,7 @@
 
 .edu-ownership-node-value {
   display: block;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -217,13 +217,13 @@
 
 /* Highlighted node (1 acción = precio) */
 .edu-ownership-node--highlight {
-  background: linear-gradient(135deg, #eff6ff, #f0f9ff);
-  border-color: #93c5fd;
-  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.1);
+  background: linear-gradient(135deg, var(--gold-pale), rgba(212, 168, 77, 0.05));
+  border-color: var(--gold-line);
+  box-shadow: 0 2px 12px rgba(212, 168, 77, 0.18);
 }
 
 .edu-ownership-node--highlight .edu-ownership-node-value {
-  color: #2563eb;
+  color: var(--gold-light);
 }
 
 /* Arrow between nodes */
@@ -255,7 +255,7 @@
 }
 
 .edu-ownership-breakdown-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -290,7 +290,7 @@
 }
 
 .edu-ownership-asset-value {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -357,7 +357,7 @@
 
 .edu-ownership-metric-value {
   display: block;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.95rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -379,7 +379,7 @@
 }
 
 .edu-ownership-verdict-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -418,7 +418,7 @@
 
 .edu-ownership-verdict-value {
   display: block;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.9rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -436,7 +436,7 @@
 /* Signal badges */
 .edu-signal {
   display: inline-block;
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -446,21 +446,21 @@
 }
 
 .edu-signal--buy {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: rgba(79, 143, 181, 0.14);
+  color: #4f8fb5;
+  border: 1px solid rgba(79, 143, 181, 0.35);
 }
 
 .edu-signal--hold {
-  background: #fffbeb;
-  color: #d97706;
-  border: 1px solid #fde68a;
+  background: rgba(204, 143, 74, 0.14);
+  color: #cc8f4a;
+  border: 1px solid rgba(204, 143, 74, 0.35);
 }
 
 .edu-signal--sell {
-  background: #fef2f2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
+  background: rgba(201, 111, 95, 0.14);
+  color: #c96f5f;
+  border: 1px solid rgba(201, 111, 95, 0.35);
 }
 
 .edu-signal-desc {

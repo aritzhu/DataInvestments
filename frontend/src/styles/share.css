@@ -14,7 +14,7 @@
 }
 
 .share-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -70,7 +70,7 @@
 }
 
 .share-card-value {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -86,7 +86,7 @@
 }
 
 .share-section-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -146,19 +146,19 @@
 }
 
 /* --- Card color variants (accent border-top) --- */
-.share-card--blue { border-top-color: #2563eb; }
-.share-card--green { border-top-color: #10b981; }
-.share-card--red { border-top-color: #ef4444; }
-.share-card--purple { border-top-color: #8b5cf6; }
-.share-card--amber { border-top-color: #f59e0b; }
-.share-card--cyan { border-top-color: #06b6d4; }
+.share-card--blue { border-top-color: #d4a84d; }
+.share-card--green { border-top-color: #4f8fb5; }
+.share-card--red { border-top-color: #c96f5f; }
+.share-card--purple { border-top-color: #a89fc0; }
+.share-card--amber { border-top-color: #cc8f4a; }
+.share-card--cyan { border-top-color: #5a8f9f; }
 
 /* --- EV segment colors --- */
-.share-comp-segment--cash { background: #10b981; }
-.share-comp-segment--debt { background: #ef4444; }
-.share-comp-segment--equity { background: #2563eb; }
+.share-comp-segment--cash { background: #193e57; }
+.share-comp-segment--debt { background: #c96f5f; }
+.share-comp-segment--equity { background: #d4a84d; }
 
 /* --- Legend dot colors --- */
-.share-comp-dot--cash { background: #10b981; }
-.share-comp-dot--debt { background: #ef4444; }
-.share-comp-dot--equity { background: #2563eb; }
+.share-comp-dot--cash { background: #193e57; }
+.share-comp-dot--debt { background: #c96f5f; }
+.share-comp-dot--equity { background: #d4a84d; }

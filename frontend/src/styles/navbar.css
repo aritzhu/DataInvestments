@@ -1,15 +1,15 @@
 /* ============================
-   Navbar — Premium Glassmorphism
+   Navbar — Dark Luxury
    ============================ */
 
 .navbar {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(12, 13, 16, 0.82);
   backdrop-filter: blur(16px) saturate(180%);
   -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .navbar-inner {
@@ -42,8 +42,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  color: var(--text-inverse);
+  box-shadow: 0 2px 10px rgba(212, 168, 77, 0.3);
   transition: transform 0.2s var(--ease-out);
 }
 
@@ -58,11 +58,11 @@
 }
 
 .navbar-logo-text {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  font-size: 1.1rem;
-  font-weight: 800;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 /* Desktop links */
@@ -96,7 +96,7 @@
   display: inline-flex;
   align-items: center;
   padding: 0.4rem 1rem;
-  background: var(--text-primary);
+  background: var(--gradient-primary);
   color: var(--text-inverse);
   font-size: 0.8rem;
   font-weight: 600;
@@ -107,9 +107,9 @@
 }
 
 .navbar-cta:hover {
-  background: #1e293b;
+  background: linear-gradient(135deg, #edc97f 0%, #a37f2f 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  box-shadow: var(--shadow-gold);
 }
 
 /* Icon button */
@@ -127,7 +127,7 @@
 }
 
 .navbar-icon-btn:hover {
-  color: var(--text-primary);
+  color: var(--gold-light);
   background: var(--surface-2);
 }
 
@@ -152,7 +152,7 @@
   height: 36px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
-  background: var(--surface-0);
+  background: var(--surface-1);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -163,7 +163,7 @@
 }
 
 .navbar-hamburger:hover {
-  background: var(--surface-1);
+  background: var(--surface-2);
   color: var(--text-primary);
 }
 
@@ -172,7 +172,7 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.3);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   opacity: 0;
   visibility: hidden;
@@ -190,11 +190,12 @@
   right: 0;
   width: min(20rem, 85vw);
   height: 100%;
-  background: var(--surface-0);
-  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.08);
+  background: var(--surface-1);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5);
   transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 1.5rem;
+  border-left: 1px solid var(--border-light);
 }
 
 .navbar-mobile-menu.is-open .navbar-mobile-panel {
@@ -222,7 +223,7 @@
 }
 
 .navbar-mobile-close button:hover {
-  background: var(--surface-1);
+  background: var(--surface-2);
   color: var(--text-primary);
 }
 
@@ -246,19 +247,19 @@
 }
 
 .navbar-mobile-link:hover {
-  background: var(--surface-1);
+  background: var(--surface-2);
   color: var(--text-primary);
 }
 
 .navbar-mobile-link--cta {
-  background: var(--text-primary);
+  background: var(--gradient-primary);
   color: var(--text-inverse);
   font-weight: 600;
   margin-top: 0.5rem;
 }
 
 .navbar-mobile-link--cta:hover {
-  background: #1e293b;
+  background: linear-gradient(135deg, #edc97f 0%, #a37f2f 100%);
   color: var(--text-inverse);
 }
 
@@ -297,8 +298,8 @@
 }
 
 .navbar-logout-btn:hover {
-  color: #dc2626;
-  background: #fef2f2;
+  color: var(--color-danger);
+  background: rgba(201, 111, 95, 0.12);
 }
 
 /* Mobile user info */
@@ -308,7 +309,7 @@
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
-  background: var(--surface-1);
+  background: var(--surface-2);
   border-radius: var(--radius-md);
   color: var(--text-primary);
 }
@@ -328,10 +329,10 @@
   background: none;
   font: inherit;
   cursor: pointer;
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .navbar-mobile-link--logout:hover {
-  background: #fef2f2;
-  color: #dc2626;
+  background: rgba(201, 111, 95, 0.12);
+  color: var(--color-danger);
 }

@@ -201,7 +201,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   className="val-hero-bar-fill"
                   style={{
                     width: `${barPct}%`,
-                    background: verdict === 'buy' ? '#059669' : verdict === 'sell' ? '#dc2626' : '#d97706',
+                    background: verdict === 'buy' ? '#4f8fb5' : verdict === 'sell' ? '#dc2626' : '#d97706',
                   }}
                 />
               </div>
@@ -547,7 +547,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               <p className="val-alarm-modal-desc">¿Cuándo quieres que te avise?</p>
               <div className="val-alarm-options">
                 {([
-                  { value: 'buy' as const, label: 'Subvalorada', desc: 'Cuando el sistema detecte que está por debajo de su valor justo', color: '#059669' },
+                  { value: 'buy' as const, label: 'Subvalorada', desc: 'Cuando el sistema detecte que está por debajo de su valor justo', color: '#4f8fb5' },
                   { value: 'hold' as const, label: 'Justa', desc: 'Cuando el precio esté cerca del valor intrínseco', color: '#d97706' },
                   { value: 'sell' as const, label: 'Sobrevalorada', desc: 'Cuando el sistema detecte que está por encima de su valor justo', color: '#dc2626' },
                 ]).map((opt) => (

@@ -14,7 +14,7 @@
 }
 
 .rev-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -36,7 +36,7 @@
 }
 
 .rev-section-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -81,7 +81,7 @@
 }
 
 .rev-bar-value {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-primary);

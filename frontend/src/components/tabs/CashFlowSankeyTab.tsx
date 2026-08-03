@@ -33,7 +33,7 @@ function formatVal(v: number): string {
 const NODE_COLORS: Record<string, string> = {
   operating_cf: '#2563eb',
   capex: '#ef4444',
-  fcf: '#10b981',
+  fcf: '#4f8fb5',
   dividends: '#f59e0b',
   buybacks: '#a855f7',
   retained: '#06b6d4',

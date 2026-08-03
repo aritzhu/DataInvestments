@@ -12,7 +12,7 @@
 }
 
 .cmp-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-primary);
@@ -52,7 +52,7 @@
 }
 
 .cmp-verdict-hero-label {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.15rem;
   font-weight: 800;
 }

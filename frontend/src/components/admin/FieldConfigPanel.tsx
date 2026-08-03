@@ -51,7 +51,7 @@ const SOURCE_LABELS: Record<SourceKey, string> = {
 
 const SOURCE_COLORS: Record<SourceKey, { bg: string; text: string; border: string }> = {
   sec: { bg: '#eff6ff', text: '#1e40af', border: '#bfdbfe' },
-  european: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0' },
+  european: { bg: 'rgba(79, 143, 181, 0.14)', text: '#4f8fb5', border: 'rgba(79, 143, 181, 0.35)' },
   yahoo: { bg: '#fefce8', text: '#854d0e', border: '#fef08a' },
 };
 
@@ -332,7 +332,7 @@ export function FieldConfigPanel() {
           disabled={applying || totalPending > 0}
           className="admin-form-btn"
           style={{
-            background: totalPending === 0 ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : '#94a3b8',
+            background: totalPending === 0 ? 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)' : '#94a3b8',
             opacity: totalPending > 0 ? 0.5 : 1,
           }}
         >
@@ -359,13 +359,13 @@ export function FieldConfigPanel() {
                 <div style={{ height: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)', width: `${((applyProgress.completed || 0) / (applyProgress.total || 1)) * 100}%`, transition: 'width 0.3s ease' }} />
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.75rem' }}>
-                <span style={{ color: '#059669' }}>✓ {applyProgress.succeeded || 0} éxitos</span>
+                <span style={{ color: '#4f8fb5' }}>✓ {applyProgress.succeeded || 0} éxitos</span>
                 {applyProgress.failed && applyProgress.failed > 0 && <span style={{ color: '#dc2626' }}>✗ {applyProgress.failed} fallos</span>}
               </div>
             </div>
           )}
           {applyProgress.type === 'complete' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#059669' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4f8fb5' }}>
               <CheckCircle2 size={16} />
               <span style={{ fontSize: '0.875rem' }}>Completado: {applyProgress.succeeded} éxitos, {applyProgress.failed} fallos</span>
             </div>
@@ -497,7 +497,7 @@ export function FieldConfigPanel() {
             Campos de Yahoo Finance
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ width: '0.5rem', height: '0.5rem', background: '#10b981', borderRadius: '50%', display: 'inline-block' }} />
+            <span style={{ width: '0.5rem', height: '0.5rem', background: '#4f8fb5', borderRadius: '50%', display: 'inline-block' }} />
             Fuente activa (se importa)
           </div>
         </div>
@@ -553,7 +553,7 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
           />
           <span style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            background: active ? '#10b981' : '#cbd5e1',
+            background: active ? '#4f8fb5' : '#cbd5e1',
             borderRadius: '0.5rem', transition: 'all 0.2s',
           }}>
             <span style={{

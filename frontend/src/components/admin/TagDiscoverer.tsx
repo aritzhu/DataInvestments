@@ -129,7 +129,7 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
                   disabled={addingTag === tag || alreadyAdded}
                   style={{
                     background: alreadyAdded ? '#dcfce7' : '#2563eb',
-                    color: alreadyAdded ? '#166534' : '#fff',
+                    color: alreadyAdded ? '#4f8fb5' : '#fff',
                     border: 'none', borderRadius: '0.2rem', padding: '0.15rem 0.35rem',
                     cursor: alreadyAdded ? 'default' : 'pointer',
                     fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.2rem',

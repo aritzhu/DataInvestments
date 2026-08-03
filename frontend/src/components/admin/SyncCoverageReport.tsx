@@ -165,7 +165,7 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
                 border: '1px solid #e2e8f0',
               }}>
                 <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#059669' }}>{report.populatedFields.length}</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#4f8fb5' }}>{report.populatedFields.length}</div>
                   <div style={{ fontSize: '0.7rem', color: '#64748b' }}>Campos rellenados</div>
                 </div>
                 <div style={{ width: '1px', background: '#e2e8f0' }} />
@@ -187,7 +187,7 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
 
               {/* Populated fields */}
               <div>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#059669', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4f8fb5', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                   <CheckCircle2 size={14} /> Campos rellenados ({report.populatedFields.length})
                 </h4>
                 {report.populatedFields.length > 0 ? (
@@ -195,8 +195,8 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
                     {report.populatedFields.map((f) => (
                       <span key={f.fieldName} style={{
                         fontSize: '0.7rem', padding: '0.2rem 0.5rem',
-                        background: '#f0fdf4', color: '#166534',
-                        borderRadius: '0.25rem', border: '1px solid #bbf7d0',
+                        background: 'rgba(79, 143, 181, 0.14)', color: '#4f8fb5',
+                        borderRadius: '0.25rem', border: '1px solid rgba(79, 143, 181, 0.35)',
                         fontFamily: 'monospace',
                       }}>
                         {f.label}
@@ -270,7 +270,7 @@ export function SyncCoverageReport({ ticker, onClose }: SyncCoverageReportProps)
                               disabled={addingTag === u.concept || alreadyAdded}
                               style={{
                                 background: alreadyAdded ? '#dcfce7' : '#2563eb',
-                                color: alreadyAdded ? '#166534' : '#fff',
+                                color: alreadyAdded ? '#4f8fb5' : '#fff',
                                 border: 'none', borderRadius: '0.2rem', padding: '0.15rem 0.35rem',
                                 cursor: alreadyAdded ? 'default' : 'pointer',
                                 fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.2rem',

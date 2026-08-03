@@ -1,5 +1,5 @@
 /* ============================
-   Auth Pages — Login / Register
+   Auth Pages — Dark Luxury
    ============================ */
 
 .auth-page {
@@ -7,16 +7,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f1f5f9 100%);
+  background: linear-gradient(135deg, #0c0d10 0%, #14161b 50%, #0c0d10 100%);
   padding: 2rem 1rem;
 }
 
 .auth-card {
   width: 100%;
   max-width: 26rem;
-  background: white;
+  background: var(--surface-1);
+  border: 1px solid var(--border-light);
   border-radius: 1rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
   padding: 2.5rem 2rem 2rem;
 }
 
@@ -26,17 +27,17 @@
 }
 
 .auth-title {
-  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.5rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 600;
+  color: var(--text-primary);
   margin: 0 0 0.4rem;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .auth-subtitle {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -47,9 +48,9 @@
 }
 
 .auth-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: rgba(201, 111, 95, 0.1);
+  border: 1px solid rgba(201, 111, 95, 0.3);
+  color: #c96f5f;
   font-size: 0.8rem;
   padding: 0.6rem 0.8rem;
   border-radius: 0.5rem;
@@ -64,26 +65,30 @@
 .auth-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .auth-input {
   width: 100%;
   padding: 0.65rem 0.85rem;
   font-size: 0.9rem;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border-default);
   border-radius: 0.5rem;
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--surface-2);
+  color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
 }
 
 .auth-input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-  background: white;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(212, 168, 77, 0.18);
+  background: var(--surface-2);
+}
+
+.auth-input::placeholder {
+  color: var(--text-tertiary);
 }
 
 .auth-submit {
@@ -91,8 +96,8 @@
   padding: 0.7rem 1rem;
   font-size: 0.9rem;
   font-weight: 600;
-  color: white;
-  background: #0f172a;
+  color: var(--text-inverse);
+  background: var(--gradient-primary);
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -101,9 +106,9 @@
 }
 
 .auth-submit:hover:not(:disabled) {
-  background: #1e293b;
+  background: linear-gradient(135deg, #edc97f 0%, #a37f2f 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+  box-shadow: var(--shadow-gold);
 }
 
 .auth-submit:disabled {
@@ -115,17 +120,17 @@
   margin-top: 1.5rem;
   text-align: center;
   padding-top: 1.25rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--border-light);
 }
 
 .auth-footer-text {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-tertiary);
   margin: 0;
 }
 
 .auth-link {
-  color: #2563eb;
+  color: var(--gold-light);
   font-weight: 600;
   text-decoration: none;
 }

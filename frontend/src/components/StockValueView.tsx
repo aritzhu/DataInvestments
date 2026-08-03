@@ -169,7 +169,7 @@ export function StockValueView() {
 
           <div className={`sv-margin-card ${isUndervalued ? 'sv-margin-card--undervalued' : 'sv-margin-card--overvalued'}`} style={{ animationDelay: '0.2s' }}>
             <div className="sv-margin-header">
-              {isUndervalued ? <Shield size={20} style={{ color: '#059669' }} /> : <AlertTriangle size={20} style={{ color: '#d97706' }} />}
+              {isUndervalued ? <Shield size={20} style={{ color: '#4f8fb5' }} /> : <AlertTriangle size={20} style={{ color: '#d97706' }} />}
               <span className="sv-margin-title">Margen de Seguridad</span>
             </div>
             <p className={`sv-margin-value ${isUndervalued ? 'sv-margin-value--green' : 'sv-margin-value--amber'}`}>
@@ -391,7 +391,7 @@ function ValuationComparison({
       <div className="sv-bar-group">
         <div className="sv-bar-header">
           <span className="sv-bar-label">Valor Intrínseco (DCF)</span>
-          <span className="sv-bar-value" style={{ color: isUndervalued ? '#059669' : '#dc2626' }}>
+          <span className="sv-bar-value" style={{ color: isUndervalued ? '#4f8fb5' : '#dc2626' }}>
             ${intrinsicValue.toFixed(2)}
           </span>
         </div>
