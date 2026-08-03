@@ -116,6 +116,52 @@ _CASHFLOW_FIELDS = [
 
 ALL_QUARTERLY_FIELDS = _INCOME_FIELDS + _BALANCE_FIELDS + _CASHFLOW_FIELDS
 
+# Annual field types we request from the timeseries endpoint. This is the
+# primary source for European tickers, where quarterly income is often empty.
+_ANNUAL_FIELDS = [
+    "annualTotalRevenue",
+    "annualCostOfRevenue",
+    "annualGrossProfit",
+    "annualOperatingExpense",
+    "annualOperatingIncome",
+    "annualEBITDA",
+    "annualNetIncome",
+    "annualBasicEPS",
+    "annualDilutedEPS",
+    "annualTaxProvision",
+    "annualInterestExpense",
+    "annualDepreciationAndAmortization",
+    "annualReconciledDepreciation",
+    "annualTotalAssets",
+    "annualCurrentAssets",
+    "annualCurrentLiabilities",
+    "annualStockholdersEquity",
+    "annualCashAndCashEquivalents",
+    "annualNetPPE",
+    "annualGoodwill",
+    "annualIntangibleAssets",
+    "annualLongTermDebt",
+    "annualShortTermDebt",
+    "annualRetainedEarnings",
+    "annualOtherShortTermInvestments",
+    "annualTotalNonCurrentAssets",
+    "annualTotalNonCurrentLiabilities",
+    "annualTotalLiabilities",
+    "annualAccountsReceivable",
+    "annualAccountsPayable",
+    "annualTreasuryStock",
+    "annualCapitalExpenditure",
+    "annualFreeCashFlow",
+    "annualCashDividendsPaid",
+    "annualRepurchaseOfCapitalStock",
+    "annualOperatingCashFlow",
+    "annualCashFlowFromContinuingOperatingActivities",
+    "annualCashFlowFromContinuingInvestingActivities",
+    "annualCashFlowFromContinuingFinancingActivities",
+]
+
+ALL_ANNUAL_FIELDS = _ANNUAL_FIELDS
+
 # Map Yahoo timeseries field names → field names expected by yfinanceSidecar.ts
 _FIELD_MAP = {
     # Income
@@ -166,9 +212,14 @@ _FIELD_MAP = {
     "quarterlyCashFlowFromContinuingFinancingActivities": "Cash Flow From Continuing Financing Activities",
 }
 
+# Same mapping for the annual* timeseries field names.
+_ANNUAL_FIELD_MAP = {
+    k.replace("quarterly", "annual"): v for k, v in _FIELD_MAP.items()
+}
 
-def _yahoo_fundamentals_timeseries(ticker: str) -> dict[str, list[dict]]:
-    """Fetch quarterly fundamentals via the timeseries endpoint.
+
+def _yahoo_fundamentals_timeseries(ticker: str, fields: list[str], field_map: dict[str, str]) -> dict[str, list[dict]]:
+    """Fetch fundamentals via the timeseries endpoint.
     Returns dict keyed by output field name (e.g. 'Total Revenue'),
     each value a list of {date, value} sorted by date ascending."""
     crumb = _ensure_crumb()
@@ -176,8 +227,10 @@ def _yahoo_fundamentals_timeseries(ticker: str) -> dict[str, list[dict]]:
         return {}
 
     period1 = int(time.time() - 10 * 365 * 86400)  # 10 years back
-    period2 = int(time.time())
-    types_str = ",".join(ALL_QUARTERLY_FIELDS)
+    # Small future buffer so a new report with a date slightly ahead of "now"
+    # (or clock drift) is not silently dropped from the requested window.
+    period2 = int(time.time()) + 7 * 86400
+    types_str = ",".join(fields)
 
     url = (
         f"https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/{ticker}"
@@ -206,7 +259,7 @@ def _yahoo_fundamentals_timeseries(ticker: str) -> dict[str, list[dict]]:
         if not types:
             continue
         yahoo_key = types[0]
-        output_key = _FIELD_MAP.get(yahoo_key)
+        output_key = field_map.get(yahoo_key)
         if not output_key:
             continue
 
@@ -387,7 +440,7 @@ async def get_quarterly(ticker: str):
     critical fields (revenue, netIncome)."""
     try:
         symbol = _resolve_symbol(ticker)
-        field_data = _yahoo_fundamentals_timeseries(symbol)
+        field_data = _yahoo_fundamentals_timeseries(symbol, ALL_QUARTERLY_FIELDS, _FIELD_MAP)
 
         if not field_data:
             # Full fallback to quoteSummary
@@ -460,13 +513,14 @@ async def get_quarterly(ticker: str):
 
 @app.get("/api/yfinance/{ticker}/annual")
 async def get_annual(ticker: str):
-    """Annual data via legacy quoteSummary (fallback)."""
+    """Annual data via fundamentals-timeseries (annual* types).
+    This is the primary source for European tickers, where quarterly
+    income is frequently empty and quoteSummary statements are not available."""
     try:
         symbol = _resolve_symbol(ticker)
-        modules = "incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory"
-        result = _yahoo_quote_summary(symbol, modules)
+        field_data = _yahoo_fundamentals_timeseries(symbol, ALL_ANNUAL_FIELDS, _ANNUAL_FIELD_MAP)
 
-        if not result:
+        if not field_data:
             return {
                 "ticker": ticker,
                 "hasAnnual": False,
@@ -475,16 +529,14 @@ async def get_annual(ticker: str):
                 "cashflow": [],
             }
 
-        income = _parse_statements(result, "incomeStatementHistory", "incomeStatements")
-        balance = _parse_statements(result, "balanceSheetHistory", "balanceSheetStatements")
-        cashflow = _parse_statements(result, "cashflowStatementHistory", "cashflowStatements")
+        pivoted = _pivot_timeseries(field_data)
 
         return {
             "ticker": ticker,
-            "hasAnnual": len(income) > 0 or len(balance) > 0,
-            "income": income,
-            "balance": balance,
-            "cashflow": cashflow,
+            "hasAnnual": len(pivoted["income"]) > 0 or len(pivoted["balance"]) > 0,
+            "income": pivoted["income"],
+            "balance": pivoted["balance"],
+            "cashflow": pivoted["cashflow"],
         }
     except Exception as e:
         traceback.print_exc()

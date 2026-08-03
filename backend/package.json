@@ -17,7 +17,11 @@
     "backfill:finnhub": "tsx src/scripts/backfillFinnhubLogos.ts",
     "backfill:websites": "tsx src/scripts/backfillWebsites.ts",
     "recompute:valuation": "tsx src/scripts/recomputeValuations.ts",
-    "fix:knownbad": "tsx src/scripts/fixKnownBadData.ts",
+    "resync:all": "tsx src/scripts/resyncAll.ts",
+    "purge:financial": "tsx src/scripts/purgeFinancialData.ts",
+    "seed:overrides": "tsx src/scripts/seedOverrides.ts",
+    "apply:overrides": "tsx src/scripts/applyOverrides.ts",
+    "audit:data": "tsx src/scripts/auditData.ts",
     "fix:eu": "tsx src/scripts/fixEuropeanData.ts",
     "fix:us": "tsx src/scripts/fixUsData.ts"
   },

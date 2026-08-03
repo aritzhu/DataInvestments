@@ -55,65 +55,109 @@ function sumFieldNull<T>(items: T[], field: keyof T): number | null {
   return items.some((item) => item[field] != null) ? total : null;
 }
 
+// Latest annual (quarter=0) row. Yahoo's quarterly timeseries often leaves
+// cashflow/EBITDA inputs null for European tickers even though the annual rows
+// carry real values, so we fill those from the annual figures below.
+function latestAnnual<T extends { year: number; quarter?: number | null }>(arr: T[]): T | undefined {
+  return [...arr.filter((x) => (x.quarter ?? 0) === 0)].sort((a, b) => b.year - a.year)[0];
+}
+
+// Sums `field` across the last-4 quarterly rows; if none of them carry a value
+// for the field (all null), falls back to the latest annual value.
+function ttmSumOrAnnual<T extends { year: number; quarter?: number | null }>(last4: T[], annual: T | undefined, field: keyof T): number | null {
+  const present = last4.filter((x) => (x[field] as number | null) != null);
+  if (present.length > 0) {
+    return present.reduce((acc, x) => acc + ((x[field] as number) ?? 0), 0);
+  }
+  return (annual?.[field] as number | null | undefined) ?? null;
+}
+
+function annualFallback(financials: Financial[], balanceSheets: Balance[]): TTMData | null {
+  const f = latestAnnual(financials) ?? latest(financials);
+  const bs = latest(balanceSheets);
+  if (!f) return null;
+  return {
+    revenue: f.revenue,
+    netIncome: f.netIncome,
+    ebitda: f.ebitda,
+    ebit: f.ebit,
+    operatingCashFlow: f.operatingCashFlow,
+    freeCashFlow: f.freeCashFlow,
+    capex: f.capex,
+    depreciation: f.depreciation,
+    sgaExpense: f.sgaExpense,
+    interestExpense: f.interestExpense,
+    taxExpense: f.taxExpense,
+    costOfRevenue: f.costOfRevenue,
+    grossProfit: f.grossProfit ?? 0,
+    operatingExpenses: f.operatingExpenses,
+    rdExpense: f.rdExpense,
+    dividendsPaid: f.dividendsPaid,
+    shareRepurchases: f.shareRepurchases,
+    balanceSheet: bs,
+    isTTM: false,
+  };
+}
+
 function trailing12Months(financials: Financial[], balanceSheets: Balance[]): TTMData | null {
   const quarterly = financials.filter((f) => f.quarter != null && f.quarter > 0);
 
   // Fallback to annual if no quarterly data
   if (quarterly.length < 4) {
-    const f = latest(financials);
-    const bs = latest(balanceSheets);
-    if (!f) return null;
-    return {
-      revenue: f.revenue,
-      netIncome: f.netIncome,
-      ebitda: f.ebitda,
-      ebit: f.ebit,
-      operatingCashFlow: f.operatingCashFlow,
-      freeCashFlow: f.freeCashFlow,
-      capex: f.capex,
-      depreciation: f.depreciation,
-      sgaExpense: f.sgaExpense,
-      interestExpense: f.interestExpense,
-      taxExpense: f.taxExpense,
-      costOfRevenue: f.costOfRevenue,
-      grossProfit: f.grossProfit ?? 0,
-      operatingExpenses: f.operatingExpenses,
-      rdExpense: f.rdExpense,
-      dividendsPaid: f.dividendsPaid,
-      shareRepurchases: f.shareRepurchases,
-      balanceSheet: bs,
-      isTTM: false,
-    };
+    return annualFallback(financials, balanceSheets);
   }
 
-  // Sort quarterly by year desc, quarter desc and take top 4
+  // Only trust the TTM when the 4 most recent quarters are consecutive and
+  // carry real revenue. Missing quarters or zero-filled rows (e.g. quarterly
+  // windows that are sparse for European tickers) otherwise inflate/deflate
+  // the trailing sums, so fall back to the latest annual figures.
+  const byKey = new Map<string, Financial>();
+  for (const f of quarterly) byKey.set(`${f.year}-${f.quarter}`, f);
+
   const sorted = [...quarterly].sort((a, b) => {
     if (a.year !== b.year) return b.year - a.year;
     return (b.quarter ?? 0) - (a.quarter ?? 0);
   });
-  const last4 = sorted.slice(0, 4);
+  const latestQ = sorted[0];
+
+  let year = latestQ.year;
+  let quarter = latestQ.quarter ?? 4;
+  const last4: Financial[] = [];
+  for (let i = 0; i < 4; i++) {
+    const rec = byKey.get(`${year}-${quarter}`);
+    if (!rec || rec.revenue === 0) {
+      return annualFallback(financials, balanceSheets);
+    }
+    last4.push(rec);
+    quarter -= 1;
+    if (quarter === 0) {
+      quarter = 4;
+      year -= 1;
+    }
+  }
 
   // Use latest balance sheet (point-in-time snapshot)
   const bs = latest(balanceSheets);
+  const annual = latestAnnual(financials);
 
   return {
     revenue: sumField(last4, 'revenue'),
     netIncome: sumField(last4, 'netIncome'),
-    ebitda: sumFieldNull(last4, 'ebitda'),
-    ebit: sumFieldNull(last4, 'ebit'),
-    operatingCashFlow: sumFieldNull(last4, 'operatingCashFlow'),
-    freeCashFlow: sumFieldNull(last4, 'freeCashFlow'),
-    capex: sumField(last4, 'capex'),
-    depreciation: sumField(last4, 'depreciation'),
-    sgaExpense: sumField(last4, 'sgaExpense'),
-    interestExpense: sumField(last4, 'interestExpense'),
-    taxExpense: sumField(last4, 'taxExpense'),
-    costOfRevenue: sumField(last4, 'costOfRevenue'),
-    grossProfit: sumField(last4, 'grossProfit'),
-    operatingExpenses: sumField(last4, 'operatingExpenses'),
-    rdExpense: sumField(last4, 'rdExpense'),
-    dividendsPaid: sumFieldNull(last4, 'dividendsPaid'),
-    shareRepurchases: sumFieldNull(last4, 'shareRepurchases'),
+    ebitda: ttmSumOrAnnual(last4, annual, 'ebitda'),
+    ebit: ttmSumOrAnnual(last4, annual, 'ebit'),
+    operatingCashFlow: ttmSumOrAnnual(last4, annual, 'operatingCashFlow'),
+    freeCashFlow: ttmSumOrAnnual(last4, annual, 'freeCashFlow'),
+    capex: ttmSumOrAnnual(last4, annual, 'capex') ?? 0,
+    depreciation: ttmSumOrAnnual(last4, annual, 'depreciation') ?? 0,
+    sgaExpense: ttmSumOrAnnual(last4, annual, 'sgaExpense') ?? 0,
+    interestExpense: ttmSumOrAnnual(last4, annual, 'interestExpense') ?? 0,
+    taxExpense: ttmSumOrAnnual(last4, annual, 'taxExpense') ?? 0,
+    costOfRevenue: ttmSumOrAnnual(last4, annual, 'costOfRevenue') ?? 0,
+    grossProfit: ttmSumOrAnnual(last4, annual, 'grossProfit') ?? 0,
+    operatingExpenses: ttmSumOrAnnual(last4, annual, 'operatingExpenses') ?? 0,
+    rdExpense: ttmSumOrAnnual(last4, annual, 'rdExpense') ?? 0,
+    dividendsPaid: ttmSumOrAnnual(last4, annual, 'dividendsPaid'),
+    shareRepurchases: ttmSumOrAnnual(last4, annual, 'shareRepurchases'),
     balanceSheet: bs,
     isTTM: true,
   };
@@ -363,6 +407,14 @@ const SECTOR_CONFIGS: Record<string, ValuationConfigs> = {
   'internet content & information': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 6 }, ps: { targetPS: 7 }, evEbitda: { targetMultiple: 18 }, evEbit: { targetMultiple: 22 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   'internet retail': { dcf: { growthRate: 10, discountRate: 11, horizonYears: 10 }, per: { targetPE: 30 }, pb: { targetPB: 10 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 0, requiredReturn: 11 }, fcfYield: { targetYield: 3 } },
   'specialty retail': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1 }, evEbitda: { targetMultiple: 10 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 3, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
+  'software - infrastructure': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
+  'software - application': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
+  software: { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
+  telecom: { dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 1.5 }, ps: { targetPS: 2 }, evEbitda: { targetMultiple: 7 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 3, requiredReturn: 9 }, fcfYield: { targetYield: 6 } },
+  'communication services': { dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 1.5 }, ps: { targetPS: 2 }, evEbitda: { targetMultiple: 7 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 3, requiredReturn: 9 }, fcfYield: { targetYield: 6 } },
+  'telecom services': { dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 1.5 }, ps: { targetPS: 2 }, evEbitda: { targetMultiple: 7 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 3, requiredReturn: 9 }, fcfYield: { targetYield: 6 } },
+  'consumer defensive': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 12 }, evEbit: { targetMultiple: 15 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
+  'grocery stores': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 12 }, evEbit: { targetMultiple: 15 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
 };
 
 export function getSectorConfigs(sector: string | null | undefined, industry?: string | null): ValuationConfigs {
@@ -394,7 +446,12 @@ const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   'internet retail': 'ps',
   'consumer electronics': 'ps',
   'drug manufacturers': 'dcf',
-  'specialty retail': 'pe',
+  'specialty retail': 'per',
+  'communication services': 'ev_ebitda',
+  'telecom services': 'ev_ebitda',
+  'telecoms': 'ev_ebitda',
+  software: 'dcf',
+  'consumer defensive': 'per',
   default: 'dcf',
 };
 

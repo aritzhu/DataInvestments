@@ -76,6 +76,12 @@ export function parseYFinanceDate(dateStr: string): { year: number; quarter: num
   return { year, quarter };
 }
 
+// Annual records store a fiscal-year-end date → stored as quarter 0.
+export function parseYFinanceAnnualDate(dateStr: string): { year: number; quarter: number } {
+  const d = new Date(dateStr);
+  return { year: d.getFullYear(), quarter: 0 };
+}
+
 export function mapIncomeRecord(record: YFinanceRecord) {
   return {
     revenue: pickNum(record, 'Total Revenue', 'Operating Revenue', 'totalRevenue') ?? 0,

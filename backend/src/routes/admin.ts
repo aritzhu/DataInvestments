@@ -9,6 +9,7 @@ import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
 import { STOXX_SECTOR_INDUSTRY, resolveCompanyMeta } from '../services/companyMeta';
 import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
+import { getRecommendedModel } from '../services/valuationService';
 
 const router: ExpressRouter = Router();
 
@@ -567,6 +568,7 @@ router.get('/data-stats', async (_req, res) => {
           select: {
             cashAndCashEquivalents: true, accountsReceivable: true, inventory: true,
             totalLiabilities: true, totalStockholdersEquity: true,
+            shortTermDebt: true, longTermDebt: true,
           },
           orderBy: { year: 'desc' },
           take: 1,
@@ -614,7 +616,30 @@ router.get('/data-stats', async (_req, res) => {
         if (!latestBs.inventory) missingBs.push('inventory');
         if (!latestBs.totalLiabilities) missingBs.push('totalLiabilities');
         if (!latestBs.totalStockholdersEquity) missingBs.push('totalEquity');
+        if (!latestBs.shortTermDebt) missingBs.push('shortTermDebt');
+        if (!latestBs.longTermDebt) missingBs.push('longTermDebt');
       }
+
+      // Valuation readiness for the recommended model
+      const recommendedModel = getRecommendedModel(c.sector, c.industry);
+      const readyInputs: Record<string, string[]> = {
+        dcf: ['freeCashFlow'],
+        per: ['netIncome', 'sharesOutstanding'],
+        pb: ['totalStockholdersEquity', 'sharesOutstanding'],
+        ps: ['revenue', 'sharesOutstanding'],
+        ev_ebitda: ['ebitda', 'longTermDebt', 'cashAndCashEquivalents', 'sharesOutstanding'],
+        ev_ebit: ['ebit', 'longTermDebt', 'cashAndCashEquivalents', 'sharesOutstanding'],
+        ddm: ['dividendsPaid', 'sharesOutstanding'],
+        fcf_yield: ['freeCashFlow', 'sharesOutstanding'],
+      };
+      const needed = readyInputs[recommendedModel] ?? readyInputs.dcf;
+      const missingReady = needed.filter((f) => {
+        if (f === 'sharesOutstanding') return !latestSm?.sharesOutstanding;
+        if (f === 'revenue' || f === 'netIncome') return !latestFd || !(latestFd as any)[f];
+        if (f === 'ebitda' || f === 'ebit' || f === 'freeCashFlow') return !latestFd || !(latestFd as any)[f];
+        if (f === 'dividendsPaid') return !latestFd || !(latestFd as any)[f];
+        return !latestBs || !(latestBs as any)[f];
+      });
 
       return {
         ticker: c.ticker,
@@ -623,6 +648,9 @@ router.get('/data-stats', async (_req, res) => {
         industry: c.industry,
         sync: c.dataSync,
         segments: c._count.segments,
+        recommendedModel,
+        ready: missingReady.length === 0,
+        missingReady,
         missingFinancialData: missingFd,
         missingStockMetrics: missingSm,
         missingBalanceSheet: missingBs,

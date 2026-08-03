@@ -18,7 +18,7 @@ const SHARES_OVERRIDES: Record<string, number> = {
   'VOW3.DE': 2950000000,
 };
 
-function resolveShares(
+export function resolveShares(
   ticker: string,
   infoShares: number | null | undefined,
   quoteShares: number,
@@ -80,8 +80,10 @@ import { fetchFinnhubMetrics, fetchFinnhubProfile } from './finnhub';
 import { fetchEuropeanFinancials } from './europeanData';
 import {
   fetchYFinanceQuarterly,
+  fetchYFinanceAnnual,
   fetchYFinanceInfo,
   parseYFinanceDate,
+  parseYFinanceAnnualDate,
   mapIncomeRecord,
   mapCashflowRecord,
   mapBalanceRecord,
@@ -93,6 +95,7 @@ import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
 import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
+import { applyCompanyOverrides } from './overrides';
 
 function safeInt(val: unknown): number | null {
   if (val == null) return null;
@@ -482,13 +485,24 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           ? (stoxxEntry?.name || undefined)
           : yahooName;
 
-        // --- Try yfinance quarterly data first ---
+        // --- Try yfinance quarterly + annual data first ---
         const yfData = await fetchYFinanceQuarterly(ticker);
+        const yfAnnual = await fetchYFinanceAnnual(ticker);
         const yfInfo = await fetchYFinanceInfo(ticker);
-        const yfHasData = yfData?.hasQuarterly && yfData.income.length > 0;
 
-        if (yfHasData && yfData) {
-          console.log(`[yFinance] ${ticker}: ${yfData.income.length} income, ${yfData.balance.length} balance, ${yfData.cashflow.length} cashflow records`);
+        // A record only counts when it carries real income data. Quarterly
+        // responses for many European tickers come back with empty rows
+        // (only a date) or zero-filled fields — those are junk.
+        const incomeIsReal = (r?: YFinanceRecord) =>
+          !!r &&
+          (((r['Total Revenue'] as number) ?? 0) !== 0 ||
+            ((r['Net Income'] as number) ?? 0) !== 0 ||
+            ((r['EBITDA'] as number) ?? 0) !== 0 ||
+            ((r['Operating Cash Flow'] as number) ?? 0) !== 0);
+        const yfHasData = (yfData?.income ?? []).some(incomeIsReal) || (yfAnnual?.income ?? []).some(incomeIsReal);
+
+        if (yfHasData) {
+          console.log(`[yFinance] ${ticker}: quarterly income=${yfData?.income.length ?? 0} balance=${yfData?.balance.length ?? 0} cashflow=${yfData?.cashflow.length ?? 0}; annual income=${yfAnnual?.income.length ?? 0} balance=${yfAnnual?.balance.length ?? 0}`);
 
           let company = await prisma.company.findUnique({
             where: { ticker: ticker.toUpperCase() },
@@ -528,13 +542,15 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             }
           }
 
-          // Build lookup maps for cashflow and balance by date
-          const cashflowByDate = new Map<string, YFinanceRecord>();
-          for (const cf of yfData.cashflow) cashflowByDate.set(cf.date, cf);
-          const balanceByDate = new Map<string, YFinanceRecord>();
-          for (const bs of yfData.balance) balanceByDate.set(bs.date, bs);
+          // Build lookup maps for cashflow and balance by date (quarterly)
+          if (yfData) {
+            const cashflowByDate = new Map<string, YFinanceRecord>();
+            for (const cf of yfData.cashflow) cashflowByDate.set(cf.date, cf);
+            const balanceByDate = new Map<string, YFinanceRecord>();
+            for (const bs of yfData.balance) balanceByDate.set(bs.date, bs);
 
-          for (const inc of yfData.income) {
+            for (const inc of yfData.income) {
+              if (!incomeIsReal(inc)) continue;
             const { year, quarter } = parseYFinanceDate(inc.date);
             const mapped = mapIncomeRecord(inc);
             const cfRec = cashflowByDate.get(inc.date);
@@ -583,13 +599,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             result.financialRecords++;
           }
 
-          // Balance sheets from yfinance
+          // Balance sheets from yfinance (quarterly)
           let lastShortTermDebt: number | null = null;
           let lastLongTermDebt: number | null = null;
           for (const bsRec of yfData.balance) {
             const { year, quarter } = parseYFinanceDate(bsRec.date);
             const bsMapped = mapBalanceRecord(bsRec);
-            if (bsMapped.totalAssets == null && bsMapped.totalLiabilities == null) continue;
+            if (!bsMapped.totalAssets && !bsMapped.totalLiabilities && !bsMapped.totalStockholdersEquity && !bsMapped.cashAndCashEquivalents) continue;
 
             if (bsMapped.shortTermDebt != null) lastShortTermDebt = bsMapped.shortTermDebt;
             if (bsMapped.longTermDebt != null) lastLongTermDebt = bsMapped.longTermDebt;
@@ -608,6 +624,85 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               await prisma.balanceSheet.create({ data: bsData });
             }
             result.balanceSheets++;
+          }
+          } // end-if yfData (quarterly)
+
+          // Annual data (quarter=0). Primary source for European tickers where
+          // quarterly income is empty or too sparse for a reliable TTM.
+          if (yfAnnual) {
+            const annualCashflowByDate = new Map<string, YFinanceRecord>();
+            for (const cf of yfAnnual.cashflow) annualCashflowByDate.set(cf.date, cf);
+            const annualBalanceByDate = new Map<string, YFinanceRecord>();
+            for (const bs of yfAnnual.balance) annualBalanceByDate.set(bs.date, bs);
+
+            for (const inc of yfAnnual.income) {
+              if (!incomeIsReal(inc)) continue;
+              const { year, quarter } = parseYFinanceAnnualDate(inc.date);
+              const mapped = mapIncomeRecord(inc);
+              const cfRec = annualCashflowByDate.get(inc.date);
+              const cfMapped = cfRec ? mapCashflowRecord(cfRec) : null;
+              const bsRec = annualBalanceByDate.get(inc.date);
+              const bsMapped = bsRec ? mapBalanceRecord(bsRec) : null;
+
+              const finData = {
+                companyId: company.id,
+                year,
+                quarter,
+                revenue: mapped.revenue,
+                costOfRevenue: mapped.costOfRevenue,
+                grossProfit: mapped.grossProfit,
+                operatingExpenses: mapped.operatingExpenses ?? 0,
+                sgaExpense: mapped.sgaExpense,
+                rdExpense: mapped.rdExpense,
+                interestExpense: mapped.interestExpense,
+                taxExpense: mapped.taxExpense,
+                netIncome: mapped.netIncome,
+                ebitda: mapped.ebitda,
+                ebit: mapped.ebit,
+                capex: cfMapped?.capex ?? 0,
+                depreciation: mapped.depreciation,
+                operatingCashFlow: cfMapped?.operatingCashFlow ?? null,
+                investingCashFlow: cfMapped?.investingCashFlow ?? null,
+                financingCashFlow: cfMapped?.financingCashFlow ?? null,
+                freeCashFlow: cfMapped?.freeCashFlow ?? null,
+                dividendsPaid: cfMapped?.dividendsPaid ?? null,
+                shareRepurchases: cfMapped?.shareRepurchases ?? null,
+                totalAssets: bsMapped?.totalAssets ?? null,
+                totalLiabilities: bsMapped?.totalLiabilities ?? null,
+                totalEquity: bsMapped?.totalStockholdersEquity ?? null,
+              };
+
+              const existing = await prisma.financialData.findUnique({
+                where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+              });
+              const yfWarnings = validateFinancialData(finData);
+              logValidationWarnings(ticker, yfWarnings, 'yFinance-annual');
+              if (existing) {
+                await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+              } else {
+                await prisma.financialData.create({ data: finData });
+              }
+              result.financialRecords++;
+            }
+
+            for (const bsRec of yfAnnual.balance) {
+              const { year, quarter } = parseYFinanceAnnualDate(bsRec.date);
+              const bsMapped = mapBalanceRecord(bsRec);
+              if (!bsMapped.totalAssets && !bsMapped.totalLiabilities && !bsMapped.totalStockholdersEquity && !bsMapped.cashAndCashEquivalents) continue;
+
+              const bsExisting = await prisma.balanceSheet.findUnique({
+                where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+              });
+              const bsData = { companyId: company.id, year, quarter, ...bsMapped };
+              const yfBsWarnings = validateBalanceSheet(bsData);
+              logValidationWarnings(ticker, yfBsWarnings, 'yFinance-annual');
+              if (bsExisting) {
+                await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+              } else {
+                await prisma.balanceSheet.create({ data: bsData });
+              }
+              result.balanceSheets++;
+            }
           }
 
           // StockMetric from yfinance info (richer than Yahoo quote)
@@ -649,9 +744,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             console.log(`[yFinance] ${ticker}: StockMetric saved (shares=${stockData.sharesOutstanding}, mcap=${stockData.marketCap})`);
           }
 
-          result.yfinanceSync = true;
-          result.europeanSync = true;
-          console.log(`[yFinance] Completed for ${ticker}: ${result.financialRecords} financial records, ${result.balanceSheets} balance sheets`);
+          if (result.financialRecords > 0 || result.balanceSheets > 0) {
+            result.yfinanceSync = true;
+            result.europeanSync = true;
+            console.log(`[yFinance] Completed for ${ticker}: ${result.financialRecords} financial records, ${result.balanceSheets} balance sheets`);
+          } else {
+            console.log(`[yFinance] ${ticker}: no real income/balance data from yfinance`);
+          }
         } else {
         // --- Fallback: XBRL/ESEF data ---
         const europeanResult = await fetchEuropeanFinancials(ticker, countryCode, companyName);
@@ -991,6 +1090,19 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     }
   } catch (err) {
     console.error(`[Profile] Enrichment failed for ${ticker}:`, err instanceof Error ? err.message : err);
+  }
+
+  // Apply DB-driven overrides (shares, debt, etc.) on top of synced values
+  try {
+    const overrideCompany = await prisma.company.findUnique({
+      where: { ticker: ticker.toUpperCase() },
+    });
+    if (overrideCompany) {
+      const applied = await applyCompanyOverrides(ticker, overrideCompany.id);
+      if (applied > 0) console.log(`[Override] ${ticker}: ${applied} field(s) applied`);
+    }
+  } catch (err) {
+    console.error(`[Override] Error applying overrides for ${ticker}:`, err instanceof Error ? err.message : err);
   }
 
   // Calculate intrinsic value using the recommended valuation method for the sector

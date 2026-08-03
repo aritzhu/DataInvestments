@@ -938,7 +938,12 @@ export const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   'internet retail': 'ps',
   'consumer electronics': 'ps',
   'drug manufacturers': 'dcf',
-  'specialty retail': 'pe',
+  'specialty retail': 'per',
+  'communication services': 'ev_ebitda',
+  'telecom services': 'ev_ebitda',
+  telecoms: 'ev_ebitda',
+  software: 'dcf',
+  'consumer defensive': 'per',
   default: 'dcf',
 };
 
