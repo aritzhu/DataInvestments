@@ -382,7 +382,7 @@ export function AdminPanel() {
             Volver al inicio
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: '3.5rem', height: '3.5rem', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '3.5rem', height: '3.5rem', background: 'var(--white-soft)', backdropFilter: 'blur(8px)', border: '1px solid var(--white-mid)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Settings size={24} />
             </div>
             <div>
@@ -432,33 +432,33 @@ export function AdminPanel() {
         </div>
 
         {/* Hero Settings */}
-        <div className="admin-form-section" style={{ border: '2px solid #fce7f3', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%)' }}>
+        <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--pink-pale) 0%, var(--pink-pale) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '1.2rem' }}>🎨</span>
-              <h2 className="admin-form-title" style={{ marginBottom: 0, color: '#9d174d' }}>Contenido de la Web</h2>
+              <h2 className="admin-form-title" style={{ marginBottom: 0, color: 'var(--pink-deep)' }}>Contenido de la Web</h2>
             </div>
-            <button onClick={handleSaveHero} disabled={heroSaving} style={{ padding: '0.5rem 1.25rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroSaving ? 0.6 : 1 }}>
+            <button onClick={handleSaveHero} disabled={heroSaving} style={{ padding: '0.5rem 1.25rem', background: 'var(--pink)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroSaving ? 0.6 : 1 }}>
               {heroSaving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
 
           {/* Hero Image Upload */}
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Imagen de fondo del hero</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.5rem' }}>Imagen de fondo del hero</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroUploading ? 0.6 : 1 }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: 'var(--pink)', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroUploading ? 0.6 : 1 }}>
                 {heroUploading ? 'Subiendo...' : 'Subir imagen'}
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleHeroImageUpload} style={{ display: 'none' }} disabled={heroUploading} />
               </label>
               {heroSettings.hero_bg_url && (
-                <button onClick={() => setHeroSettings((prev) => ({ ...prev, hero_bg_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, hero_bg_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: 'var(--red-pale)', color: 'var(--red)', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
                   Eliminar
                 </button>
               )}
             </div>
             {heroSettings.hero_bg_url && (
-              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', maxHeight: '160px', position: 'relative' }}>
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border-default)', maxHeight: '160px', position: 'relative' }}>
                 <img src={heroSettings.hero_bg_url} alt="Preview" style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
                 <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.6))', padding: '0.5rem 0.75rem', color: 'white', fontSize: '0.7rem' }}>
                   Imagen de fondo del hero
@@ -466,7 +466,7 @@ export function AdminPanel() {
               </div>
             )}
             {heroUploadError && (
-              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--red-pale)', color: 'var(--red)', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
                 {heroUploadError}
               </div>
             )}
@@ -474,25 +474,25 @@ export function AdminPanel() {
 
           {/* Site Logo Upload */}
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Logo del sitio</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.5rem' }}>Logo del sitio</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: logoUploading ? 0.6 : 1 }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: 'var(--pink)', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: logoUploading ? 0.6 : 1 }}>
                 {logoUploading ? 'Subiendo...' : 'Subir logo'}
                 <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} style={{ display: 'none' }} disabled={logoUploading} />
               </label>
               {heroSettings.site_logo_url && (
-                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_logo_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_logo_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: 'var(--red-pale)', color: 'var(--red)', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
                   Eliminar
                 </button>
               )}
             </div>
             {heroSettings.site_logo_url && (
-              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb' }}>
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border-default)', padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-2)' }}>
                 <img src={heroSettings.site_logo_url} alt="Logo preview" style={{ maxHeight: '80px', width: 'auto', objectFit: 'contain' }} />
               </div>
             )}
             {logoUploadError && (
-              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--red-pale)', color: 'var(--red)', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
                 {logoUploadError}
               </div>
             )}
@@ -500,25 +500,25 @@ export function AdminPanel() {
 
           {/* Favicon Upload */}
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280', display: 'block', marginBottom: '0.5rem' }}>Favicon</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.5rem' }}>Favicon</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: '#ec4899', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: faviconUploading ? 0.6 : 1 }}>
+              <label className="admin-hero-upload-btn" style={{ padding: '0.5rem 1rem', background: 'var(--pink)', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: faviconUploading ? 0.6 : 1 }}>
                 {faviconUploading ? 'Subiendo...' : 'Subir favicon'}
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" onChange={handleFaviconUpload} style={{ display: 'none' }} disabled={faviconUploading} />
               </label>
               {heroSettings.site_favicon_url && (
-                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_favicon_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+                <button onClick={() => setHeroSettings((prev) => ({ ...prev, site_favicon_url: '' }))} style={{ padding: '0.4rem 0.8rem', background: 'var(--red-pale)', color: 'var(--red)', border: 'none', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
                   Eliminar
                 </button>
               )}
             </div>
             {heroSettings.site_favicon_url && (
-              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid #e5e7eb', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', maxWidth: '120px' }}>
+              <div style={{ marginTop: '0.75rem', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border-default)', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface-2)', maxWidth: '120px' }}>
                 <img src={heroSettings.site_favicon_url} alt="Favicon preview" style={{ maxHeight: '32px', width: 'auto', objectFit: 'contain' }} />
               </div>
             )}
             {faviconUploadError && (
-              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--red-pale)', color: 'var(--red)', borderRadius: '0.5rem', fontSize: '0.75rem' }}>
                 {faviconUploadError}
               </div>
             )}
@@ -535,21 +535,21 @@ export function AdminPanel() {
               { key: 'hero_cta_secondary_link', label: 'Enlace botón secundario', placeholder: '#features' },
             ].map((field) => (
               <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>{field.label}</label>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{field.label}</label>
                 <input
                   type="text"
                   value={heroSettings[field.key] || ''}
                   onChange={(e) => setHeroSettings((prev) => ({ ...prev, [field.key]: e.target.value }))}
                   placeholder={field.placeholder}
-                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', fontSize: '0.85rem', outline: 'none' }}
+                  style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', fontSize: '0.85rem', outline: 'none' }}
                 />
               </div>
             ))}
           </div>
 
           {/* Valuation Sections Config */}
-          <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(236, 72, 153, 0.2)', paddingTop: '1.25rem' }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#9d174d', marginBottom: '1rem' }}>Secciones de Valoración</h3>
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--pink-pale)', paddingTop: '1.25rem' }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pink-deep)', marginBottom: '1rem' }}>Secciones de Valoración</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               {[
                 { key: 'undervalued_title', label: 'Título subvaloradas', placeholder: 'Oportunidades de Inversión' },
@@ -560,7 +560,7 @@ export function AdminPanel() {
                 { key: 'overvalued_limit', label: 'Límite sobrevaloradas (1-20)', placeholder: '5' },
               ].map((field) => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6b7280' }}>{field.label}</label>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{field.label}</label>
                   <input
                     type={field.key.includes('limit') ? 'number' : 'text'}
                     min={field.key.includes('limit') ? 1 : undefined}
@@ -568,7 +568,7 @@ export function AdminPanel() {
                     value={heroSettings[field.key] || ''}
                     onChange={(e) => setHeroSettings((prev) => ({ ...prev, [field.key]: e.target.value }))}
                     placeholder={field.placeholder}
-                    style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e5e7eb', fontSize: '0.85rem', outline: 'none' }}
+                    style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', fontSize: '0.85rem', outline: 'none' }}
                   />
                 </div>
               ))}
@@ -580,14 +580,14 @@ export function AdminPanel() {
         {companies.length > 0 && <DataStatsSection />}
 
         {/* Data Sources */}
-        <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '1rem', padding: '1.5rem', marginBottom: '2rem' }}>
+        <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '2rem' }}>
           <h2 className="admin-sources-title">Fuentes de Datos</h2>
           <div className="admin-sources-grid">
             <div className="admin-source-card admin-source-card--emerald">
               <h3 className="admin-source-card-title admin-source-card-title--emerald">
                 SEC EDGAR
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#4f8fb5', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas US — Datos XBRL oficiales</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--blue-light)', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas US — Datos XBRL oficiales</p>
               <ul className="admin-source-list">
                 <li><strong>Company Facts:</strong> revenue, netIncome (10-K)</li>
                 <li><strong>CIK Mapping:</strong> identificador único SEC</li>
@@ -599,7 +599,7 @@ export function AdminPanel() {
               <h3 className="admin-source-card-title admin-source-card-title--blue">
                 ESEF/XBRL (Europeo)
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas Europeas — Datos XBRL oficiales</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--info)', fontWeight: 500, marginBottom: '0.75rem' }}>Empresas Europeas — Datos XBRL oficiales</p>
               <ul className="admin-source-list">
                 <li><strong>Ingresos:</strong> revenue, netIncome, EBITDA</li>
                 <li><strong>Balance:</strong> assets, liabilities, equity</li>
@@ -611,7 +611,7 @@ export function AdminPanel() {
               <h3 className="admin-source-card-title admin-source-card-title--purple">
                 Yahoo Finance
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 500, marginBottom: '0.75rem' }}>Cotizaciones — Precio y métricas de mercado</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--purple)', fontWeight: 500, marginBottom: '0.75rem' }}>Cotizaciones — Precio y métricas de mercado</p>
               <ul className="admin-source-list">
                 <li><strong>Chart API:</strong> regularMarketPrice, marketCap</li>
                 <li><strong>Scraping:</strong> Sin autenticación requerida</li>
@@ -628,23 +628,23 @@ export function AdminPanel() {
         </div>
 
         {/* Bulk Import */}
-        <div className="admin-form-section" style={{ border: '2px solid #e0e7ff', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%)' }}>
+        <div className="admin-form-section" style={{ border: '2px solid var(--blue-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--blue-pale) 0%, var(--blue-pale) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, var(--indigo) 0%, var(--purple) 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
               <Upload size={18} />
             </div>
             <div>
               <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Importacion Masiva</h2>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Importa multiples empresas de una vez</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>Importa multiples empresas de una vez</p>
             </div>
           </div>
 
 
 
           {/* European Indices Quick Import */}
-          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <Globe size={16} style={{ color: '#4f8fb5' }} />
+              <Globe size={16} style={{ color: 'var(--blue-light)' }} />
               <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Indices Europeos (ESEF/XBRL)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -653,7 +653,7 @@ export function AdminPanel() {
                 onChange={(e) => setSelectedEuropeanIndex(e.target.value)}
                 style={{
                   flex: 1, padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
-                  border: '1px solid #d1d5db', fontSize: '0.85rem', background: 'white',
+                  border: '1px solid var(--border-default)', fontSize: '0.85rem', background: 'var(--surface-1)',
                   cursor: 'pointer',
                 }}
               >
@@ -668,7 +668,7 @@ export function AdminPanel() {
                 disabled={isImporting}
                 className="admin-form-btn"
                 style={{
-                  background: 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)',
+                  background: 'linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%)',
                   color: 'white', fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap',
                   padding: '0.5rem 1rem',
                 }}
@@ -677,15 +677,15 @@ export function AdminPanel() {
                 Añadir
               </button>
             </div>
-            <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
               Selecciona un indice y haz clic en "Añadir" para incluir sus tickers en la importación
             </p>
           </div>
 
           {/* US Companies Quick Import */}
-          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+          <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              <Globe size={16} style={{ color: '#3b82f6' }} />
+              <Globe size={16} style={{ color: 'var(--info-light)' }} />
               <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Empresas de EEUU</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -694,7 +694,7 @@ export function AdminPanel() {
                 disabled={isImporting || sp500Loading}
                 className="admin-form-btn"
                 style={{
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  background: 'linear-gradient(135deg, var(--info-light) 0%, var(--info) 100%)',
                   color: 'white', fontWeight: 500, fontSize: '0.8rem', whiteSpace: 'nowrap',
                   padding: '0.5rem 1rem',
                 }}
@@ -706,19 +706,19 @@ export function AdminPanel() {
                 )}
               </button>
               {sp500Count > 0 && (
-                <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--info-light)', fontWeight: 600 }}>
                   {sp500Count} empresas disponibles
                 </span>
               )}
             </div>
-            <p style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.5rem', margin: '0.5rem 0 0 0' }}>
               Carga la lista completa del S&P 500 (~500 empresas) y anadelas al campo de tickers
             </p>
           </div>
 
           {/* Ticker Input */}
           <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.375rem' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.375rem' }}>
               <FileText size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.25rem' }} />
               Tickers (uno por linea, o separados por comas)
             </label>
@@ -732,7 +732,7 @@ export function AdminPanel() {
               style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.85rem', resize: 'vertical' }}
             />
             {bulkTickerCount > 0 && (
-              <p style={{ fontSize: '0.75rem', color: '#6366f1', marginTop: '0.25rem', fontWeight: 600 }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--indigo)', marginTop: '0.25rem', fontWeight: 600 }}>
                 {bulkTickerCount} empresa{bulkTickerCount !== 1 ? 's' : ''} detectada{bulkTickerCount !== 1 ? 's' : ''}
               </p>
             )}
@@ -741,7 +741,7 @@ export function AdminPanel() {
           {/* Years + Import Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>Anos:</label>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Anos:</label>
               <select
                 value={bulkYears}
                 onChange={(e) => setBulkYears(Number(e.target.value))}
@@ -759,9 +759,9 @@ export function AdminPanel() {
               className="admin-form-btn"
               style={{
                 background: bulkTickerCount > 0 && !isImporting
-                  ? 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)'
-                  : '#e2e8f0',
-                color: bulkTickerCount > 0 && !isImporting ? 'white' : '#94a3b8',
+                  ? 'linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%)'
+                  : 'var(--border-default)',
+                color: bulkTickerCount > 0 && !isImporting ? 'white' : 'var(--text-tertiary)',
                 fontWeight: 600,
                 padding: '0.6rem 1.5rem',
               }}
@@ -778,25 +778,25 @@ export function AdminPanel() {
         </div>
 
         {/* Batch Re-sync */}
-        <div className="admin-form-section" style={{ border: '2px solid #fef3c7', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #fffbeb 0%, #fef9c3 100%)' }}>
+        <div className="admin-form-section" style={{ border: '2px solid var(--amber-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--amber-pale) 0%, var(--amber-line) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, var(--amber) 0%, var(--orange) 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
               <RotateCcw size={18} />
             </div>
             <div>
               <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Re-sincronizar Todo</h2>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>
                 Vuelve a sincronizar todas las empresas con datos mejorados (SEC + Yahoo Finance)
               </p>
             </div>
           </div>
 
-          <div style={{ padding: '0.75rem 1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
-            <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0, lineHeight: 1.5 }}>
+          <div style={{ padding: '0.75rem 1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
               <strong>Que hace:</strong> Vuelve a sincronizar cada empresa usando SEC EDGAR (US) o ESEF/XBRL (Europa) + Yahoo Finance para cotizaciones.
               Anade datos faltantes: EBITDA, cash flows, balance sheet, y ratios de mercado.
             </p>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.5rem 0 0', fontStyle: 'italic' }}>
               ~200ms entre empresas para evitar rate limits. Para 200+ empresas puede tardar 5-10 minutos.
             </p>
           </div>
@@ -807,9 +807,9 @@ export function AdminPanel() {
             className="admin-form-btn"
             style={{
               background: companies.length > 0 && !isResyncing
-                ? 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)'
-                : '#e2e8f0',
-              color: companies.length > 0 && !isResyncing ? 'white' : '#94a3b8',
+                ? 'linear-gradient(135deg, var(--amber) 0%, var(--orange) 100%)'
+                : 'var(--border-default)',
+              color: companies.length > 0 && !isResyncing ? 'white' : 'var(--text-tertiary)',
               fontWeight: 600,
               padding: '0.6rem 1.5rem',
             }}
@@ -826,15 +826,15 @@ export function AdminPanel() {
             <div style={{ marginTop: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <Loader2 size={14} className="admin-spinner" />
-                <span style={{ fontSize: '0.8rem', color: '#475569' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   <strong>{resyncProgress.ticker}</strong> ({resyncProgress.current}/{resyncProgress.total})
-                  {resyncProgress.message && <span style={{ color: '#94a3b8', marginLeft: '0.375rem' }}>- {resyncProgress.message}</span>}
+                  {resyncProgress.message && <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.375rem' }}>- {resyncProgress.message}</span>}
                 </span>
               </div>
-              <div style={{ height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: 'linear-gradient(90deg, #f59e0b, #f97316)', borderRadius: '3px', transition: 'width 0.3s', width: `${Math.round((resyncProgress.current / resyncProgress.total) * 100)}%` }} />
+              <div style={{ height: '6px', background: 'var(--border-default)', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: 'linear-gradient(90deg, var(--amber), var(--orange))', borderRadius: '3px', transition: 'width 0.3s', width: `${Math.round((resyncProgress.current / resyncProgress.total) * 100)}%` }} />
               </div>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>
                 {Math.round((resyncProgress.current / resyncProgress.total) * 100)}%
               </p>
             </div>
@@ -856,15 +856,15 @@ export function AdminPanel() {
               )}
               {resyncComplete.errors.length > 0 && (
                 <div style={{ width: '100%', marginTop: '0.5rem' }}>
-                  <p style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 600, marginBottom: '0.25rem' }}>Errores:</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--red)', fontWeight: 600, marginBottom: '0.25rem' }}>Errores:</p>
                   <div style={{ maxHeight: '6rem', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
                     {resyncComplete.errors.slice(0, 20).map((e) => (
-                      <span key={e.ticker} style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                      <span key={e.ticker} style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
                         <strong>{e.ticker}</strong>: {e.error}
                       </span>
                     ))}
                     {resyncComplete.errors.length > 20 && (
-                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>+{resyncComplete.errors.length - 20} mas...</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>+{resyncComplete.errors.length - 20} mas...</span>
                     )}
                   </div>
                 </div>
@@ -874,14 +874,14 @@ export function AdminPanel() {
         </div>
 
         {/* Fix Missing Sectors */}
-        <div className="admin-form-section" style={{ border: '2px solid #dbeafe', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' }}>
+        <div className="admin-form-section" style={{ border: '2px solid var(--blue-line)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--blue-pale) 0%, var(--blue-line) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, var(--info-light) 0%, var(--info) 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
               <Tag size={18} />
             </div>
             <div>
               <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Corregir Sectores</h2>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>
                 Rellena el sector e industria faltantes usando mapas estaticos + Yahoo Finance
               </p>
             </div>
@@ -893,8 +893,8 @@ export function AdminPanel() {
               disabled={isFixingSectors}
               className="admin-form-btn"
               style={{
-                background: !isFixingSectors ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : '#e2e8f0',
-                color: !isFixingSectors ? 'white' : '#94a3b8',
+                background: !isFixingSectors ? 'linear-gradient(135deg, var(--info-light) 0%, var(--info) 100%)' : 'var(--border-default)',
+                color: !isFixingSectors ? 'white' : 'var(--text-tertiary)',
                 fontWeight: 600,
                 padding: '0.6rem 1.5rem',
               }}
@@ -923,14 +923,14 @@ export function AdminPanel() {
               <span className="admin-table-count">
                 {companySearch ? `${filteredCompanies.length} de ` : ''}{companies.length} empresas
               </span>
-              <button onClick={fetchCompanies} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.25rem', borderRadius: '0.375rem', transition: 'color 0.2s' }} title="Actualizar lista">
+              <button onClick={fetchCompanies} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.25rem', borderRadius: '0.375rem', transition: 'color 0.2s' }} title="Actualizar lista">
                 <RefreshCw size={18} />
               </button>
             </div>
           </div>
 
           {companies.length > 0 && (
-            <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border-default)' }}>
               <input
                 type="text"
                 value={companySearch}

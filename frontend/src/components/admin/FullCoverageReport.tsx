@@ -61,10 +61,10 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  financial: { bg: '#fef2f2', border: '#fecaca', text: '#991b1b' },
-  balanceSheet: { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af' },
-  stockMetric: { bg: 'rgba(79, 143, 181, 0.14)', border: 'rgba(79, 143, 181, 0.35)', text: '#4f8fb5' },
-  company: { bg: '#fffbeb', border: '#fde68a', text: '#d97706' },
+  financial: { bg: 'var(--red-pale)', border: 'var(--red-line)', text: 'var(--red-deep)' },
+  balanceSheet: { bg: 'var(--blue-pale)', border: 'var(--blue-line)', text: 'var(--info-dark)' },
+  stockMetric: { bg: 'var(--blue-pale)', border: 'var(--blue-line)', text: 'var(--blue-light)' },
+  company: { bg: 'var(--amber-pale)', border: 'var(--amber-line)', text: 'var(--amber)' },
 };
 
 export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps) {
@@ -235,19 +235,19 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
         {/* Header with ticker and year selector */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+            <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               Cobertura de Datos — {ticker}
             </h3>
-            <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>
               Datos detallados de todos los años disponibles · Tick {selectedYear === 0 ? 'último' : ` ${selectedYear}`}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>Año:</label>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>Año:</label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              style={{ padding: '0.375rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.375rem 0.75rem', border: '1px solid var(--border-default)', borderRadius: '0.375rem', fontSize: '0.875rem' }}
             >
               <option value={0}>Útimo año</option>
               {yearsData.map(y => (
@@ -259,46 +259,46 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
 
         {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-          <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{yearsData.reduce((sum, y) => sum + y.financialData.length, 0)}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Campos Financ.</div>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-default)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{yearsData.reduce((sum, y) => sum + y.financialData.length, 0)}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Total Campos Financ.</div>
           </div>
-          <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{yearsData.reduce((sum, y) => sum + y.balanceSheet.length, 0)}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Balance Sheet</div>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-default)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{yearsData.reduce((sum, y) => sum + y.balanceSheet.length, 0)}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Total Balance Sheet</div>
           </div>
-          <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{yearsData.reduce((sum, y) => sum + y.stockMetrics.length, 0)}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Stock Metrics</div>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-default)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{yearsData.reduce((sum, y) => sum + y.stockMetrics.length, 0)}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Total Stock Metrics</div>
           </div>
-          <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{importHistory.length}</div>
-            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Eventos de Import</div>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-default)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>{importHistory.length}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Eventos de Import</div>
           </div>
         </div>
 
         {/* Tool Availability for Selected Year */}
         {currentYear && (
-          <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid #e2e8f0' }}>
-            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid var(--border-default)' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <BarChart3 size={14} /> Disponibilidad de Herramientas de Valoración ({selectedYear})
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.75rem' }}>
               {Object.entries(toolAvailability).map(([tool, available]) => {
                 const color = available
-                  ? tool === 'dcf' ? '#4f8fb5'
-                  : tool === 'per' ? '#2563eb'
-                  : tool === 'pb' ? '#7c3aed'
-                  : tool === 'ps' ? '#d97706'
-                  : tool === 'evEbitda' ? '#dc2626'
-                  : tool === 'evEbit' ? '#ea580c'
-                  : tool === 'ddm' ? '#0891b2'
-                  : tool === 'graham' ? '#4f8fb5'
-                  : tool === 'fcfYield' ? '#14b8a6'
-                  : tool === 'netnet' ? '#ec4899'
-                  : tool === 'sankeyCashflow' ? '#8b5cf6'
-                  : '#64748b'
-                  : '#94a3b8';
+                  ? tool === 'dcf' ? 'var(--blue-light)'
+                  : tool === 'per' ? 'var(--info)'
+                  : tool === 'pb' ? 'var(--purple)'
+                  : tool === 'ps' ? 'var(--amber)'
+                  : tool === 'evEbitda' ? 'var(--red)'
+                  : tool === 'evEbit' ? 'var(--orange-deep)'
+                  : tool === 'ddm' ? 'var(--cyan-deep)'
+                  : tool === 'graham' ? 'var(--blue-light)'
+                  : tool === 'fcfYield' ? 'var(--teal)'
+                  : tool === 'netnet' ? 'var(--pink)'
+                  : tool === 'sankeyCashflow' ? 'var(--purple)'
+                  : 'var(--text-tertiary)'
+                  : 'var(--text-tertiary)';
                 const labels: Record<string, string> = {
                   dcf: 'DCF', per: 'P/E', pb: 'P/B', ps: 'P/S',
                   evEbitda: 'EV/EBITDA', evEbit: 'EV/EBIT', ddm: 'DDM',
@@ -306,10 +306,10 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
                   sankeyCashflow: 'Sankey', compareTab: 'Comparable'
                 };
                 return (
-                  <div key={tool} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: available ? `${color}15` : '#f8fafc', borderRadius: '0.5rem', border: `1px solid ${color}30` }}>
+                  <div key={tool} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: available ? `${color}15` : 'var(--surface-2)', borderRadius: '0.5rem', border: `1px solid ${color}30` }}>
                     <div style={{ width: '1rem', height: '1rem', borderRadius: '50%', background: color }} />
                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color }}>{labels[tool] || tool}</span>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{available ? '✓' : '✗'}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{available ? '✓' : '✗'}</span>
                   </div>
                 );
               })}
@@ -319,8 +319,8 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
 
         {/* Missing Fields Summary */}
         {allMissingConcepts.length > 0 && (
-          <div style={{ background: '#fffbeb', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid #fde68a' }}>
-            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#d97706', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ background: 'var(--amber-pale)', borderRadius: '0.75rem', padding: '1.25rem', border: '1px solid var(--amber-line)' }}>
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--amber)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <AlertTriangle size={14} /> Campos con Cobertura Baja ({allMissingConcepts.length})
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -328,17 +328,17 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
                 const fieldName = item.fieldName;
                 const guessed = guessField(fieldName);
                 return (
-                  <div key={fieldName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: '#fef3c7', borderRadius: '0.375rem', border: '1px solid #fde68a' }}>
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: '#475569' }}>{fieldName}</span>
+                  <div key={fieldName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'var(--amber-pale)', borderRadius: '0.375rem', border: '1px solid var(--amber-line)' }}>
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{fieldName}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       {guessed && (
-                        <span style={{ fontSize: '0.65rem', color: '#d97706', fontStyle: 'italic' }}>{FIELD_LABELS[guessed] || guessed}</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--amber)', fontStyle: 'italic' }}>{FIELD_LABELS[guessed] || guessed}</span>
                       )}
                       {guessed && (
                         <button
                           onClick={() => handleAddFieldMapping(fieldName, guessed)}
                           disabled={addedMappings.has(fieldName)}
-                          style={{ background: addedMappings.has(fieldName) ? '#4f8fb5' : '#d97706', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem', cursor: addedMappings.has(fieldName) ? 'default' : 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          style={{ background: addedMappings.has(fieldName) ? 'var(--blue-light)' : 'var(--amber)', color: 'white', border: 'none', borderRadius: '0.25rem', padding: '0.25rem 0.5rem', cursor: addedMappings.has(fieldName) ? 'default' : 'pointer', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                         >
                           {addedMappings.has(fieldName) ? '✓' : '+'}
                         </button>
@@ -355,29 +355,29 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
   };
 
   const renderTimeline = () => (
-    <div style={{ background: '#f8fafc', borderRadius: '0.75rem', padding: '1rem', border: '1px solid #e2e8f0' }}>
-      <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <div style={{ background: 'var(--surface-2)', borderRadius: '0.75rem', padding: '1rem', border: '1px solid var(--border-default)' }}>
+      <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <TrendingUp size={14} /> Cronología de Importaciones
       </h4>
       <div style={{ maxHeight: '20rem', overflow: 'auto' }}>
         {importHistory.length === 0 ? (
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', padding: '2rem' }}>No hay historial de importaciones disponible</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '2rem' }}>No hay historial de importaciones disponible</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {importHistory.map((event, index) => (
-              <div key={index} style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem', background: 'white', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+              <div key={index} style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem', background: 'var(--surface-1)', borderRadius: '0.5rem', border: '1px solid var(--border-default)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', minWidth: '2rem' }}>
-                  <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', background: event.event === 'success' ? '#4f8fb5' : event.event === 'error' ? '#ef4444' : event.event === 'skipped' ? '#f59e0b' : '#3b82f6' }} />
-                  {index > 0 && <div style={{ width: '1px', height: '1rem', background: '#e2e8f0' }} />}
+                  <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', background: event.event === 'success' ? 'var(--blue-light)' : event.event === 'error' ? 'var(--red)' : event.event === 'skipped' ? 'var(--amber)' : 'var(--info-light)' }} />
+                  {index > 0 && <div style={{ width: '1px', height: '1rem', background: 'var(--border-default)' }} />}
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a' }}>{event.event === 'success' ? 'Completado' : event.event === 'error' ? 'Error' : event.event === 'skipped' ? 'Omitido' : event.event === 'progress' ? 'En progreso' : 'Inicio'}</span>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{new Date(event.timestamp).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{event.event === 'success' ? 'Completado' : event.event === 'error' ? 'Error' : event.event === 'skipped' ? 'Omitido' : event.event === 'progress' ? 'En progreso' : 'Inicio'}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{new Date(event.timestamp).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
-                  <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>{event.message || event.ticker}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: 0 }}>{event.message || event.ticker}</p>
                   {event.fieldsPopulated && (
-                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>Campos poblados: {event.fieldsPopulated}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: '0.25rem 0 0' }}>Campos poblados: {event.fieldsPopulated}</p>
                   )}
                 </div>
               </div>
@@ -406,7 +406,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
           const colors = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS];
 
           return (
-            <div key={category} style={{ background: 'white', borderRadius: '0.75rem', border: `2px solid ${colors.border}`, overflow: 'hidden' }}>
+            <div key={category} style={{ background: 'var(--surface-1)', borderRadius: '0.75rem', border: `2px solid ${colors.border}`, overflow: 'hidden' }}>
               <div
                 onClick={() => setExpandedCategories(prev => {
                   const next = new Set(prev);
@@ -432,21 +432,21 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
                 <div style={{ padding: '0.5rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.5rem' }}>
                     {fields.map(field => (
-                      <div key={field.fieldName} style={{ padding: '0.75rem', background: field.populated ? colors.bg : '#f8fafc', borderRadius: '0.5rem', border: `1px solid ${field.populated ? colors.border : '#e2e8f0'}`, transition: 'all 0.2s' }}>
+                      <div key={field.fieldName} style={{ padding: '0.75rem', background: field.populated ? colors.bg : 'var(--surface-2)', borderRadius: '0.5rem', border: `1px solid ${field.populated ? colors.border : 'var(--border-default)'}`, transition: 'all 0.2s' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: field.populated ? colors.text : '#94a3b8' }}>{field.label}</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: field.populated ? colors.text : 'var(--text-tertiary)' }}>{field.label}</span>
                           {field.populated && <CheckCircle2 size={14} style={{ color: colors.text }} />}
-                          {!field.populated && <XCircle size={14} style={{ color: '#94a3b8' }} />}
+                          {!field.populated && <XCircle size={14} style={{ color: 'var(--text-tertiary)' }} />}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '0.25rem' }}>{field.fieldName}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem' }}>{field.fieldName}</div>
                         {field.source && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Fuente:</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>Fuente:</span>
                             <span style={{ fontSize: '0.65rem', fontFamily: 'monospace', color: colors.text }}>{field.source}</span>
                           </div>
                         )}
                         {field.value !== null && field.value !== undefined && (
-                          <div style={{ fontSize: '0.7rem', color: '#0f172a', fontWeight: 500, marginTop: '0.25rem' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', fontWeight: 500, marginTop: '0.25rem' }}>
                             {field.value > 1000000 || field.value < -1000000
                               ? `${(field.value / 1000000).toFixed(1)}M`
                               : field.value > 1000 || field.value < -1000
@@ -474,7 +474,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'white', borderRadius: '1rem', width: '100%', maxWidth: '90vw', height: '90vh',
+          background: 'var(--surface-1)', borderRadius: '1rem', width: '100%', maxWidth: '90vw', height: '90vh',
           maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         }}
@@ -482,31 +482,31 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.5rem', borderBottom: '1px solid #e2e8f0',
-          background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f1ff 100%)',
+          padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-default)',
+          background: 'linear-gradient(135deg, var(--blue-pale) 0%, var(--blue-pale) 100%)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <BarChart3 size={20} style={{ color: '#2563eb' }} />
+            <BarChart3 size={20} style={{ color: 'var(--info)' }} />
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+              <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                 Cobertura de Datos Detallada — {ticker}
               </h3>
-              <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: '#64748b' }}>
+              <p style={{ margin: '0.125rem 0 0', fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>
                 {yearsData.length} años de datos • {selectedYear === 0 ? 'Último año' : `Año ${selectedYear}`}
               </p>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.25rem', background: '#e2e8f0', borderRadius: '0.5rem', padding: '0.25rem' }}>
+            <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--border-default)', borderRadius: '0.5rem', padding: '0.25rem' }}>
               {(['overview', 'timeline', 'details'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   style={{
                     padding: '0.375rem 0.75rem', border: 'none', borderRadius: '0.375rem',
-                    background: activeTab === tab ? '#2563eb' : 'transparent',
-                    color: activeTab === tab ? 'white' : '#64748b',
+                    background: activeTab === tab ? 'var(--info)' : 'transparent',
+                    color: activeTab === tab ? 'white' : 'var(--text-tertiary)',
                     fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
@@ -517,7 +517,7 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
                 </button>
               ))}
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.25rem' }}>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.25rem' }}>
               <X size={20} />
             </button>
           </div>
@@ -526,17 +526,17 @@ export function FullCoverageReport({ ticker, onClose }: FullCoverageReportProps)
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '1.5rem' }}>
           {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '3rem', color: '#64748b' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', padding: '3rem', color: 'var(--text-tertiary)' }}>
               <Loader2 size={24} className="admin-spinner" />
               <span>Cargando datos detallados...</span>
             </div>
           )}
 
           {error && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: '#dc2626' }}>
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--red)' }}>
               <XCircle size={32} style={{ marginBottom: '0.75rem' }} />
               <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Error</p>
-              <p style={{ fontSize: '0.875rem', color: '#94a3b8' }}>{error}</p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)' }}>{error}</p>
               <button onClick={fetchComprehensiveReport} className="admin-form-btn" style={{ marginTop: '1rem' }}>Reintentar</button>
             </div>
           )}

@@ -80,7 +80,7 @@ export function StockValueView() {
       <div className="sv-loading">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           <div className="sv-spinner" />
-          <p style={{ color: '#64748b', fontWeight: 500 }}>Calculando valoración...</p>
+          <p style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Calculando valoración...</p>
         </div>
       </div>
     );
@@ -93,8 +93,8 @@ export function StockValueView() {
           <BarChart3 size={32} />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Sin datos de mercado</h2>
-          <p style={{ color: '#64748b' }}>{error || `No se pudieron obtener datos para ${ticker}`}</p>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Sin datos de mercado</h2>
+          <p style={{ color: 'var(--text-tertiary)' }}>{error || `No se pudieron obtener datos para ${ticker}`}</p>
         </div>
         <button onClick={() => window.history.back()} className="cf-back-btn">
           <ArrowLeft size={18} />
@@ -150,7 +150,7 @@ export function StockValueView() {
           <div className="sv-card" style={{ animationDelay: '0s' }}>
             <p className="sv-card-label">Precio Actual</p>
             <p className="sv-card-value">${market.currentPrice.toFixed(2)}</p>
-            <div className="sv-card-footer" style={{ color: '#94a3b8' }}>
+            <div className="sv-card-footer" style={{ color: 'var(--text-tertiary)' }}>
               <TrendingUp size={14} />
               <span>{market.exchange}</span>
             </div>
@@ -169,7 +169,7 @@ export function StockValueView() {
 
           <div className={`sv-margin-card ${isUndervalued ? 'sv-margin-card--undervalued' : 'sv-margin-card--overvalued'}`} style={{ animationDelay: '0.2s' }}>
             <div className="sv-margin-header">
-              {isUndervalued ? <Shield size={20} style={{ color: '#4f8fb5' }} /> : <AlertTriangle size={20} style={{ color: '#d97706' }} />}
+              {isUndervalued ? <Shield size={20} style={{ color: 'var(--blue-light)' }} /> : <AlertTriangle size={20} style={{ color: 'var(--amber)' }} />}
               <span className="sv-margin-title">Margen de Seguridad</span>
             </div>
             <p className={`sv-margin-value ${isUndervalued ? 'sv-margin-value--green' : 'sv-margin-value--amber'}`}>
@@ -254,7 +254,7 @@ export function StockValueView() {
         {/* DCF Calculator */}
         <div className="sv-calculator-section">
           <div className="sv-calculator-header">
-            <Settings size={20} style={{ color: '#475569' }} />
+            <Settings size={20} style={{ color: 'var(--text-secondary)' }} />
             <h2 className="sv-calculator-title">Calculadora DCF</h2>
           </div>
 
@@ -391,7 +391,7 @@ function ValuationComparison({
       <div className="sv-bar-group">
         <div className="sv-bar-header">
           <span className="sv-bar-label">Valor Intrínseco (DCF)</span>
-          <span className="sv-bar-value" style={{ color: isUndervalued ? '#4f8fb5' : '#dc2626' }}>
+          <span className="sv-bar-value" style={{ color: isUndervalued ? 'var(--blue-light)' : 'var(--red)' }}>
             ${intrinsicValue.toFixed(2)}
           </span>
         </div>

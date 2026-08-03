@@ -50,9 +50,9 @@ const SOURCE_LABELS: Record<SourceKey, string> = {
 };
 
 const SOURCE_COLORS: Record<SourceKey, { bg: string; text: string; border: string }> = {
-  sec: { bg: '#eff6ff', text: '#1e40af', border: '#bfdbfe' },
-  european: { bg: 'rgba(79, 143, 181, 0.14)', text: '#4f8fb5', border: 'rgba(79, 143, 181, 0.35)' },
-  yahoo: { bg: '#fefce8', text: '#854d0e', border: '#fef08a' },
+  sec: { bg: 'var(--blue-pale)', text: 'var(--info-dark)', border: 'var(--blue-line)' },
+  european: { bg: 'var(--blue-pale)', text: 'var(--blue-light)', border: 'var(--blue-line)' },
+  yahoo: { bg: 'var(--amber-pale)', text: 'var(--amber-dark)', border: 'var(--amber-line)' },
 };
 
 export function FieldConfigPanel() {
@@ -270,9 +270,9 @@ export function FieldConfigPanel() {
   if (error && !data) {
     return (
       <div className="admin-form-section">
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#dc2626' }}>
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--red)' }}>
           <p style={{ fontWeight: 600 }}>Error cargando configuración</p>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>{error}</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.5rem' }}>{error}</p>
           <button onClick={fetchConfig} className="admin-form-btn" style={{ marginTop: '1rem' }}>Reintentar</button>
         </div>
       </div>
@@ -280,21 +280,21 @@ export function FieldConfigPanel() {
   }
 
   return (
-    <div className="admin-form-section" style={{ border: '2px solid #e0e7ff', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)' }}>
+    <div className="admin-form-section" style={{ border: '2px solid var(--blue-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--violet-pale) 0%, var(--violet-pale) 100%)' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, var(--purple) 0%, var(--purple) 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
             <Settings size={18} />
           </div>
           <div>
             <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Configuración de Tags por Fuente</h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>
               {data?.catalog.length || 0} campos · SEC es el modelo de referencia
             </p>
           </div>
         </div>
-        <button onClick={fetchConfig} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.25rem' }} title="Actualizar">
+        <button onClick={fetchConfig} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.25rem' }} title="Actualizar">
           <RefreshCw size={18} />
         </button>
       </div>
@@ -302,7 +302,7 @@ export function FieldConfigPanel() {
       {/* Search */}
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+          <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
           <input
             type="text"
             value={searchTerm}
@@ -321,7 +321,7 @@ export function FieldConfigPanel() {
           disabled={saving || totalPending === 0}
           className="admin-form-btn"
           style={{
-            background: totalPending > 0 ? 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)' : '#94a3b8',
+            background: totalPending > 0 ? 'linear-gradient(135deg, var(--purple) 0%, var(--purple) 100%)' : 'var(--text-tertiary)',
             opacity: totalPending === 0 ? 0.5 : 1,
           }}
         >
@@ -332,7 +332,7 @@ export function FieldConfigPanel() {
           disabled={applying || totalPending > 0}
           className="admin-form-btn"
           style={{
-            background: totalPending === 0 ? 'linear-gradient(135deg, #193e57 0%, #4f8fb5 100%)' : '#94a3b8',
+            background: totalPending === 0 ? 'linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%)' : 'var(--text-tertiary)',
             opacity: totalPending > 0 ? 0.5 : 1,
           }}
         >
@@ -342,9 +342,9 @@ export function FieldConfigPanel() {
 
       {/* Apply Progress */}
       {applyProgress && (
-        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)' }}>
           {applyProgress.type === 'start' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#7c3aed' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--purple)' }}>
               <RefreshCw size={16} className="animate-spin" />
               <span style={{ fontSize: '0.875rem' }}>Iniciando re-sincronización...</span>
             </div>
@@ -353,25 +353,25 @@ export function FieldConfigPanel() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{applyProgress.ticker}</span>
-                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{applyProgress.completed}/{applyProgress.total}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{applyProgress.completed}/{applyProgress.total}</span>
               </div>
-              <div style={{ height: '0.5rem', background: '#e2e8f0', borderRadius: '0.25rem', overflow: 'hidden' }}>
-                <div style={{ height: '100%', background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)', width: `${((applyProgress.completed || 0) / (applyProgress.total || 1)) * 100}%`, transition: 'width 0.3s ease' }} />
+              <div style={{ height: '0.5rem', background: 'var(--border-default)', borderRadius: '0.25rem', overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: 'linear-gradient(135deg, var(--purple) 0%, var(--purple) 100%)', width: `${((applyProgress.completed || 0) / (applyProgress.total || 1)) * 100}%`, transition: 'width 0.3s ease' }} />
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', fontSize: '0.75rem' }}>
-                <span style={{ color: '#4f8fb5' }}>✓ {applyProgress.succeeded || 0} éxitos</span>
-                {applyProgress.failed && applyProgress.failed > 0 && <span style={{ color: '#dc2626' }}>✗ {applyProgress.failed} fallos</span>}
+                <span style={{ color: 'var(--blue-light)' }}>✓ {applyProgress.succeeded || 0} éxitos</span>
+                {applyProgress.failed && applyProgress.failed > 0 && <span style={{ color: 'var(--red)' }}>✗ {applyProgress.failed} fallos</span>}
               </div>
             </div>
           )}
           {applyProgress.type === 'complete' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4f8fb5' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--blue-light)' }}>
               <CheckCircle2 size={16} />
               <span style={{ fontSize: '0.875rem' }}>Completado: {applyProgress.succeeded} éxitos, {applyProgress.failed} fallos</span>
             </div>
           )}
           {applyProgress.type === 'error' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--red)' }}>
               <XCircle size={16} />
               <span style={{ fontSize: '0.875rem' }}>{applyProgress.error}</span>
             </div>
@@ -387,20 +387,20 @@ export function FieldConfigPanel() {
           const isExpanded = expandedCategories.has(category.id);
 
           return (
-            <div key={category.id} style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+            <div key={category.id} style={{ background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)', overflow: 'hidden' }}>
               {/* Category Header */}
               <div
                 onClick={() => toggleCategory(category.id)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '0.75rem 1rem', background: `${category.color}10`,
-                  borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none', cursor: 'pointer',
+                  borderBottom: isExpanded ? '1px solid var(--border-default)' : 'none', cursor: 'pointer',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '50%', background: category.color }} />
-                  <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0f172a' }}>{category.label}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{fields.length} campos</span>
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{category.label}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{fields.length} campos</span>
                 </div>
                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
@@ -412,20 +412,20 @@ export function FieldConfigPanel() {
                     const isFieldExpanded = expandedFields.has(field.fieldName);
 
                     return (
-                      <div key={field.fieldName} style={{ marginBottom: '0.25rem', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+                      <div key={field.fieldName} style={{ marginBottom: '0.25rem', borderRadius: '0.5rem', border: '1px solid var(--surface-2)' }}>
                         {/* Field Header */}
                         <div
                           onClick={() => toggleField(field.fieldName)}
                           style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             padding: '0.5rem 0.75rem', cursor: 'pointer',
-                            background: isFieldExpanded ? '#f8fafc' : 'transparent',
+                            background: isFieldExpanded ? 'var(--surface-2)' : 'transparent',
                             borderRadius: '0.5rem',
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontWeight: 500, fontSize: '0.875rem', color: '#0f172a' }}>{field.label}</span>
-                            <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontFamily: 'monospace' }}>{field.fieldName}</span>
+                            <span style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{field.label}</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{field.fieldName}</span>
                             {/* Source badges */}
                             {(['sec', 'european', 'yahoo'] as SourceKey[]).map(src => {
                               const totalTags = field.sources[src].baseTags.length + getSourceCustomTags(field, src).length;
@@ -433,10 +433,10 @@ export function FieldConfigPanel() {
                               return (
                                 <span key={src} style={{
                                   fontSize: '0.55rem', padding: '0.1rem 0.35rem',
-                                  background: isActive ? SOURCE_COLORS[src].bg : '#f1f5f9',
-                                  color: isActive ? SOURCE_COLORS[src].text : '#94a3b8',
+                                  background: isActive ? SOURCE_COLORS[src].bg : 'var(--surface-2)',
+                                  color: isActive ? SOURCE_COLORS[src].text : 'var(--text-tertiary)',
                                   borderRadius: '0.25rem', fontWeight: 600, textTransform: 'uppercase',
-                                  border: `1px solid ${isActive ? SOURCE_COLORS[src].border : '#e2e8f0'}`,
+                                  border: `1px solid ${isActive ? SOURCE_COLORS[src].border : 'var(--border-default)'}`,
                                 }}>
                                   {src} ({totalTags})
                                 </span>
@@ -481,9 +481,9 @@ export function FieldConfigPanel() {
       </div>
 
       {/* Legend */}
-      <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-        <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.5rem' }}>Leyenda</h3>
-        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#64748b', flexWrap: 'wrap' }}>
+      <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)' }}>
+        <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Leyenda</h3>
+        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ padding: '0.1rem 0.3rem', background: SOURCE_COLORS.sec.bg, color: SOURCE_COLORS.sec.text, borderRadius: '0.25rem', fontWeight: 600, fontSize: '0.6rem' }}>SEC</span>
             Tags base XBRL (modelo de referencia)
@@ -497,7 +497,7 @@ export function FieldConfigPanel() {
             Campos de Yahoo Finance
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ width: '0.5rem', height: '0.5rem', background: '#4f8fb5', borderRadius: '50%', display: 'inline-block' }} />
+            <span style={{ width: '0.5rem', height: '0.5rem', background: 'var(--blue-light)', borderRadius: '50%', display: 'inline-block' }} />
             Fuente activa (se importa)
           </div>
         </div>
@@ -532,8 +532,8 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
 
   return (
     <div style={{
-      background: active ? colors.bg : '#fafafa',
-      border: `1px solid ${active ? colors.border : '#e2e8f0'}`,
+      background: active ? colors.bg : 'var(--surface-2)',
+      border: `1px solid ${active ? colors.border : 'var(--border-default)'}`,
       borderRadius: '0.5rem',
       padding: '0.625rem',
       opacity: active ? 1 : 0.7,
@@ -553,13 +553,13 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
           />
           <span style={{
             position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            background: active ? '#4f8fb5' : '#cbd5e1',
+            background: active ? 'var(--blue-light)' : 'var(--disabled-bg)',
             borderRadius: '0.5rem', transition: 'all 0.2s',
           }}>
             <span style={{
               position: 'absolute', height: '0.8rem', width: '0.8rem',
               left: active ? '1rem' : '0.1rem', bottom: '0.1rem',
-              background: 'white', borderRadius: '50%', transition: 'all 0.2s',
+              background: 'var(--surface-1)', borderRadius: '50%', transition: 'all 0.2s',
             }} />
           </span>
         </label>
@@ -568,12 +568,12 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
       {/* Base Tags */}
       {baseTags.length > 0 && (
         <div style={{ marginBottom: '0.375rem' }}>
-          <span style={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 600 }}>Tags base:</span>
+          <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', fontWeight: 600 }}>Tags base:</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem', marginTop: '0.15rem' }}>
             {baseTags.map(tag => (
               <span key={tag} style={{
                 fontSize: '0.55rem', padding: '0.1rem 0.3rem',
-                background: '#f1f5f9', color: '#475569',
+                background: 'var(--surface-2)', color: 'var(--text-secondary)',
                 borderRadius: '0.2rem', fontFamily: 'monospace',
               }}>
                 {tag}
@@ -626,7 +626,7 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
             style={{
               flex: 1, fontSize: '0.6rem', padding: '0.2rem 0.35rem',
               border: `1px solid ${colors.border}`, borderRadius: '0.2rem',
-              background: 'white', color: '#0f172a', outline: 'none',
+              background: 'var(--surface-1)', color: 'var(--text-primary)', outline: 'none',
               fontFamily: 'monospace',
             }}
           />
@@ -634,8 +634,8 @@ function SourceColumn({ sourceKey, field, active, customTags, newTagValue, onTog
             onClick={() => { if (newTagValue.trim()) onAddTag(newTagValue.trim()); }}
             disabled={!newTagValue.trim()}
             style={{
-              background: newTagValue.trim() ? colors.text : '#e2e8f0',
-              color: newTagValue.trim() ? 'white' : '#94a3b8',
+              background: newTagValue.trim() ? colors.text : 'var(--border-default)',
+              color: newTagValue.trim() ? 'white' : 'var(--text-tertiary)',
               border: 'none', borderRadius: '0.2rem', cursor: newTagValue.trim() ? 'pointer' : 'default',
               padding: '0.15rem 0.3rem', display: 'flex', alignItems: 'center',
             }}

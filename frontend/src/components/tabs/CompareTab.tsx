@@ -74,9 +74,9 @@ export function CompareTab({ company, financial, stock }: Props) {
     : 'fair';
 
   const verdictConfig = {
-    overvalued: { label: 'Sobrevalorada vs Mercado', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: TrendingUp },
-    undervalued: { label: 'Subvalorada vs Mercado', color: '#4f8fb5', bg: 'rgba(79, 143, 181, 0.14)', border: 'rgba(79, 143, 181, 0.35)', icon: TrendingDown },
-    fair: { label: 'Alineada con el Mercado', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: Minus },
+    overvalued: { label: 'Sobrevalorada vs Mercado', color: 'var(--red)', bg: 'var(--red-pale)', border: 'var(--red-line)', icon: TrendingUp },
+    undervalued: { label: 'Subvalorada vs Mercado', color: 'var(--blue-light)', bg: 'var(--blue-pale)', border: 'var(--blue-line)', icon: TrendingDown },
+    fair: { label: 'Alineada con el Mercado', color: 'var(--amber)', bg: 'var(--amber-pale)', border: 'var(--amber-line)', icon: Minus },
   };
   const vConfig = verdictConfig[overallVerdict];
   const VerdictIcon = vConfig.icon;
@@ -143,7 +143,7 @@ export function CompareTab({ company, financial, stock }: Props) {
         <SectionReveal delay={80}>
           <div className="cmp-chart-card">
             <div className="cmp-chart-card-header">
-              <BarChart3 size={18} style={{ color: '#6366f1' }} />
+              <BarChart3 size={18} style={{ color: 'var(--indigo)' }} />
               <span>Grafico Comparativo</span>
             </div>
             <MarketComparisonChart
@@ -190,7 +190,7 @@ export function CompareTab({ company, financial, stock }: Props) {
                   } else {
                     isOver = m.companyVal! > m.marketVal;
                   }
-                  const diffColor = isOver === true ? '#dc2626' : isOver === false ? '#4f8fb5' : '#d97706';
+                  const diffColor = isOver === true ? 'var(--red)' : isOver === false ? 'var(--blue-light)' : 'var(--amber)';
                   const verdictLabel = isOver === true ? 'Sobrevalorada' : isOver === false ? 'Subvalorada' : 'Justa';
 
                   return (
@@ -206,7 +206,7 @@ export function CompareTab({ company, financial, stock }: Props) {
                         {diff >= 0 ? '+' : ''}{diffPct.toFixed(1)}%
                       </td>
                       <td className="cmp-metrics-center">
-                        <span className="cmp-metrics-verdict" style={{ color: diffColor, background: isOver ? '#fef2f2' : isOver === false ? 'rgba(79, 143, 181, 0.14)' : '#fffbeb' }}>
+                        <span className="cmp-metrics-verdict" style={{ color: diffColor, background: isOver ? 'var(--red-pale)' : isOver === false ? 'var(--blue-pale)' : 'var(--amber-pale)' }}>
                           {verdictLabel}
                         </span>
                       </td>
@@ -223,7 +223,7 @@ export function CompareTab({ company, financial, stock }: Props) {
       <SectionReveal delay={160}>
         <div className="cmp-insights-card">
           <div className="cmp-insights-header">
-            <Info size={16} style={{ color: '#6366f1' }} />
+            <Info size={16} style={{ color: 'var(--indigo)' }} />
             <span>Que significan estos datos?</span>
           </div>
           <div className="cmp-insights-grid">

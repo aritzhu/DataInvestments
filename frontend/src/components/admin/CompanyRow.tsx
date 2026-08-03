@@ -90,7 +90,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
               <Link to={`/cashflow/${company.ticker}`} className="admin-row-ticker">
                 {company.ticker}
               </Link>
-              <Link to={`/cashflow/${company.ticker}`} style={{ color: '#94a3b8', transition: 'color 0.2s' }} title="Ver datos">
+              <Link to={`/cashflow/${company.ticker}`} style={{ color: 'var(--text-tertiary)', transition: 'color 0.2s' }} title="Ver datos">
                 <ExternalLink size={12} />
               </Link>
             </div>
@@ -101,14 +101,14 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
 
       {/* Sector */}
       <td>
-        <span style={{ fontSize: '0.875rem', color: '#475569' }}>{company.sector || '—'}</span>
+        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{company.sector || '—'}</span>
       </td>
 
       {/* Records */}
       <td style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <span style={{ fontWeight: 600, color: '#0f172a' }}>{company.financialRecords}</span>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>financials</span>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{company.financialRecords}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>financials</span>
         </div>
       </td>
 
@@ -119,16 +119,16 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
             <>
               <div className="admin-sync-dots">
                 {company.sync.secSync && <div className="admin-sync-dot admin-sync-dot--filled" title="SEC" />}
-                {company.sync.finnhubSync && <div className="admin-sync-dot admin-sync-dot--filled" title="Finnhub" style={{ background: '#7c3aed' }} />}
+                {company.sync.finnhubSync && <div className="admin-sync-dot admin-sync-dot--filled" title="Finnhub" style={{ background: 'var(--purple)' }} />}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: '#64748b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                 <Clock size={10} />
                 {lastSync}
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{company.sync.yearsFetched} años</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{company.sync.yearsFetched} años</span>
             </>
           ) : (
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
               <X size={10} />
               No sincronizado
             </span>
@@ -155,7 +155,7 @@ export function CompanyRow({ company, onDeleted, onSyncComplete }: Props) {
             {syncing ? 'Sync...' : 'Sync'}
           </button>
 
-          <button onClick={() => setShowCoverage(true)} disabled={company.financialRecords === 0} className="admin-btn-sync" title="Ver cobertura detallada" style={{ background: '#e0e7ff', color: '#4338ca' }}>
+          <button onClick={() => setShowCoverage(true)} disabled={company.financialRecords === 0} className="admin-btn-sync" title="Ver cobertura detallada" style={{ background: 'var(--blue-pale)', color: 'var(--indigo-deep)' }}>
             <BarChart3 size={14} />
           </button>
 

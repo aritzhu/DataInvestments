@@ -41,7 +41,7 @@
   right: -20%;
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, rgba(212, 168, 77, 0.16) 0%, transparent 30%);
+  background: radial-gradient(circle, var(--gold-tint) 0%, transparent 30%);
   pointer-events: none;
 }
 
@@ -124,15 +124,15 @@
 }
 
 .dash-card-icon--blue { background: var(--gold-pale); color: var(--gold-light); }
-.dash-card-icon--emerald { background: rgba(79, 143, 181, 0.14); color: #4f8fb5; }
-.dash-card-icon--violet { background: rgba(168, 159, 192, 0.14); color: #a89fc0; }
-.dash-card-icon--amber { background: rgba(204, 143, 74, 0.14); color: #cc8f4a; }
-.dash-card-icon--rose { background: rgba(201, 111, 95, 0.14); color: #c96f5f; }
-.dash-card-icon--cyan { background: rgba(90, 143, 159, 0.14); color: #5a8f9f; }
+.dash-card-icon--emerald { background: var(--blue-pale); color: var(--blue-light); }
+.dash-card-icon--violet { background: var(--violet-pale); color: var(--violet); }
+.dash-card-icon--amber { background: var(--amber-pale); color: var(--amber); }
+.dash-card-icon--rose { background: var(--red-pale); color: var(--red); }
+.dash-card-icon--cyan { background: var(--cyan-pale); color: var(--cyan); }
 
 .dash-card--hero .dash-card-icon {
-  background: rgba(255, 255, 255, 0.08);
-  color: #edc97f;
+  background: var(--border-light);
+  color: var(--gold-light);
 }
 
 /* Body */
@@ -151,7 +151,7 @@
 }
 
 .dash-card--hero .dash-card-label {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--white-strong);
 }
 
 .dash-card-value {
@@ -165,7 +165,7 @@
 }
 
 .dash-card--hero .dash-card-value {
-  color: #f2efe9;
+  color: var(--text-primary);
   font-size: 2rem;
 }
 
@@ -174,7 +174,7 @@
   gap: 1.5rem;
   margin-top: 0.75rem;
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--white-strong);
   font-weight: 500;
 }
 
@@ -359,9 +359,9 @@
   transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.mkt-bar--company.mkt-bar--green { background: var(--color-success, #193e57); }
-.mkt-bar--company.mkt-bar--red { background: var(--color-error, #c96f5f); }
-.mkt-bar--sector { background: var(--color-primary, #d4a84d); opacity: 0.7; }
+.mkt-bar--company.mkt-bar--green { background: var(--color-success, var(--blue)); }
+.mkt-bar--company.mkt-bar--red { background: var(--color-error, var(--red)); }
+.mkt-bar--sector { background: var(--color-primary, var(--gold)); opacity: 0.7; }
 .mkt-bar--market { background: var(--text-tertiary); opacity: 0.4; }
 
 .mkt-bar-value {

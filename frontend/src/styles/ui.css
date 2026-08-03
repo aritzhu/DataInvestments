@@ -4,7 +4,7 @@
 
 /* --- Skeleton Loading --- */
 .ui-skeleton {
-  background: linear-gradient(90deg, #1b1e25 25%, #232630 50%, #1b1e25 75%);
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
   border-radius: 8px;
@@ -101,10 +101,10 @@
 }
 
 .ui-card--glass {
-  background: rgba(20, 22, 27, 0.75);
+  background: var(--glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-light);
 }
 
 .ui-card--gradient {
@@ -124,11 +124,11 @@
 }
 
 .ui-badge--blue { background: var(--gold-pale); color: var(--gold-light); }
-.ui-badge--green { background: rgba(79, 143, 181, 0.14); color: #4f8fb5; }
-.ui-badge--red { background: rgba(201, 111, 95, 0.14); color: #c96f5f; }
-.ui-badge--amber { background: rgba(204, 143, 74, 0.14); color: #cc8f4a; }
-.ui-badge--purple { background: rgba(168, 159, 192, 0.14); color: #a89fc0; }
-.ui-badge--gray { background: var(--surface-2); color: #8a8578; }
+.ui-badge--green { background: var(--blue-pale); color: var(--blue-light); }
+.ui-badge--red { background: var(--red-pale); color: var(--red); }
+.ui-badge--amber { background: var(--amber-pale); color: var(--amber); }
+.ui-badge--purple { background: var(--violet-pale); color: var(--violet); }
+.ui-badge--gray { background: var(--surface-2); color: var(--text-tertiary); }
 
 /* --- Divider --- */
 .ui-divider {

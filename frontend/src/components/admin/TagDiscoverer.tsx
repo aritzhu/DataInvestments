@@ -72,13 +72,13 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
   if (availableTags.length === 0) return null;
 
   return (
-    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #e2e8f0' }}>
-      <div style={{ fontWeight: 600, color: '#334155', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
+    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-default)' }}>
+      <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', fontSize: '0.8rem' }}>
         Tag Discovery — {availableTags.length} XBRL tags disponibles
       </div>
 
       <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
-        <Search size={12} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <Search size={12} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
         <input
           type="text"
           value={search}
@@ -86,14 +86,14 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
           placeholder="Buscar tag XBRL..."
           style={{
             width: '100%', padding: '0.375rem 0.5rem 0.375rem 1.5rem',
-            border: '1px solid #e2e8f0', borderRadius: '0.375rem',
-            fontSize: '0.75rem', outline: 'none', background: '#fff',
+            border: '1px solid var(--border-default)', borderRadius: '0.375rem',
+            fontSize: '0.75rem', outline: 'none', background: 'var(--surface-1)',
           }}
         />
       </div>
 
       {failedFields.length > 0 && (
-        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.375rem' }}>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.375rem' }}>
           Campos sin datos: {failedFields.map(f => FIELD_LABELS[f]).join(', ')}
         </div>
       )}
@@ -107,18 +107,18 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-              background: isFailed ? '#fffbeb' : '#f8fafc',
-              border: `1px solid ${isFailed ? '#fde68a' : '#e2e8f0'}`,
+              background: isFailed ? 'var(--amber-pale)' : 'var(--surface-2)',
+              border: `1px solid ${isFailed ? 'var(--amber-line)' : 'var(--border-default)'}`,
               fontSize: '0.7rem',
             }}>
-              <code style={{ color: '#475569', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <code style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {tag}
               </code>
               {guessedField && (
                 <span style={{
                   padding: '0.1rem 0.3rem', borderRadius: '0.2rem',
-                  background: isFailed ? '#fef3c7' : '#e0f2fe',
-                  fontSize: '0.6rem', color: '#475569', whiteSpace: 'nowrap',
+                  background: isFailed ? 'var(--amber-pale)' : 'var(--cyan-pale)',
+                  fontSize: '0.6rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap',
                 }}>
                   → {FIELD_LABELS[guessedField] || guessedField}
                 </span>
@@ -128,8 +128,8 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
                   onClick={() => handleAddTag(tag, guessedField)}
                   disabled={addingTag === tag || alreadyAdded}
                   style={{
-                    background: alreadyAdded ? '#dcfce7' : '#2563eb',
-                    color: alreadyAdded ? '#4f8fb5' : '#fff',
+                    background: alreadyAdded ? 'var(--blue-pale)' : 'var(--info)',
+                    color: alreadyAdded ? 'var(--blue-light)' : '#fff',
                     border: 'none', borderRadius: '0.2rem', padding: '0.15rem 0.35rem',
                     cursor: alreadyAdded ? 'default' : 'pointer',
                     fontSize: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.2rem',
@@ -144,7 +144,7 @@ export function TagDiscoverer({ availableTags, fieldDetails, onTagAdded }: TagDi
           );
         })}
         {filteredTags.length > 100 && (
-          <div style={{ fontSize: '0.65rem', color: '#94a3b8', textAlign: 'center', padding: '0.25rem' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '0.25rem' }}>
             Mostrando 100 de {filteredTags.length} resultados
           </div>
         )}

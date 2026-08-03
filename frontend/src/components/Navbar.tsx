@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User } from 'lucide-react';
+import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { getTheme, toggleTheme } from '../utils/theme';
 import '../styles/navbar.css';
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(getTheme());
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
   const location = useLocation();
@@ -46,6 +48,11 @@ export function Navbar() {
     setMenuOpen(false);
   };
 
+  const handleToggleTheme = () => {
+    const next = toggleTheme();
+    setTheme(next);
+  };
+
   return (
     <>
       <nav className="navbar">
@@ -69,6 +76,14 @@ export function Navbar() {
             <Link to="/empresa/AAPL" className="navbar-cta">
               Analizar
             </Link>
+            <button
+              onClick={handleToggleTheme}
+              className="navbar-icon-btn navbar-theme-btn"
+              title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+              aria-label="Cambiar tema"
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             {user && (
               <Link to="/favorites" className="navbar-icon-btn navbar-favorites-btn" title="Favoritos y Alarmas">
                 <Heart size={18} />
@@ -176,6 +191,10 @@ export function Navbar() {
                 Iniciar sesión
               </Link>
             )}
+            <button onClick={handleToggleTheme} className="navbar-mobile-link">
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              {theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+            </button>
           </nav>
         </div>
       </div>

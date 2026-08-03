@@ -51,7 +51,7 @@ export function CashFlowView() {
       <div className="cf-loading">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           <div className="cf-spinner" />
-          <p style={{ color: '#64748b', fontWeight: 500 }}>Cargando datos financieros...</p>
+          <p style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>Cargando datos financieros...</p>
         </div>
       </div>
     );
@@ -64,8 +64,8 @@ export function CashFlowView() {
           <BarChart3 size={32} />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>Sin datos disponibles</h2>
-          <p style={{ color: '#64748b' }}>No se encontraron datos financieros para {ticker}</p>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Sin datos disponibles</h2>
+          <p style={{ color: 'var(--text-tertiary)' }}>No se encontraron datos financieros para {ticker}</p>
         </div>
         <Link to="/" className="cf-back-btn">
           <ArrowLeft size={18} />
@@ -163,7 +163,7 @@ export function CashFlowView() {
         {/* Sankey */}
         <div className="cf-sankey-section">
           <h2 className="cf-sankey-title">Distribución del Flujo de Caja</h2>
-          <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>
             Visualización del flujo de ingresos hasta el beneficio neto
           </p>
           <div className="cf-sankey-container">
@@ -188,8 +188,8 @@ export function CashFlowView() {
               <tbody>
                 {data.nodes.map((node) => (
                   <tr key={node.id}>
-                    <td style={{ fontWeight: 500, color: '#334155' }}>{node.label}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: '#0f172a' }}>{formatValue(node.value)}</td>
+                    <td style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>{node.label}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>{formatValue(node.value)}</td>
                     <td style={{ textAlign: 'right' }}>
                       <span className={`cf-table-badge ${node.id === 'revenue' ? 'cf-table-badge--red' : 'cf-table-badge--slate'}`}>
                         {node.id === 'revenue' ? '100%' : `${(node.value / revenue * 100).toFixed(1)}%`}
@@ -243,16 +243,16 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
   const getNodeHeight = (value: number) => Math.max(isMobile ? 5 : 6, (Math.abs(value) / revenue) * (isMobile ? 340 : 280));
 
   const colors: Record<string, string> = {
-    revenue: '#2563eb',
-    cogs: '#ef4444',
-    sga: '#f97316',
-    rd: '#a855f7',
-    other_opex: '#6b7280',
-    interest: '#ec4899',
-    tax: '#eab308',
-    net_income: '#4f8fb5',
-    capex: '#f59e0b',
-    depreciation: '#64748b',
+    revenue: 'var(--info)',
+    cogs: 'var(--red)',
+    sga: 'var(--orange)',
+    rd: 'var(--purple-light)',
+    other_opex: 'var(--text-tertiary)',
+    interest: 'var(--pink)',
+    tax: 'var(--amber)',
+    net_income: 'var(--blue-light)',
+    capex: 'var(--amber)',
+    depreciation: 'var(--text-tertiary)',
   };
 
   const expenseIds = ['cogs', 'sga', 'rd', 'other_opex', 'interest', 'tax'];
@@ -344,7 +344,7 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
       renderedLinks.push({
         key: `${link.source}-${link.target}`,
         d: `M ${sx} ${sy} C ${sx + (isLeft ? -dx : dx)} ${sy}, ${tx + (isLeft ? dx : -dx)} ${ty}, ${tx} ${ty}`,
-        color: colors[link.source] || '#94a3b8',
+        color: colors[link.source] || 'var(--text-tertiary)',
         strokeWidth: Math.max(2, sLinkH),
       });
     }
@@ -398,7 +398,7 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
               y={pos.y}
               width={nodeWidth}
               height={pos.h}
-              fill={colors[id] || '#94a3b8'}
+              fill={colors[id] || 'var(--text-tertiary)'}
               rx={isMobile ? 3 : 4}
               style={{ transition: 'opacity 0.2s ease', cursor: 'pointer' }}
               onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.7')}
@@ -409,7 +409,7 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
               y={pos.y + pos.h / 2}
               textAnchor={labelAnchor}
               dominantBaseline="middle"
-              fill="#334155"
+              fill="var(--text-secondary)"
               fontSize={isCenter ? centerFontSize : labelFontSize}
               fontWeight={isCenter ? 700 : 500}
             >
@@ -420,7 +420,7 @@ function SankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLin
               y={pos.y + pos.h / 2 + (isMobile ? 11 : 14)}
               textAnchor={labelAnchor}
               dominantBaseline="middle"
-              fill="#64748b"
+              fill="var(--text-tertiary)"
               fontSize={valueFontSize}
             >
               {formatValue(node.value)}

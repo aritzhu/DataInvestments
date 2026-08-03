@@ -84,8 +84,8 @@
 
 /* --- Insight --- */
 .edu-insight {
-  background: linear-gradient(135deg, rgba(79, 143, 181, 0.08), rgba(79, 143, 181, 0.05));
-  border: 1px solid rgba(79, 143, 181, 0.3);
+  background: linear-gradient(135deg, var(--blue-soft), var(--blue-soft));
+  border: 1px solid var(--blue-mid);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
 }
@@ -94,7 +94,7 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #4f8fb5;
+  color: var(--blue-light);
   margin-bottom: 0.5rem;
 }
 
@@ -217,9 +217,9 @@
 
 /* Highlighted node (1 acción = precio) */
 .edu-ownership-node--highlight {
-  background: linear-gradient(135deg, var(--gold-pale), rgba(212, 168, 77, 0.05));
+  background: linear-gradient(135deg, var(--gold-pale), var(--gold-faint));
   border-color: var(--gold-line);
-  box-shadow: 0 2px 12px rgba(212, 168, 77, 0.18);
+  box-shadow: 0 2px 12px var(--gold-glow);
 }
 
 .edu-ownership-node--highlight .edu-ownership-node-value {
@@ -446,21 +446,21 @@
 }
 
 .edu-signal--buy {
-  background: rgba(79, 143, 181, 0.14);
-  color: #4f8fb5;
-  border: 1px solid rgba(79, 143, 181, 0.35);
+  background: var(--blue-pale);
+  color: var(--blue-light);
+  border: 1px solid var(--blue-line);
 }
 
 .edu-signal--hold {
-  background: rgba(204, 143, 74, 0.14);
-  color: #cc8f4a;
-  border: 1px solid rgba(204, 143, 74, 0.35);
+  background: var(--amber-pale);
+  color: var(--amber);
+  border: 1px solid var(--amber-line);
 }
 
 .edu-signal--sell {
-  background: rgba(201, 111, 95, 0.14);
-  color: #c96f5f;
-  border: 1px solid rgba(201, 111, 95, 0.35);
+  background: var(--red-pale);
+  color: var(--red);
+  border: 1px solid var(--red-line);
 }
 
 .edu-signal-desc {

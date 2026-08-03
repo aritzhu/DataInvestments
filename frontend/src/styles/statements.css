@@ -228,7 +228,7 @@
   border-radius: var(--radius-sm);
 }
 
-.fs-verdict-signal--buy { background: rgba(79, 143, 181, 0.14); color: #4f8fb5; }
-.fs-verdict-signal--hold { background: rgba(204, 143, 74, 0.14); color: #cc8f4a; }
-.fs-verdict-signal--sell { background: rgba(201, 111, 95, 0.14); color: #c96f5f; }
+.fs-verdict-signal--buy { background: var(--blue-pale); color: var(--blue-light); }
+.fs-verdict-signal--hold { background: var(--amber-pale); color: var(--amber); }
+.fs-verdict-signal--sell { background: var(--red-pale); color: var(--red); }
 .fs-verdict-signal--info { background: var(--surface-2); color: var(--text-secondary); }

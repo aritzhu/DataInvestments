@@ -33,7 +33,7 @@ export function BulkImportProgress({ progress, complete, isImporting }: Props) {
             <Loader2 size={16} className="admin-spinner" />
             <span>
               {progress.status === 'syncing' ? 'Sincronizando' : 'Importando'} <strong>{progress.ticker}</strong> ({progress.current}/{progress.total})
-              {progress.message && progress.status !== 'syncing' && <span style={{ color: '#94a3b8', marginLeft: '0.375rem' }}>- {progress.message}</span>}
+              {progress.message && progress.status !== 'syncing' && <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.375rem' }}>- {progress.message}</span>}
             </span>
           </div>
           <div className="bulk-progress-bar-track">

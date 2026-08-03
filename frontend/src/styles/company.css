@@ -288,8 +288,8 @@
   padding: 1rem 1.25rem;
   margin-bottom: 1.5rem;
   border-radius: 12px;
-  background: rgba(204, 143, 74, 0.08);
-  border: 1px solid rgba(204, 143, 74, 0.25);
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-mid);
   color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.5;
@@ -297,7 +297,7 @@
 
 .cp-empty-banner svg {
   flex-shrink: 0;
-  color: #cc8f4a;
+  color: var(--amber);
 }
 
 /* --- Footer --- */
@@ -341,14 +341,14 @@
 }
 
 .cp-action-btn--active {
-  color: #c96f5f;
-  border-color: rgba(201, 111, 95, 0.3);
-  background: rgba(201, 111, 95, 0.08);
+  color: var(--red);
+  border-color: var(--red-mid);
+  background: var(--red-soft);
 }
 
 .cp-action-btn--active:hover {
-  background: rgba(201, 111, 95, 0.12);
-  border-color: rgba(201, 111, 95, 0.5);
+  background: var(--red-pale);
+  border-color: var(--red-strong);
 }
 
 /* --- Portfolio Modal --- */
@@ -566,14 +566,14 @@
 }
 
 .cp-action-btn--alarm {
-  color: #cc8f4a;
-  border-color: rgba(204, 143, 74, 0.3);
-  background: rgba(204, 143, 74, 0.08);
+  color: var(--amber);
+  border-color: var(--amber-mid);
+  background: var(--amber-soft);
 }
 
 .cp-action-btn--alarm:hover {
-  background: rgba(204, 143, 74, 0.12);
-  border-color: rgba(204, 143, 74, 0.5);
+  background: var(--amber-pale);
+  border-color: var(--amber-strong);
 }
 
 .cp-alarm-modal {
@@ -723,17 +723,17 @@
   width: 32px;
   height: 32px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(201, 111, 95, 0.3);
-  background: rgba(201, 111, 95, 0.08);
-  color: #c96f5f;
+  border: 1px solid var(--red-mid);
+  background: var(--red-soft);
+  color: var(--red);
   cursor: pointer;
   transition: all 0.15s var(--ease-out);
   flex-shrink: 0;
 }
 
 .cp-alarm-delete-btn:hover {
-  background: rgba(201, 111, 95, 0.15);
-  border-color: rgba(201, 111, 95, 0.5);
+  background: var(--red-tint);
+  border-color: var(--red-strong);
 }
 
 /* --- Mobile --- */

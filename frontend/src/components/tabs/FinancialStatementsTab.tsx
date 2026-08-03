@@ -16,7 +16,7 @@ interface Props {
   segments: CompanyProfile['segments'];
 }
 
-const SEGMENT_COLORS = ['#193e57', '#4f8fb5', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#79b3d6', '#f97316', '#6366f1'];
+const SEGMENT_COLORS = ['var(--blue)', 'var(--blue-light)', 'var(--amber)', 'var(--red)', 'var(--purple)', 'var(--cyan-bright)', 'var(--pink)', 'var(--sky)', 'var(--orange)', 'var(--indigo)'];
 
 export function FinancialStatementsTab({ financial, balanceSheet, stock, segments }: Props) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -54,23 +54,23 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
   ];
 
   const waterfall = [
-    { label: 'Ingresos', value: f.revenue, color: '#2563eb', type: 'total' as const },
-    { label: 'Costo de ventas', value: -f.costOfRevenue, color: '#ef4444', type: 'expense' as const },
-    { label: 'Beneficio bruto', value: grossProfit, color: '#4f8fb5', type: 'subtotal' as const },
-    { label: 'SGA', value: -f.sgaExpense, color: '#f97316', type: 'expense' as const },
-    { label: 'I+D', value: -f.rdExpense, color: '#f59e0b', type: 'expense' as const },
-    { label: 'Otros gastos op.', value: -otherOpex, color: '#fb923c', type: 'expense' as const },
-    { label: 'EBIT', value: operatingProfit, color: '#8b5cf6', type: 'subtotal' as const },
-    { label: 'Intereses', value: -f.interestExpense, color: '#ef4444', type: 'expense' as const },
-    { label: 'Impuestos', value: -f.taxExpense, color: '#ef4444', type: 'expense' as const },
-    { label: 'Beneficio neto', value: f.netIncome, color: '#4f8fb5', type: 'total' as const },
+    { label: 'Ingresos', value: f.revenue, color: 'var(--info)', type: 'total' as const },
+    { label: 'Costo de ventas', value: -f.costOfRevenue, color: 'var(--red)', type: 'expense' as const },
+    { label: 'Beneficio bruto', value: grossProfit, color: 'var(--blue-light)', type: 'subtotal' as const },
+    { label: 'SGA', value: -f.sgaExpense, color: 'var(--orange)', type: 'expense' as const },
+    { label: 'I+D', value: -f.rdExpense, color: 'var(--amber)', type: 'expense' as const },
+    { label: 'Otros gastos op.', value: -otherOpex, color: 'var(--orange-light)', type: 'expense' as const },
+    { label: 'EBIT', value: operatingProfit, color: 'var(--purple)', type: 'subtotal' as const },
+    { label: 'Intereses', value: -f.interestExpense, color: 'var(--red)', type: 'expense' as const },
+    { label: 'Impuestos', value: -f.taxExpense, color: 'var(--red)', type: 'expense' as const },
+    { label: 'Beneficio neto', value: f.netIncome, color: 'var(--blue-light)', type: 'total' as const },
   ];
 
   const distribution = [
-    { label: 'Dividendos', value: f.dividendsPaid || 0, color: '#2563eb' },
-    { label: 'Recompra acciones', value: f.shareRepurchases || 0, color: '#8b5cf6' },
-    { label: <>Inversión (<AbbrTip abbr="CapEx" />)</>, value: f.capex, color: '#f59e0b' },
-    { label: 'Free Cash Flow', value: f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : 0), color: '#4f8fb5' },
+    { label: 'Dividendos', value: f.dividendsPaid || 0, color: 'var(--info)' },
+    { label: 'Recompra acciones', value: f.shareRepurchases || 0, color: 'var(--purple)' },
+    { label: <>Inversión (<AbbrTip abbr="CapEx" />)</>, value: f.capex, color: 'var(--amber)' },
+    { label: 'Free Cash Flow', value: f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : 0), color: 'var(--blue-light)' },
   ];
   const totalDist = distribution.reduce((s, d) => s + d.value, 0);
 

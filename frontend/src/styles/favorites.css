@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #c96f5f, #cc8f4a);
+  background: linear-gradient(135deg, var(--red), var(--amber));
   border-radius: 12px;
   color: white;
 }
@@ -34,20 +34,20 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   margin: 0;
 }
 
 .fav-subtitle {
   font-size: 0.85rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   margin: 0.25rem 0 0;
 }
 
 .fav-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid var(--border-light, #262a34);
+  border-bottom: 1px solid var(--border-light, var(--border-default));
   margin-bottom: 1.5rem;
 }
 
@@ -58,7 +58,7 @@
   padding: 0.75rem 1.25rem;
   border: none;
   background: none;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -67,25 +67,25 @@
 }
 
 .fav-tab:hover {
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
 }
 
 .fav-tab--active {
-  color: #c96f5f;
-  border-bottom-color: #c96f5f;
+  color: var(--red);
+  border-bottom-color: var(--red);
 }
 
 .fav-tab-count {
   font-size: 0.7rem;
-  background: var(--surface-2, #1b1e25);
+  background: var(--surface-2, var(--surface-2));
   padding: 0.1rem 0.45rem;
   border-radius: 9999px;
   font-weight: 600;
 }
 
 .fav-tab--active .fav-tab-count {
-  background: rgba(201, 111, 95, 0.14);
-  color: #c96f5f;
+  background: var(--red-pale);
+  color: var(--red);
 }
 
 .fav-content {
@@ -95,7 +95,7 @@
 .fav-empty {
   text-align: center;
   padding: 3rem 1rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
 }
 
 .fav-empty-icon {
@@ -107,7 +107,7 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   margin: 0 0 0.5rem;
 }
 
@@ -121,7 +121,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.6rem 1.2rem;
-  background: #c96f5f;
+  background: var(--red);
   color: white;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -131,13 +131,13 @@
 }
 
 .fav-empty-link:hover {
-  background: #c96f5f;
+  background: var(--red);
 }
 
 .fav-loading {
   text-align: center;
   padding: 2rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   font-size: 0.85rem;
 }
 
@@ -149,7 +149,7 @@
 
 .fav-card {
   background: var(--surface-1);
-  border: 1px solid var(--border-light, #262a34);
+  border: 1px solid var(--border-light, var(--border-default));
   border-radius: 12px;
   padding: 1.25rem;
   transition: box-shadow 0.2s, transform 0.2s;
@@ -170,7 +170,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #c96f5f, #cc8f4a);
+  background: linear-gradient(135deg, var(--red), var(--amber));
   color: white;
   display: flex;
   align-items: center;
@@ -183,7 +183,7 @@
 }
 
 .fav-card-avatar--link {
-  background: linear-gradient(135deg, #c96f5f, #cc8f4a);
+  background: linear-gradient(135deg, var(--red), var(--amber));
 }
 
 .fav-card-avatar--img {
@@ -207,17 +207,17 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   text-decoration: none;
 }
 
 .fav-card-ticker:hover {
-  color: #c96f5f;
+  color: var(--red);
 }
 
 .fav-card-name {
   font-size: 0.75rem;
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -226,7 +226,7 @@
 
 .fav-card-sector {
   font-size: 0.65rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
 }
 
 .fav-card-heart {
@@ -235,7 +235,7 @@
   border-radius: 50%;
   border: none;
   background: none;
-  color: #c96f5f;
+  color: var(--red);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -244,13 +244,13 @@
 }
 
 .fav-card-heart:hover {
-  background: rgba(201, 111, 95, 0.14);
+  background: var(--red-pale);
   transform: scale(1.1);
 }
 
 .fav-card-divider {
   height: 1px;
-  background: var(--border-light, #262a34);
+  background: var(--border-light, var(--border-default));
   margin: 0.85rem 0;
 }
 
@@ -269,7 +269,7 @@
 
 .fav-metric-label {
   font-size: 0.65rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -278,7 +278,7 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
 }
 
 .fav-card-verdict {
@@ -311,9 +311,9 @@
 .fav-extra-pill {
   font-size: 0.65rem;
   padding: 0.15rem 0.45rem;
-  background: var(--surface-2, #1b1e25);
+  background: var(--surface-2, var(--surface-2));
   border-radius: 9999px;
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   font-weight: 500;
 }
 
@@ -329,10 +329,10 @@
   justify-content: center;
   gap: 0.35rem;
   padding: 0.5rem;
-  border: 1px solid var(--border-light, #262a34);
+  border: 1px solid var(--border-light, var(--border-default));
   border-radius: 8px;
   background: var(--surface-1);
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
@@ -340,9 +340,9 @@
 }
 
 .fav-action-btn:hover {
-  border-color: #c96f5f;
-  color: #c96f5f;
-  background: rgba(201, 111, 95, 0.14);
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-pale);
 }
 
 /* Favorite card alarm status */
@@ -351,27 +351,27 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.65rem;
-  background: var(--surface-2, #1b1e25);
+  background: var(--surface-2, var(--surface-2));
   border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   margin-bottom: 0.6rem;
 }
 
 .fav-alarm-status--triggered {
-  background: rgba(79, 143, 181, 0.14);
-  color: #4f8fb5;
+  background: var(--blue-pale);
+  color: var(--blue-light);
 }
 
 /* Card border states */
 .fav-card--triggered {
-  border-color: #4f8fb5;
-  background: linear-gradient(135deg, #1b1e25 0%, rgba(79, 143, 181, 0.14) 100%);
+  border-color: var(--blue-light);
+  background: linear-gradient(135deg, var(--surface-2) 0%, var(--blue-pale) 100%);
 }
 
 .fav-card--pending {
-  border-color: #262a34;
+  border-color: var(--border-default);
 }
 
 /* Alarms list */
@@ -383,19 +383,19 @@
 
 .alarm-card {
   background: var(--surface-1);
-  border: 2px solid var(--border-light, #262a34);
+  border: 2px solid var(--border-light, var(--border-default));
   border-radius: 12px;
   padding: 1.25rem;
   transition: border-color 0.3s;
 }
 
 .alarm-card--triggered {
-  border-color: #4f8fb5;
-  background: linear-gradient(135deg, #1b1e25 0%, rgba(79, 143, 181, 0.14) 100%);
+  border-color: var(--blue-light);
+  background: linear-gradient(135deg, var(--surface-2) 0%, var(--blue-pale) 100%);
 }
 
 .alarm-card--pending {
-  border-color: #262a34;
+  border-color: var(--border-default);
 }
 
 .alarm-card-header {
@@ -409,17 +409,17 @@
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   text-decoration: none;
 }
 
 .alarm-card-ticker:hover {
-  color: #c96f5f;
+  color: var(--red);
 }
 
 .alarm-card-name {
   font-size: 0.8rem;
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   flex: 1;
 }
 
@@ -433,9 +433,9 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  border: 1px solid var(--border-light, #262a34);
+  border: 1px solid var(--border-light, var(--border-default));
   background: var(--surface-1);
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -444,15 +444,15 @@
 }
 
 .alarm-edit-btn:hover {
-  border-color: #e3c06f;
-  color: #e3c06f;
-  background: rgba(212, 168, 77, 0.14);
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+  background: var(--gold-tint);
 }
 
 .alarm-delete-btn:hover {
-  border-color: #c96f5f;
-  color: #c96f5f;
-  background: rgba(201, 111, 95, 0.14);
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-pale);
 }
 
 .alarm-card-body {
@@ -468,21 +468,21 @@
 }
 
 .alarm-field-icon {
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   flex-shrink: 0;
 }
 
 .alarm-field-icon--target {
-  color: #4f8fb5;
+  color: var(--blue-light);
 }
 
 .alarm-field-icon--stop {
-  color: #c96f5f;
+  color: var(--red);
 }
 
 .alarm-field-label {
   font-size: 0.75rem;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   width: 100px;
   flex-shrink: 0;
 }
@@ -490,25 +490,25 @@
 .alarm-field-value {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
 }
 
 .alarm-field-value--target {
-  color: #4f8fb5;
+  color: var(--blue-light);
 }
 
 .alarm-field-value--stop {
-  color: #c96f5f;
+  color: var(--red);
 }
 
 .alarm-field-value--notes {
   font-weight: 400;
   font-size: 0.8rem;
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
 }
 
 .alarm-field-value--triggered {
-  color: #4f8fb5;
+  color: var(--blue-light);
 }
 
 /* Alarm modal */
@@ -537,14 +537,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border-light, #262a34);
+  border-bottom: 1px solid var(--border-light, var(--border-default));
 }
 
 .alarm-modal-header h3 {
   font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   margin: 0;
 }
 
@@ -554,7 +554,7 @@
   border-radius: 8px;
   border: none;
   background: none;
-  color: var(--text-tertiary, #7a766d);
+  color: var(--text-tertiary, var(--text-tertiary));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -562,7 +562,7 @@
 }
 
 .alarm-modal-close:hover {
-  background: var(--surface-2, #1b1e25);
+  background: var(--surface-2, var(--surface-2));
 }
 
 .alarm-modal-body {
@@ -581,7 +581,7 @@
 .alarm-form-group label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -591,10 +591,10 @@
 .alarm-form-group select,
 .alarm-form-group textarea {
   padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border-light, #262a34);
+  border: 1px solid var(--border-light, var(--border-default));
   border-radius: 8px;
   font-size: 0.85rem;
-  color: var(--text-primary, #f2efe9);
+  color: var(--text-primary, var(--text-primary));
   background: var(--surface-1);
   transition: border-color 0.2s;
   font-family: inherit;
@@ -604,8 +604,8 @@
 .alarm-form-group select:focus,
 .alarm-form-group textarea:focus {
   outline: none;
-  border-color: #c96f5f;
-  box-shadow: 0 0 0 3px rgba(201, 111, 95, 0.1);
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-soft);
 }
 
 .alarm-form-group textarea {
@@ -623,29 +623,29 @@
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border-light, #262a34);
+  border-top: 1px solid var(--border-light, var(--border-default));
 }
 
 .alarm-cancel-btn {
   padding: 0.55rem 1rem;
-  border: 1px solid var(--border-light, #262a34);
+  border: 1px solid var(--border-light, var(--border-default));
   border-radius: 8px;
   background: var(--surface-1);
-  color: var(--text-secondary, #aba59a);
+  color: var(--text-secondary, var(--text-secondary));
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .alarm-cancel-btn:hover {
-  background: var(--surface-2, #1b1e25);
+  background: var(--surface-2, var(--surface-2));
 }
 
 .alarm-save-btn {
   padding: 0.55rem 1.25rem;
   border: none;
   border-radius: 8px;
-  background: #c96f5f;
+  background: var(--red);
   color: white;
   font-size: 0.8rem;
   font-weight: 600;
@@ -654,7 +654,7 @@
 }
 
 .alarm-save-btn:hover {
-  background: #c96f5f;
+  background: var(--red);
 }
 
 .alarm-save-btn:disabled {

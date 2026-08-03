@@ -31,12 +31,12 @@ function formatVal(v: number): string {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  operating_cf: '#2563eb',
-  capex: '#ef4444',
-  fcf: '#4f8fb5',
-  dividends: '#f59e0b',
-  buybacks: '#a855f7',
-  retained: '#06b6d4',
+  operating_cf: 'var(--info)',
+  capex: 'var(--red)',
+  fcf: 'var(--blue-light)',
+  dividends: 'var(--amber)',
+  buybacks: 'var(--purple-light)',
+  retained: 'var(--cyan-bright)',
 };
 
 function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: SankeyLink[] }) {
@@ -123,7 +123,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
       rendered.push({
         key: `${link.source}-${link.target}`,
         d: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
-        color: NODE_COLORS[link.source] || '#94a3b8',
+        color: NODE_COLORS[link.source] || 'var(--text-tertiary)',
         sw: Math.max(2, slh),
       });
     }
@@ -200,7 +200,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
                 y={pos.y}
                 width={nodeWidth}
                 height={pos.h}
-                fill={NODE_COLORS[id] || '#94a3b8'}
+                fill={NODE_COLORS[id] || 'var(--text-tertiary)'}
                 rx={isMobile ? 3 : 4}
                 style={{ transition: 'opacity 0.2s ease', cursor: 'pointer' }}
                 onMouseEnter={(e) => {
@@ -214,7 +214,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
                 y={pos.y + pos.h / 2 - (isMobile ? 4 : 5)}
                 textAnchor={labelAnchor}
                 dominantBaseline="middle"
-                fill="#334155"
+                fill="var(--text-secondary)"
                 fontSize={isLeft || isRight ? lFontSize : isMobile ? 10 : 12}
                 fontWeight={isLeft || isRight ? 500 : 700}
               >
@@ -225,7 +225,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
                 y={pos.y + pos.h / 2 + (isMobile ? 7 : 8)}
                 textAnchor={labelAnchor}
                 dominantBaseline="middle"
-                fill="#64748b"
+                fill="var(--text-tertiary)"
                 fontSize={vFontSize}
               >
                 {formatVal(node.value)}

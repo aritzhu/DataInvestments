@@ -10,10 +10,10 @@ interface Props {
 }
 
 const CONFIDENCE_COLORS: Record<string, string> = {
-  high: '#4f8fb5',
-  medium: '#f59e0b',
-  low: '#ef4444',
-  na: '#94a3b8',
+  high: 'var(--blue-light)',
+  medium: 'var(--amber)',
+  low: 'var(--red)',
+  na: 'var(--text-tertiary)',
 };
 
 const CONFIDENCE_LABELS: Record<string, string> = {
@@ -46,7 +46,7 @@ export function ValuationChart({ results, currentPrice, activeId, onSelect, curr
         const widthPct = maxVal > 0 ? (r.fairValue / maxVal) * 100 : 0;
         const isActive = activeId === r.id;
         const isAbove = r.fairValue > currentPrice;
-        const barColor = isAbove ? '#4f8fb5' : '#dc2626';
+        const barColor = isAbove ? 'var(--blue-light)' : 'var(--red)';
 
         return (
           <button key={r.id} className={`vc-row ${isActive ? 'vc-row--active' : ''}`} onClick={() => onSelect(r.id)}>

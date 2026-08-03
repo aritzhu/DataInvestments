@@ -266,9 +266,9 @@ export function DataStatsSection() {
   if (error) {
     return (
       <div className="admin-form-section">
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#dc2626' }}>
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--red)' }}>
           <p style={{ fontWeight: 600 }}>Error cargando estadísticas</p>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.5rem' }}>{error}</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.5rem' }}>{error}</p>
           <button onClick={fetchStats} className="admin-form-btn" style={{ marginTop: '1rem' }}>Reintentar</button>
         </div>
       </div>
@@ -284,18 +284,18 @@ export function DataStatsSection() {
   );
 
   return (
-    <div className="admin-form-section" style={{ border: '2px solid #dbeafe', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f1ff 100%)' }}>
+    <div className="admin-form-section" style={{ border: '2px solid var(--blue-line)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--blue-pale) 0%, var(--blue-pale) 100%)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+          <div style={{ width: '2.5rem', height: '2.5rem', background: 'linear-gradient(135deg, var(--info) 0%, var(--info-light) 100%)', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
             <BarChart3 size={18} />
           </div>
           <div>
             <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Estadísticas de Importación</h2>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Cobertura de campos, origen de datos y disponibilidad de herramientas</p>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>Cobertura de campos, origen de datos y disponibilidad de herramientas</p>
           </div>
         </div>
-        <button onClick={fetchStats} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '0.25rem' }} title="Actualizar">
+        <button onClick={fetchStats} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.25rem' }} title="Actualizar">
           <BarChart3 size={18} />
         </button>
       </div>
@@ -385,28 +385,28 @@ export function DataStatsSection() {
           <div className="stats-coverage-section">
             <div className="stats-coverage-title">Cobertura de Campos</div>
 
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#2563eb', marginBottom: '0.5rem' }}>Financial Data</h3>
+            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--info)', marginBottom: '0.5rem' }}>Financial Data</h3>
             <div className="stats-coverage-grid" style={{ marginBottom: '1rem' }}>
               {Object.entries(stats.fieldCoverage.financialData).map(([key, val]) => (
                 <CoverageBar key={key} fieldName={key} field={val} />
               ))}
             </div>
 
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4f8fb5', marginBottom: '0.5rem' }}>Balance Sheet</h3>
+            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--blue-light)', marginBottom: '0.5rem' }}>Balance Sheet</h3>
             <div className="stats-coverage-grid" style={{ marginBottom: '1rem' }}>
               {Object.entries(stats.fieldCoverage.balanceSheet).map(([key, val]) => (
                 <CoverageBar key={key} fieldName={key} field={val} />
               ))}
             </div>
 
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#7c3aed', marginBottom: '0.5rem' }}>Stock Metrics</h3>
+            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--purple)', marginBottom: '0.5rem' }}>Stock Metrics</h3>
             <div className="stats-coverage-grid" style={{ marginBottom: '1rem' }}>
               {Object.entries(stats.fieldCoverage.stockMetric).map(([key, val]) => (
                 <CoverageBar key={key} fieldName={key} field={val} />
               ))}
             </div>
 
-            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#d97706', marginBottom: '0.5rem' }}>Company Profile</h3>
+            <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--amber)', marginBottom: '0.5rem' }}>Company Profile</h3>
             <div className="stats-coverage-grid">
               {Object.entries(stats.fieldCoverage.company).map(([key, val]) => (
                 <CoverageBar key={key} fieldName={key} field={val} />
@@ -451,9 +451,9 @@ export function DataStatsSection() {
               ))}
           </div>
 
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem' }}>Recomendaciones</h3>
-            <ul style={{ fontSize: '0.8rem', color: '#475569', lineHeight: 1.8, listStyle: 'disc', paddingLeft: '1.5rem' }}>
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-1)', borderRadius: '0.75rem', border: '1px solid var(--border-default)' }}>
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>Recomendaciones</h3>
+            <ul style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.8, listStyle: 'disc', paddingLeft: '1.5rem' }}>
               {Object.entries(stats.toolAvailability)
                 .filter(([, d]) => d.pct < 50 && d.available > 0)
                 .map(([name]) => (
@@ -464,7 +464,7 @@ export function DataStatsSection() {
                   </li>
                 ))}
               {Object.entries(stats.toolAvailability).filter(([, d]) => d.pct === 0).length > 0 && (
-                <li style={{ color: '#dc2626' }}>
+                <li style={{ color: 'var(--red)' }}>
                   <strong>Sin datos para:</strong>{' '}
                   {Object.entries(stats.toolAvailability)
                     .filter(([, d]) => d.pct === 0)
