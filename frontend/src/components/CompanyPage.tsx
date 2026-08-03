@@ -171,6 +171,7 @@ export function CompanyPage() {
   const [activeTab, setActiveTab] = useState<TabId>((searchParams.get('tab') as TabId) || 'dashboard');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
@@ -215,6 +216,18 @@ export function CompanyPage() {
       headerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [loading, data]);
+
+  useEffect(() => {
+    if (loading || !data || !tabsRef.current) return;
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    const container = tabsRef.current;
+    const activeEl = container.querySelector<HTMLButtonElement>('.cp-tab--active');
+    if (!activeEl) return;
+    const containerRect = container.getBoundingClientRect();
+    const activeRect = activeEl.getBoundingClientRect();
+    const targetLeft = container.scrollLeft + (activeRect.left - containerRect.left) - (containerRect.width / 2 - activeRect.width / 2);
+    container.scrollTo({ left: targetLeft, behavior: 'smooth' });
+  }, [loading, data, activeTab]);
 
   useEffect(() => {
     if (user) {
@@ -604,7 +617,7 @@ export function CompanyPage() {
       )}
 
       {/* Tab Bar */}
-      <div className="cp-tabs">
+      <div className="cp-tabs" ref={tabsRef}>
         {TABS.map((tab) => (
           <button
             key={tab.id}

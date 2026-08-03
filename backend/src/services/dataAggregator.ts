@@ -68,7 +68,7 @@ import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
-import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
+import { computeAll, weightedAverage, getSectorConfigs } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
 
 function safeInt(val: unknown): number | null {
@@ -982,7 +982,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         if (allFinancials.length > 0) {
           const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
           const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs);
-          const { fairValue } = getRecommendedFairValue(results, companyForVal.sector, companyForVal.industry);
+          const fairValue = weightedAverage(results);
           if (fairValue != null && fairValue > 0) {
             const marginOfSafety = stockForValuation.currentPrice > 0
               ? (fairValue - stockForValuation.currentPrice) / stockForValuation.currentPrice

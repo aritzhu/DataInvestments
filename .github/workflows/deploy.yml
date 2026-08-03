@@ -87,6 +87,10 @@ jobs:
             echo "Running metadata backfill..."
             $DC run --rm backend node dist/scripts/backfillCompanyMeta.js
 
+            # Recompute stored valuations with the current engine (fixes outliers, overwrites seed defaults)
+            echo "Recomputing valuations..."
+            $DC run --rm backend node dist/scripts/recomputeValuations.js
+
             # Reload gateway nginx so it picks up any changes
             echo "Reloading gateway nginx..."
             docker exec deploy-gateway nginx -s reload || true

@@ -17,8 +17,106 @@ interface ValuationInput {
   stock: Stock;
 }
 
-function latest<T extends { year: number }>(arr: T[]): T | undefined {
-  return [...arr].sort((a, b) => b.year - a.year)[0];
+function latest<T extends { year: number; quarter?: number | null }>(arr: T[]): T | undefined {
+  return [...arr].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  })[0];
+}
+
+interface TTMData {
+  revenue: number;
+  netIncome: number;
+  ebitda: number | null;
+  ebit: number | null;
+  operatingCashFlow: number | null;
+  freeCashFlow: number | null;
+  capex: number;
+  depreciation: number;
+  sgaExpense: number;
+  interestExpense: number;
+  taxExpense: number;
+  costOfRevenue: number;
+  grossProfit: number;
+  operatingExpenses: number;
+  rdExpense: number;
+  dividendsPaid: number | null;
+  shareRepurchases: number | null;
+  balanceSheet: Balance | undefined;
+  isTTM: boolean;
+}
+
+function sumField<T>(items: T[], field: keyof T): number {
+  return items.reduce((acc, item) => acc + ((item[field] as number) ?? 0), 0);
+}
+
+function sumFieldNull<T>(items: T[], field: keyof T): number | null {
+  const total = items.reduce((acc, item) => acc + ((item[field] as number) ?? 0), 0);
+  return items.some((item) => item[field] != null) ? total : null;
+}
+
+function trailing12Months(financials: Financial[], balanceSheets: Balance[]): TTMData | null {
+  const quarterly = financials.filter((f) => f.quarter != null && f.quarter > 0);
+
+  // Fallback to annual if no quarterly data
+  if (quarterly.length < 4) {
+    const f = latest(financials);
+    const bs = latest(balanceSheets);
+    if (!f) return null;
+    return {
+      revenue: f.revenue,
+      netIncome: f.netIncome,
+      ebitda: f.ebitda,
+      ebit: f.ebit,
+      operatingCashFlow: f.operatingCashFlow,
+      freeCashFlow: f.freeCashFlow,
+      capex: f.capex,
+      depreciation: f.depreciation,
+      sgaExpense: f.sgaExpense,
+      interestExpense: f.interestExpense,
+      taxExpense: f.taxExpense,
+      costOfRevenue: f.costOfRevenue,
+      grossProfit: f.grossProfit ?? 0,
+      operatingExpenses: f.operatingExpenses,
+      rdExpense: f.rdExpense,
+      dividendsPaid: f.dividendsPaid,
+      shareRepurchases: f.shareRepurchases,
+      balanceSheet: bs,
+      isTTM: false,
+    };
+  }
+
+  // Sort quarterly by year desc, quarter desc and take top 4
+  const sorted = [...quarterly].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  });
+  const last4 = sorted.slice(0, 4);
+
+  // Use latest balance sheet (point-in-time snapshot)
+  const bs = latest(balanceSheets);
+
+  return {
+    revenue: sumField(last4, 'revenue'),
+    netIncome: sumField(last4, 'netIncome'),
+    ebitda: sumFieldNull(last4, 'ebitda'),
+    ebit: sumFieldNull(last4, 'ebit'),
+    operatingCashFlow: sumFieldNull(last4, 'operatingCashFlow'),
+    freeCashFlow: sumFieldNull(last4, 'freeCashFlow'),
+    capex: sumField(last4, 'capex'),
+    depreciation: sumField(last4, 'depreciation'),
+    sgaExpense: sumField(last4, 'sgaExpense'),
+    interestExpense: sumField(last4, 'interestExpense'),
+    taxExpense: sumField(last4, 'taxExpense'),
+    costOfRevenue: sumField(last4, 'costOfRevenue'),
+    grossProfit: sumField(last4, 'grossProfit'),
+    operatingExpenses: sumField(last4, 'operatingExpenses'),
+    rdExpense: sumField(last4, 'rdExpense'),
+    dividendsPaid: sumFieldNull(last4, 'dividendsPaid'),
+    shareRepurchases: sumFieldNull(last4, 'shareRepurchases'),
+    balanceSheet: bs,
+    isTTM: true,
+  };
 }
 
 function netDebt(bs: Balance | undefined): number {
@@ -35,7 +133,17 @@ function consistency(arr: number[]): number {
 }
 
 function sharesOf(stock: Stock): number {
-  return stock.sharesOutstanding ?? 0;
+  const shares = stock.sharesOutstanding ?? 0;
+  const price = stock.currentPrice ?? 0;
+  const mcap = stock.marketCap ?? 0;
+  if (shares > 0 && price > 0 && mcap > 0) {
+    const impliedShares = mcap / price;
+    const divergence = Math.abs(impliedShares - shares) / shares;
+    if (divergence > 0.25) {
+      return impliedShares;
+    }
+  }
+  return shares;
 }
 
 const SANITY_MULTIPLE = 10;
@@ -52,8 +160,21 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
   const shares = sharesOf(input.stock);
   if (!f || shares <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
-  const fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : 0)).filter((v) => v !== 0);
-  const fcf = fcfValues.length > 0 ? fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length : 0;
+  const quarterly = input.financials.some((x) => x.quarter != null && x.quarter > 0);
+  let fcf: number;
+  let fcfValues: number[] = [];
+  if (quarterly) {
+    const ttm = trailing12Months(input.financials, input.balanceSheets);
+    const ttmFCF = ttm?.freeCashFlow ?? ttm?.operatingCashFlow;
+    if (ttmFCF == null || ttmFCF === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
+    fcf = ttmFCF;
+  } else {
+    fcfValues = input.financials
+      .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null))
+      .filter((v): v is number => v != null && v !== 0);
+    if (fcfValues.length === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
+    fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
+  }
   if (fcf <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
   const g = config.growthRate / 100;
@@ -68,15 +189,15 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
   const terminalPV = terminalValue / Math.pow(1 + r, config.horizonYears);
   const fairValue = (totalPV + terminalPV) / shares;
 
-  const conf = fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low';
+  const conf = quarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
   return { id: 'dcf', name: 'DCF', fairValue, confidence: conf };
 }
 
 function computePER(input: ValuationInput, config: { targetPE: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const shares = sharesOf(input.stock);
-  if (!f || shares <= 0 || f.netIncome <= 0) return { id: 'per', name: 'PER', fairValue: null, confidence: 'na' };
-  const eps = f.netIncome / shares;
+  if (!ttm || shares <= 0 || ttm.netIncome <= 0) return { id: 'per', name: 'PER', fairValue: null, confidence: 'na' };
+  const eps = ttm.netIncome / shares;
   const fairValue = eps * config.targetPE;
   const currentPE = input.stock.peRatio ?? 0;
   const conf = currentPE > 0 && currentPE < 50 ? 'high' : currentPE > 0 ? 'medium' : 'low';
@@ -96,10 +217,10 @@ function computePB(input: ValuationInput, config: { targetPB: number }): Valuati
 }
 
 function computePS(input: ValuationInput, config: { targetPS: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const shares = sharesOf(input.stock);
-  if (!f || shares <= 0 || f.revenue <= 0) return { id: 'ps', name: 'P/S', fairValue: null, confidence: 'na' };
-  const sps = f.revenue / shares;
+  if (!ttm || shares <= 0 || ttm.revenue <= 0) return { id: 'ps', name: 'P/S', fairValue: null, confidence: 'na' };
+  const sps = ttm.revenue / shares;
   const fairValue = sps * config.targetPS;
   const currentPS = input.stock.psRatio ?? 0;
   const conf = currentPS > 0 && currentPS < 20 ? 'high' : currentPS > 0 ? 'medium' : 'low';
@@ -107,24 +228,24 @@ function computePS(input: ValuationInput, config: { targetPS: number }): Valuati
 }
 
 function computeEVEBITDA(input: ValuationInput, config: { targetMultiple: number }): ValuationResult {
-  const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const shares = sharesOf(input.stock);
-  if (!f || shares <= 0 || !f.ebitda || f.ebitda <= 0) return { id: 'ev_ebitda', name: 'EV/EBITDA', fairValue: null, confidence: 'na' };
-  const ev = f.ebitda * config.targetMultiple;
+  if (!ttm || shares <= 0 || !ttm.ebitda || ttm.ebitda <= 0) return { id: 'ev_ebitda', name: 'EV/EBITDA', fairValue: null, confidence: 'na' };
+  const ev = ttm.ebitda * config.targetMultiple;
   const nd = netDebt(bs);
   const fairValue = (ev - nd) / shares;
-  const currentMult = input.stock.enterpriseValue && f.ebitda ? input.stock.enterpriseValue / f.ebitda : 0;
+  const currentMult = input.stock.enterpriseValue && ttm.ebitda ? input.stock.enterpriseValue / ttm.ebitda : 0;
   const conf = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
   return { id: 'ev_ebitda', name: 'EV/EBITDA', fairValue, confidence: conf };
 }
 
 function computeEVEBIT(input: ValuationInput, config: { targetMultiple: number }): ValuationResult {
-  const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const shares = sharesOf(input.stock);
-  const ebit = f?.ebit ?? (f ? (f.grossProfit ?? (f.revenue - f.costOfRevenue)) - f.operatingExpenses : null);
-  if (!f || shares <= 0 || !ebit || ebit <= 0) return { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na' };
+  const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - ttm.operatingExpenses) : null) ?? latest(input.financials)?.ebit ?? null;
+  if (!ttm || shares <= 0 || ebit == null || ebit === 0) return { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na' };
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
   const fairValue = (evEbit - ndEbit) / shares;
@@ -134,9 +255,11 @@ function computeEVEBIT(input: ValuationInput, config: { targetMultiple: number }
 }
 
 function computeDDM(input: ValuationInput, config: { growthRate: number; requiredReturn: number }): ValuationResult {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const f = latest(input.financials);
   const shares = sharesOf(input.stock);
-  const divPerShare = f && shares > 0 && f.dividendsPaid ? Math.abs(f.dividendsPaid) / shares : 0;
+  const divPaid = ttm?.dividendsPaid ?? f?.dividendsPaid ?? null;
+  const divPerShare = ttm && shares > 0 && divPaid ? Math.abs(divPaid) / shares : 0;
   if (shares <= 0 || divPerShare <= 0) return { id: 'ddm', name: 'DDM', fairValue: null, confidence: 'na' };
   const d1 = divPerShare * (1 + config.growthRate / 100);
   const r = config.requiredReturn / 100;
@@ -148,12 +271,13 @@ function computeDDM(input: ValuationInput, config: { growthRate: number; require
 }
 
 function computeGrahamNumber(input: ValuationInput): ValuationResult {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const f = latest(input.financials);
-  const bs = latest(input.balanceSheets);
+  const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const shares = sharesOf(input.stock);
-  if (!f || shares <= 0) return { id: 'graham', name: 'Graham', fairValue: null, confidence: 'na' };
-  const eps = f.netIncome / shares;
-  const equity = bs?.totalStockholdersEquity ?? f.totalEquity;
+  if (!ttm || shares <= 0) return { id: 'graham', name: 'Graham', fairValue: null, confidence: 'na' };
+  const eps = ttm.netIncome / shares;
+  const equity = bs?.totalStockholdersEquity ?? f?.totalEquity;
   const bvps = equity ? equity / shares : 0;
   if (eps <= 0 || bvps <= 0) return { id: 'graham', name: 'Graham', fairValue: null, confidence: 'na' };
   const fairValue = Math.sqrt(22.5 * eps * bvps);
@@ -161,10 +285,11 @@ function computeGrahamNumber(input: ValuationInput): ValuationResult {
 }
 
 function computeFCFYield(input: ValuationInput, config: { targetYield: number }): ValuationResult {
-  const f = latest(input.financials);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
   const shares = sharesOf(input.stock);
-  if (!f || shares <= 0) return { id: 'fcf_yield', name: 'FCF Yield', fairValue: null, confidence: 'na' };
-  const fcf = f.freeCashFlow ?? (f.operatingCashFlow != null ? f.operatingCashFlow - f.capex : 0);
+  if (!ttm || shares <= 0) return { id: 'fcf_yield', name: 'FCF Yield', fairValue: null, confidence: 'na' };
+  const fcf = ttm.freeCashFlow ?? (ttm.operatingCashFlow != null ? ttm.operatingCashFlow - ttm.capex : null);
+  if (fcf == null) return { id: 'fcf_yield', name: 'FCF Yield', fairValue: null, confidence: 'na' };
   const fcfPerShare = fcf / shares;
   const fairValue = config.targetYield > 0 ? fcfPerShare / (config.targetYield / 100) : null;
   const currentYield = input.stock.currentPrice > 0 ? fcfPerShare / input.stock.currentPrice : 0;
