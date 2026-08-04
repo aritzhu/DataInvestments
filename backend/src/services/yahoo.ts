@@ -10,7 +10,24 @@ export interface YahooQuote {
   exchange: string;
 }
 
-export async function fetchYahooQuote(ticker: string): Promise<YahooQuote | null> {
+interface YahooChartMeta {
+  symbol?: string;
+  longName?: string;
+  shortName?: string;
+  regularMarketPrice?: number;
+  regularMarketTime?: number;
+  marketCap?: number;
+  sharesOutstanding?: number;
+  currency?: string;
+  exchangeName?: string;
+  instrumentType?: string;
+  chartPreviousClose?: number;
+  currentTradingPeriod?: {
+    regular?: { start?: number; end?: number };
+  };
+}
+
+async function fetchYahooChartMeta(ticker: string): Promise<YahooChartMeta | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
     const response = await axios.get(url, {
@@ -24,11 +41,19 @@ export async function fetchYahooQuote(ticker: string): Promise<YahooQuote | null
       timeout: 15000,
     });
 
-    const data = response.data;
-    const result = data?.chart?.result?.[0];
+    const result = response.data?.chart?.result?.[0];
     if (!result) return null;
+    return result.meta ?? null;
+  } catch {
+    return null;
+  }
+}
 
-    const meta = result.meta;
+export async function fetchYahooQuote(ticker: string): Promise<YahooQuote | null> {
+  try {
+    const meta = await fetchYahooChartMeta(ticker);
+    if (!meta) return null;
+
     const quote: YahooQuote = {
       symbol: meta.symbol || ticker.toUpperCase(),
       name: meta.longName || meta.shortName || ticker.toUpperCase(),
@@ -130,4 +155,67 @@ export async function fetchYahooProfile(ticker: string): Promise<YahooProfile | 
   } catch {
     return null;
   }
+}
+
+export type MarketInstrumentType = 'index' | 'currency' | 'commodity';
+
+export interface MarketTapeItem {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  currency: string;
+  type: MarketInstrumentType;
+  marketState: 'OPEN' | 'CLOSED';
+  lastUpdated: number;
+}
+
+function mapInstrumentType(instrumentType?: string): MarketInstrumentType {
+  if (instrumentType === 'CURRENCY') return 'currency';
+  if (instrumentType === 'INDEX') return 'index';
+  return 'commodity';
+}
+
+export async function fetchMarketTape(symbols: string[]): Promise<MarketTapeItem[]> {
+  const results = await Promise.all(
+    symbols.map(async (ticker) => {
+      try {
+        const meta = await fetchYahooChartMeta(ticker);
+        if (!meta) return null;
+
+        const price = meta.regularMarketPrice;
+        if (!price || price <= 0) return null;
+
+        const previousClose = meta.chartPreviousClose;
+        const change = previousClose ? price - previousClose : 0;
+        const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+
+        const regular = meta.currentTradingPeriod?.regular;
+        const regularTime = meta.regularMarketTime ?? 0;
+        const isOpen =
+          !!regular &&
+          regular.start != null &&
+          regular.end != null &&
+          regularTime >= regular.start &&
+          regularTime <= regular.end;
+
+        return {
+          symbol: meta.symbol || ticker.toUpperCase(),
+          name: meta.longName || meta.shortName || ticker.toUpperCase(),
+          price,
+          change,
+          changePercent,
+          currency: meta.currency || 'USD',
+          type: mapInstrumentType(meta.instrumentType),
+          marketState: isOpen ? 'OPEN' : 'CLOSED',
+          lastUpdated: regularTime * 1000,
+        } satisfies MarketTapeItem;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  return results.filter((r): r is MarketTapeItem => r !== null);
 }

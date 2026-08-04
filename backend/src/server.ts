@@ -16,7 +16,7 @@ import alarmsRoutes, { checkAllAlarms } from './routes/alarms';
 import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
-import { fetchYahooQuote } from './services/yahoo';
+import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getRecommendedModel } from './services/valuationService';
 import { refreshAllQuotes } from './services/refreshQuotes';
 import { requireAuth, requireAdmin, type AuthRequest } from './middleware/jwt';
@@ -241,6 +241,32 @@ app.get('/api/quote/:ticker', async (req, res) => {
     res.json(quote);
   } catch {
     res.status(500).json({ error: 'Error fetching quote' });
+  }
+});
+
+// ── Market tape (live indices + forex + gold) ────────────────────────────
+
+const TAPE_SYMBOLS = [
+  '^GSPC', '^IXIC', '^DJI',
+  '^IBEX', '^GDAXI', '^FCHI', '^FTSE',
+  'EURUSD=X', 'GBPUSD=X', 'EURGBP=X', 'USDJPY=X',
+  'GC=F',
+];
+
+let tapeCache: { at: number; data: MarketTapeItem[] } | null = null;
+const TAPE_TTL_MS = 60_000;
+
+app.get('/api/market/tape', async (_req, res) => {
+  try {
+    if (tapeCache && Date.now() - tapeCache.at < TAPE_TTL_MS) {
+      res.json(tapeCache.data);
+      return;
+    }
+    const data = await fetchMarketTape(TAPE_SYMBOLS);
+    tapeCache = { at: Date.now(), data };
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: 'Error fetching market tape' });
   }
 });
 

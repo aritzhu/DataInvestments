@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
+import { MarketTicker } from './hero/MarketTicker';
+import { MarketClocks } from './hero/MarketClocks';
+import { ScrollIndicator } from './hero/ScrollIndicator';
 import { useAuth } from '../contexts/AuthContext';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
 import '../styles/landing.css';
@@ -169,34 +172,39 @@ export function Landing() {
     <div className="landing-root">
       {/* Hero */}
       <section className={`hero${heroSettings.hero_bg_url ? ' hero--has-bg' : ''}`} style={heroSettings.hero_bg_url ? { backgroundImage: `url(${heroSettings.hero_bg_url})` } : undefined}>
+        <MarketTicker />
         <div className="hero-pattern" />
         <div className="hero-content">
-          <div className="hero-badge">
-            <BarChart3 size={16} />
-            {heroSettings.hero_badge || 'Análisis de Valor Intrínseco'}
+          <div className="hero-main">
+            <div className="hero-badge">
+              <BarChart3 size={16} />
+              {heroSettings.hero_badge || 'Análisis de Valor Intrínseco'}
+            </div>
+            <h1 className="hero-title">
+              {(heroSettings.hero_title || 'Entiende el valor real de las empresas')
+                .split(/( valor real)/i)
+                .map((part, i) =>
+                  part.toLowerCase() === ' valor real'
+                    ? <span key={i} className="hero-title-gradient">{part}</span>
+                    : <span key={i}>{i > 0 ? ' ' : ''}{part.trim()}</span>
+                )}
+            </h1>
+            <p className="hero-subtitle">
+              {heroSettings.hero_subtitle || 'Visualiza flujos de caja, gastos, reinversión y valoración con gráficos interactivos que hacen simple lo complejo.'}
+            </p>
+            <div className="hero-actions">
+              <a href={heroSettings.hero_cta_primary_link || '#companies'} className="hero-btn-primary">
+                {heroSettings.hero_cta_primary || 'Explorar Empresas'}
+                <ArrowRight size={20} />
+              </a>
+              <a href={heroSettings.hero_cta_secondary_link || '#features'} className="hero-btn-secondary">
+                {heroSettings.hero_cta_secondary || 'Saber más'}
+              </a>
+            </div>
           </div>
-          <h1 className="hero-title">
-            {(heroSettings.hero_title || 'Entiende el valor real de las empresas')
-              .split(/( valor real)/i)
-              .map((part, i) =>
-                part.toLowerCase() === ' valor real'
-                  ? <span key={i} className="hero-title-gradient">{part}</span>
-                  : <span key={i}>{i > 0 ? ' ' : ''}{part.trim()}</span>
-              )}
-          </h1>
-          <p className="hero-subtitle">
-            {heroSettings.hero_subtitle || 'Visualiza flujos de caja, gastos, reinversión y valoración con gráficos interactivos que hacen simple lo complejo.'}
-          </p>
-          <div className="hero-actions">
-            <a href={heroSettings.hero_cta_primary_link || '#companies'} className="hero-btn-primary">
-              {heroSettings.hero_cta_primary || 'Explorar Empresas'}
-              <ArrowRight size={20} />
-            </a>
-            <a href={heroSettings.hero_cta_secondary_link || '#features'} className="hero-btn-secondary">
-              {heroSettings.hero_cta_secondary || 'Saber más'}
-            </a>
-          </div>
+          <MarketClocks />
         </div>
+        <ScrollIndicator />
         <div className="hero-glow" />
       </section>
 
