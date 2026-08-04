@@ -27,6 +27,10 @@
     radial-gradient(circle at 80% 20%, var(--blue-soft));
 }
 
+.hero--has-bg .hero-subtitle {
+  color: #d3cfc3;
+}
+
 @media (min-width: 768px) {
   .hero { min-height: 100vh; }
 }
@@ -345,7 +349,7 @@
 
 .market-clocks-subtitle {
   font-size: 0.7rem;
-  color: var(--text-tertiary);
+  color: var(--text-primary);
 }
 
 .market-clocks-grid {
