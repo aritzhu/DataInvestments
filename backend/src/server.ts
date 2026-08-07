@@ -185,6 +185,7 @@ interface RecommendedValuation {
 }
 
 const MAX_VALUATION_MARGIN = Math.abs(parseFloat(process.env.VALUATION_MAX_MARGIN || '1')) || 1;
+const MAX_FINANCIAL_AGE_YEARS = Math.max(1, parseInt(process.env.VALUATION_MAX_DATA_AGE || '2', 10) || 2);
 const VALUATIONS_TTL_MS = 10 * 60 * 1000;
 let valuationsCache: { at: number; data: RecommendedValuation[] } | null = null;
 
@@ -229,9 +230,12 @@ async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
     const stock = c.stockMetrics[0];
     if (!stock || stock.currentPrice <= 0) continue;
     try {
+      const companyFinancials = financialByCompany.get(c.id) ?? [];
+      const latestYear = companyFinancials.reduce((m, f) => Math.max(m, f.year), 0);
+      if (latestYear < new Date().getFullYear() - MAX_FINANCIAL_AGE_YEARS) continue;
       const results = computeAll(
         {
-          financials: financialByCompany.get(c.id) ?? [],
+          financials: companyFinancials,
           balanceSheets: balanceByCompany.get(c.id) ?? [],
           stock,
         } as any,
