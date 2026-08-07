@@ -17,7 +17,7 @@ import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
-import { getRecommendedModel } from './services/valuationService';
+import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
 import { requireAuth, requireAdmin, type AuthRequest } from './middleware/jwt';
 
 const app = express();
@@ -170,7 +170,25 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
 
 // ── Sector companies ──────────────────────────────────────────────────────
 
-async function getRecommendedValuations() {
+interface RecommendedValuation {
+  ticker: string;
+  name: string;
+  logoUrl: string | null;
+  website: string | null;
+  sector: string | null;
+  country: string | null;
+  currency: string | null;
+  currentPrice: number;
+  intrinsicValue: number;
+  marginOfSafety: number;
+  recommendedModel: string;
+}
+
+const MAX_VALUATION_MARGIN = Math.abs(parseFloat(process.env.VALUATION_MAX_MARGIN || '1')) || 1;
+const VALUATIONS_TTL_MS = 10 * 60 * 1000;
+let valuationsCache: { at: number; data: RecommendedValuation[] } | null = null;
+
+async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
   const companies = await prisma.company.findMany({
     select: {
       id: true,
@@ -180,34 +198,90 @@ async function getRecommendedValuations() {
       website: true,
       sector: true,
       industry: true,
+      country: true,
+      currency: true,
       stockMetrics: { orderBy: { date: 'desc' }, take: 1 },
     },
   });
 
-  return companies
-    .filter(c => c.stockMetrics.length > 0)
-    .map(c => {
-      const m = c.stockMetrics[0];
-      return {
+  const ids = companies.map((c) => c.id);
+  const [financials, balanceSheets] = await Promise.all([
+    prisma.financialData.findMany({ where: { companyId: { in: ids } } }),
+    prisma.balanceSheet.findMany({ where: { companyId: { in: ids } } }),
+  ]);
+
+  const financialByCompany = new Map<string, typeof financials>();
+  for (const f of financials) {
+    const list = financialByCompany.get(f.companyId);
+    if (list) list.push(f);
+    else financialByCompany.set(f.companyId, [f]);
+  }
+
+  const balanceByCompany = new Map<string, typeof balanceSheets>();
+  for (const b of balanceSheets) {
+    const list = balanceByCompany.get(b.companyId);
+    if (list) list.push(b);
+    else balanceByCompany.set(b.companyId, [b]);
+  }
+
+  const out: RecommendedValuation[] = [];
+  for (const c of companies) {
+    const stock = c.stockMetrics[0];
+    if (!stock || stock.currentPrice <= 0) continue;
+    try {
+      const results = computeAll(
+        {
+          financials: financialByCompany.get(c.id) ?? [],
+          balanceSheets: balanceByCompany.get(c.id) ?? [],
+          stock,
+        } as any,
+        getSectorConfigs(c.sector, c.industry),
+      );
+      const recommended = results.find((r) => r.id === getRecommendedModel(c.sector, c.industry));
+      if (!recommended || recommended.fairValue == null || recommended.fairValue <= 0) continue;
+      if (recommended.confidence !== 'high' && recommended.confidence !== 'medium') continue;
+      out.push({
         ticker: c.ticker,
         name: c.name,
         logoUrl: c.logoUrl,
         website: c.website,
         sector: c.sector,
-        currentPrice: m.currentPrice,
-        intrinsicValue: m.intrinsicValue,
-        marginOfSafety: m.marginOfSafety,
-        recommendedModel: getRecommendedModel(c.sector, c.industry),
-      };
-    });
+        country: c.country,
+        currency: c.currency,
+        currentPrice: stock.currentPrice,
+        intrinsicValue: recommended.fairValue,
+        marginOfSafety: (recommended.fairValue - stock.currentPrice) / stock.currentPrice,
+        recommendedModel: recommended.id,
+      });
+    } catch (err) {
+      console.error(`[Valuations] ${c.ticker} skipped: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  return out;
+}
+
+async function getRecommendedValuations(): Promise<RecommendedValuation[]> {
+  if (valuationsCache && Date.now() - valuationsCache.at < VALUATIONS_TTL_MS) {
+    return valuationsCache.data;
+  }
+  const data = await computeRecommendedValuations();
+  valuationsCache = { at: Date.now(), data };
+  return data;
+}
+
+function parseCountry(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const c = value.trim().toUpperCase();
+  return c || undefined;
 }
 
 app.get('/api/companies/undervalued', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const country = parseCountry(req.query.country);
     const data = (await getRecommendedValuations())
-      .filter(v => v.marginOfSafety != null && v.marginOfSafety > 0)
-      .sort((a, b) => (b.marginOfSafety ?? 0) - (a.marginOfSafety ?? 0))
+      .filter(v => (!country || v.country === country) && v.marginOfSafety > 0 && v.marginOfSafety <= MAX_VALUATION_MARGIN)
+      .sort((a, b) => b.marginOfSafety - a.marginOfSafety)
       .slice(0, limit);
     res.json(data);
   } catch (error) {
@@ -218,9 +292,10 @@ app.get('/api/companies/undervalued', async (req, res) => {
 app.get('/api/companies/overvalued', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const country = parseCountry(req.query.country);
     const data = (await getRecommendedValuations())
-      .filter(v => v.marginOfSafety != null && v.marginOfSafety < 0)
-      .sort((a, b) => (a.marginOfSafety ?? 0) - (b.marginOfSafety ?? 0))
+      .filter(v => (!country || v.country === country) && v.marginOfSafety < 0 && v.marginOfSafety >= -MAX_VALUATION_MARGIN)
+      .sort((a, b) => a.marginOfSafety - b.marginOfSafety)
       .slice(0, limit);
     res.json(data);
   } catch (error) {

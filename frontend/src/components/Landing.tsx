@@ -57,6 +57,12 @@ const METHOD_NAMES: Record<string, string> = {
 
 const PAGE_SIZE = 24;
 
+function currencySymbol(currency: string | null | undefined): string {
+  if (currency === 'EUR') return '€';
+  if (currency === 'GBP') return '£';
+  return '$';
+}
+
 function getPageNumbers(current: number, total: number): (number | '...')[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | '...')[] = [1];
@@ -87,6 +93,7 @@ export function Landing() {
     return Number.isFinite(p) && p > 0 ? p : 1;
   });
   const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>({});
+  const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(null);
   const [undervalued, setUndervalued] = useState<any[]>([]);
   const [overvalued, setOvervalued] = useState<any[]>([]);
 
@@ -99,19 +106,23 @@ export function Landing() {
       .then((res) => res.json())
       .then((data) => {
         setHeroSettings(data);
-        const uLimit = data.undervalued_limit || '5';
-        const oLimit = data.overvalued_limit || '5';
-        fetch(`/api/companies/undervalued?limit=${uLimit}`)
-          .then((res) => res.json())
-          .then((d) => setUndervalued(d))
-          .catch(() => {});
-        fetch(`/api/companies/overvalued?limit=${oLimit}`)
-          .then((res) => res.json())
-          .then((d) => setOvervalued(d))
-          .catch(() => {});
+        setValuationLimits({ u: data.undervalued_limit || '5', o: data.overvalued_limit || '5' });
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!valuationLimits) return;
+    const countryParam = selectedCountry ? `&country=${encodeURIComponent(selectedCountry)}` : '';
+    fetch(`/api/companies/undervalued?limit=${valuationLimits.u}${countryParam}`)
+      .then((res) => res.json())
+      .then((d) => setUndervalued(d))
+      .catch(() => {});
+    fetch(`/api/companies/overvalued?limit=${valuationLimits.o}${countryParam}`)
+      .then((res) => res.json())
+      .then((d) => setOvervalued(d))
+      .catch(() => {});
+  }, [valuationLimits, selectedCountry]);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -268,6 +279,25 @@ export function Landing() {
       {(undervalued.length > 0 || overvalued.length > 0) && (
         <section className="valuation-section">
           <div className="valuation-inner">
+            {availableCountries.length > 0 && (
+              <div className="valuation-filters">
+                <div className="country-filter-wrapper">
+                  <Globe size={14} className="country-filter-icon" />
+                  <select
+                    className="country-filter"
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                  >
+                    <option value="">Todos los países</option>
+                    {availableCountries.map((code) => (
+                      <option key={code} value={code}>
+                        {COUNTRY_NAMES[code] || code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
             <div className="valuation-grid">
               {/* Undervalued */}
               {undervalued.length > 0 && (
@@ -298,11 +328,11 @@ export function Landing() {
                           <div className="valuation-metrics">
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Precio</span>
-                              <span className="valuation-metric-value">${c.currentPrice?.toFixed(2)}</span>
+                              <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.currentPrice?.toFixed(2)}</span>
                             </div>
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
-                              <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                              <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.intrinsicValue?.toFixed(2)}</span>
                               <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--green">
@@ -346,11 +376,11 @@ export function Landing() {
                           <div className="valuation-metrics">
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Precio</span>
-                              <span className="valuation-metric-value">${c.currentPrice?.toFixed(2)}</span>
+                              <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.currentPrice?.toFixed(2)}</span>
                             </div>
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
-                              <span className="valuation-metric-value">${c.intrinsicValue?.toFixed(2)}</span>
+                              <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.intrinsicValue?.toFixed(2)}</span>
                               <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--red">
