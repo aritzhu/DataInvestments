@@ -4,7 +4,7 @@ dist
 .env.prod
 .env.local
 .env.*.local
-docker-compose.dev.yml
+docker-compose.override.yml
 backups/
 *.log
 *.tsbuildinfo
