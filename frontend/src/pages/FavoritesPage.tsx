@@ -145,6 +145,7 @@ export function FavoritesPage() {
                             src={fav.company.logoUrl || companyLogoUrl(fav.company.website)!}
                             alt={fav.company.ticker}
                             className="fav-card-avatar fav-card-avatar--img"
+                            loading="lazy" decoding="async"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('fav-card-avatar--hidden'); }}
                           />
                         ) : null}

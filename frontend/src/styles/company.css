@@ -123,8 +123,8 @@
   height: 40px;
   border-radius: 10px;
   object-fit: contain;
-  background: var(--surface-1);
-  padding: 4px;
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.25);
   flex-shrink: 0;
   box-sizing: border-box;
 }

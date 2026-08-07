@@ -390,6 +390,7 @@ export function CompanyPage() {
                 src={company.logoUrl || companyLogoUrl(company.website)!}
                 alt={company.ticker}
                 className="cp-logo"
+                loading="lazy" decoding="async"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('cp-logo-fallback--hidden'); }}
               />
             ) : null}

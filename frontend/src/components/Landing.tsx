@@ -55,6 +55,20 @@ const METHOD_NAMES: Record<string, string> = {
   net_net: 'Net-Net',
 };
 
+const PAGE_SIZE = 24;
+
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push('...');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
 export function Landing() {
   const { user, favorites, isFavorite, addFavorite, removeFavorite } = useAuth();
   const navigate = useNavigate();
@@ -68,6 +82,10 @@ export function Landing() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('fav') === '1');
   const [selectedCountry, setSelectedCountry] = useState<string>(searchParams.get('country') || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [page, setPage] = useState<number>(() => {
+    const p = parseInt(searchParams.get('page') || '1', 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
   const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>({});
   const [undervalued, setUndervalued] = useState<any[]>([]);
   const [overvalued, setOvervalued] = useState<any[]>([]);
@@ -102,7 +120,17 @@ export function Landing() {
     if (selectedSector) params.sector = selectedSector;
     if (sortOrder !== 'asc') params.sort = sortOrder;
     if (showFavoritesOnly) params.fav = '1';
+    if (page > 1) params.page = String(page);
     setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page]);
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setPage(1);
   }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly]);
 
   useEffect(() => {
@@ -168,6 +196,19 @@ export function Landing() {
         return sortOrder === 'asc' ? cmp : -cmp;
       });
   }, [companies, searchTerm, selectedSector, sortOrder, showFavoritesOnly, favoriteIds, selectedCountry]);
+
+  const paginatedCompanies = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredCompanies.slice(start, start + PAGE_SIZE);
+  }, [filteredCompanies, page]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, filteredCompanies.length);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const handleToggleFavorite = async (e: React.MouseEvent, companyId: string) => {
     e.preventDefault();
@@ -244,7 +285,7 @@ export function Landing() {
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green">
                           <div className="valuation-card-left">
                             {(c.logoUrl || companyLogoUrl(c.website)) ? (
-                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
                             ) : null}
                             <div className={`valuation-avatar valuation-avatar--green ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
                               {c.ticker.slice(0, 2)}
@@ -292,7 +333,7 @@ export function Landing() {
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red">
                           <div className="valuation-card-left">
                             {(c.logoUrl || companyLogoUrl(c.website)) ? (
-                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
                             ) : null}
                             <div className={`valuation-avatar valuation-avatar--red ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
                               {c.ticker.slice(0, 2)}
@@ -422,6 +463,7 @@ export function Landing() {
                           src={company.logoUrl || companyLogoUrl(company.website)!}
                           alt={company.ticker}
                           className="favorites-card-avatar favorites-card-avatar--img"
+                          loading="lazy" decoding="async"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('favorites-card-avatar--hidden'); }}
                         />
                       ) : null}
@@ -544,7 +586,7 @@ export function Landing() {
                 <p className="companies-empty-desc">No se encontraron empresas para "{searchTerm}"</p>
               </div>
             ) : viewMode === 'grid' ? (
-              filteredCompanies.map((company, i) => {
+              paginatedCompanies.map((company, i) => {
                 const color = colorNames[i % colorNames.length];
                 return (
                   <SectionReveal key={company.ticker} delay={60 + i * 80}>
@@ -556,6 +598,7 @@ export function Landing() {
                             src={company.logoUrl || companyLogoUrl(company.website)!}
                             alt={company.ticker}
                             className={`company-card-avatar company-card-avatar--img`}
+                            loading="lazy" decoding="async"
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('company-card-avatar--hidden'); }}
                           />
                         ) : null}
@@ -590,7 +633,7 @@ export function Landing() {
                 );
               })
             ) : (
-              filteredCompanies.map((company, i) => (
+              paginatedCompanies.map((company, i) => (
                 <SectionReveal key={company.ticker} delay={40 + i * 40}>
                   <div className="company-list-item">
                     {(company.logoUrl || companyLogoUrl(company.website)) ? (
@@ -598,6 +641,7 @@ export function Landing() {
                         src={company.logoUrl || companyLogoUrl(company.website)!}
                         alt={company.ticker}
                         className="company-list-avatar company-list-avatar--img"
+                        loading="lazy" decoding="async"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('company-list-avatar--hidden'); }}
                       />
                     ) : null}
@@ -628,6 +672,54 @@ export function Landing() {
               ))
             )}
           </div>
+
+          {filteredCompanies.length > PAGE_SIZE && (
+            <div className="pagination-wrap">
+              <div className="pagination">
+                <button
+                  className="pagination-btn"
+                  onClick={() => {
+                    setPage(page - 1);
+                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  disabled={page <= 1}
+                >
+                  Anterior
+                </button>
+                <div className="pagination-pages">
+                  {getPageNumbers(page, totalPages).map((p, i) =>
+                    p === '...' ? (
+                      <span key={`e${i}`} className="pagination-ellipsis">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        className={`pagination-btn pagination-btn--num ${p === page ? 'pagination-btn--active' : ''}`}
+                        onClick={() => {
+                          setPage(p);
+                          companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+                <button
+                  className="pagination-btn"
+                  onClick={() => {
+                    setPage(page + 1);
+                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  disabled={page >= totalPages}
+                >
+                  Siguiente
+                </button>
+              </div>
+              <p className="pagination-info">
+                Mostrando {pageStart}–{pageEnd} de {filteredCompanies.length} empresas
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
