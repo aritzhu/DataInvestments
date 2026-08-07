@@ -49,6 +49,24 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       YFINANCE_URL: http://yfinance-service:8000
 
+  sync-worker:
+    build: ./backend
+    container_name: datainvestments-sync-worker
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      yfinance-service:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-datainvestments}
+      YFINANCE_URL: http://yfinance-service:8000
+      SEC_USER_AGENT: ${SEC_USER_AGENT:-DataInvestments admin@datainvestments.com}
+      NODE_ENV: development
+    command: ["node", "dist/worker.js"]
+    healthcheck:
+      disable: true
+
 volumes:
   postgres_data:
   uploads:

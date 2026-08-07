@@ -5,6 +5,27 @@ import { resolveShares } from './dataAggregator';
 import { computeAll, getRecommendedFairValue, getSectorConfigs } from './valuationService';
 import { applyCompanyOverrides } from './overrides';
 
+const REFRESH_DELAY_MS = Number(process.env.REFRESH_DELAY_MS || 150);
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function fetchWithRetry<T>(fetchFn: () => Promise<T>, isOk: (v: T) => boolean, attempts = 3): Promise<T> {
+  let last: T | null = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const value = await fetchFn();
+      if (isOk(value)) return value;
+      last = value;
+    } catch (err) {
+      console.log(`[QuoteRefresh] intento ${i + 1}/${attempts}: ${err instanceof Error ? err.message : err}`);
+    }
+    if (i < attempts - 1) await sleep(2000 * (i + 1));
+  }
+  return last as T;
+}
+
 async function recomputeIntrinsic(companyId: string, ticker: string, sector: string | null, industry: string | null) {
   const [financials, balanceSheets, stockMetrics] = await Promise.all([
     prisma.financialData.findMany({ where: { companyId }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
@@ -46,8 +67,8 @@ export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: 
 
   for (const c of companies) {
     try {
-      const yahooQuote = await fetchYahooQuote(c.ticker);
-      const yfInfo = await fetchYFinanceInfo(c.ticker);
+      const yahooQuote = await fetchWithRetry(() => fetchYahooQuote(c.ticker), (v) => !!v && v.currentPrice > 0);
+      const yfInfo = await fetchWithRetry(() => fetchYFinanceInfo(c.ticker), (v) => !!v);
       if (!yahooQuote || yahooQuote.currentPrice <= 0) {
         skipped++;
         continue;
@@ -103,6 +124,8 @@ export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: 
     } catch (err) {
       console.error(`[QuoteRefresh] ${c.ticker} FAILED: ${err instanceof Error ? err.message : err}`);
       skipped++;
+    } finally {
+      await sleep(REFRESH_DELAY_MS);
     }
   }
 

@@ -82,7 +82,7 @@ jobs:
 
             # Start remaining services without restarting db
             $DC rm -fsv frontend backend 2>/dev/null || true
-            $DC up -d --no-deps backend frontend
+            $DC up -d --no-deps backend frontend sync-worker
 
             # Wait for backend to be ready before reloading nginx
             echo "Waiting for backend..."
@@ -94,10 +94,6 @@ jobs:
             # Backfill missing company metadata (logos, websites, sectors) for any new/updated tickers
             echo "Running metadata backfill..."
             $DC run --rm backend node dist/scripts/backfillCompanyMeta.js
-
-            # Refresh quotes + TTM ratios (PE/PB/PS/ROE/ROA) and recompute valuations with current prices
-            echo "Refreshing quotes and recomputing valuations..."
-            $DC run --rm backend node dist/scripts/refreshQuotes.js
 
             # Recompute stored valuations with the current engine (fixes outliers, overwrites seed defaults)
             echo "Recomputing valuations..."

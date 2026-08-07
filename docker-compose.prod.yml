@@ -40,6 +40,11 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       SEC_USER_AGENT: ${SEC_USER_AGENT}
 
+  sync-worker:
+    environment:
+      SEC_USER_AGENT: ${SEC_USER_AGENT}
+      NODE_ENV: production
+
   frontend:
     build:
       context: ./frontend

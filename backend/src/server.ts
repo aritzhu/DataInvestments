@@ -18,7 +18,6 @@ import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getRecommendedModel } from './services/valuationService';
-import { refreshAllQuotes } from './services/refreshQuotes';
 import { requireAuth, requireAdmin, type AuthRequest } from './middleware/jwt';
 
 const app = express();
@@ -328,17 +327,5 @@ cron.schedule('0 9-16 * * 1-5', async () => {
     console.log(`[Alarm] Checked ${result.checked}, triggered ${result.triggered}`);
   } catch (error) {
     console.error('[Alarm] Error:', error);
-  }
-});
-
-// ── Cron: daily quote/ratio refresh (no full financial re-sync) ───────────
-
-cron.schedule('0 6 * * *', async () => {
-  console.log('[QuoteRefresh] Running daily quote refresh...');
-  try {
-    const result = await refreshAllQuotes();
-    console.log(`[QuoteRefresh] refreshed ${result.refreshed}, skipped ${result.skipped}`);
-  } catch (error) {
-    console.error('[QuoteRefresh] Error:', error);
   }
 });

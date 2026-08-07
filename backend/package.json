@@ -18,6 +18,8 @@
     "backfill:websites": "tsx src/scripts/backfillWebsites.ts",
     "recompute:valuation": "tsx src/scripts/recomputeValuations.ts",
     "refresh:quotes": "tsx src/scripts/refreshQuotes.ts",
+    "resync:stale": "tsx src/scripts/resyncStale.ts",
+    "worker": "tsx src/worker.ts",
     "resync:all": "tsx src/scripts/resyncAll.ts",
     "purge:financial": "tsx src/scripts/purgeFinancialData.ts",
     "seed:overrides": "tsx src/scripts/seedOverrides.ts",
