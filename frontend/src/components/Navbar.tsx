@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User, Sun, Moon } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
 import '../styles/navbar.css';
@@ -11,7 +11,9 @@ export function Navbar() {
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     setMenuOpen(false);
@@ -53,6 +55,14 @@ export function Navbar() {
     setTheme(next);
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = search.trim();
+    navigate(term ? `/?search=${encodeURIComponent(term)}#companies` : '/#companies');
+    setSearch('');
+    setMenuOpen(false);
+  };
+
   return (
     <>
       <nav className="navbar">
@@ -69,6 +79,21 @@ export function Navbar() {
               </>
             )}
           </Link>
+
+          {/* Desktop search */}
+          <form className="navbar-search" onSubmit={handleSearch} role="search">
+            <Search size={15} className="navbar-search-icon" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar empresa..."
+              aria-label="Buscar empresa"
+            />
+            <button type="submit" aria-label="Buscar">
+              <Search size={15} />
+            </button>
+          </form>
 
           {/* Desktop links */}
           <div className="navbar-links">
@@ -142,6 +167,20 @@ export function Navbar() {
               <X size={24} />
             </button>
           </div>
+
+          <form className="navbar-mobile-search" onSubmit={handleSearch} role="search">
+            <Search size={15} className="navbar-mobile-search-icon" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar empresa..."
+              aria-label="Buscar empresa"
+            />
+            <button type="submit" aria-label="Buscar">
+              <Search size={15} />
+            </button>
+          </form>
 
           {user && (
             <div className="navbar-mobile-user">

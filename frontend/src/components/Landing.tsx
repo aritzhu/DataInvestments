@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
 import { MarketTicker } from './hero/MarketTicker';
@@ -58,6 +58,7 @@ const METHOD_NAMES: Record<string, string> = {
 export function Landing() {
   const { user, favorites, isFavorite, addFavorite, removeFavorite } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const companiesSectionRef = useRef<HTMLDivElement>(null);
   const [companies, setCompanies] = useState<CompanyFromAPI[]>([]);
@@ -111,6 +112,20 @@ export function Landing() {
       }, 100);
     }
   }, [companies.length]);
+
+  // Sync URL → state so searches from the navbar apply while already on this page
+  useEffect(() => {
+    setSearchTerm(searchParams.get('search') || '');
+  }, [searchParams]);
+
+  // Scroll to companies section when arriving via navbar search (#companies)
+  useEffect(() => {
+    if (location.hash !== '#companies' || companies.length === 0) return;
+    const timer = setTimeout(() => {
+      companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [location.hash, companies.length]);
 
   const favoriteCompanies = useMemo(() => {
     if (!favorites.length) return [];
