@@ -87,6 +87,7 @@ export function Landing() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort') as 'asc' | 'desc') || 'asc');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('fav') === '1');
   const [selectedCountry, setSelectedCountry] = useState<string>(searchParams.get('country') || '');
+  const [valuationCountry, setValuationCountry] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState<number>(() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
@@ -113,7 +114,7 @@ export function Landing() {
 
   useEffect(() => {
     if (!valuationLimits) return;
-    const countryParam = selectedCountry ? `&country=${encodeURIComponent(selectedCountry)}` : '';
+    const countryParam = valuationCountry ? `&country=${encodeURIComponent(valuationCountry)}` : '';
     fetch(`/api/companies/undervalued?limit=${valuationLimits.u}${countryParam}`)
       .then((res) => res.json())
       .then((d) => setUndervalued(d))
@@ -122,7 +123,7 @@ export function Landing() {
       .then((res) => res.json())
       .then((d) => setOvervalued(d))
       .catch(() => {});
-  }, [valuationLimits, selectedCountry]);
+  }, [valuationLimits, valuationCountry]);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -285,8 +286,8 @@ export function Landing() {
                   <Globe size={14} className="country-filter-icon" />
                   <select
                     className="country-filter"
-                    value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    value={valuationCountry}
+                    onChange={(e) => setValuationCountry(e.target.value)}
                   >
                     <option value="">Todos los países</option>
                     {availableCountries.map((code) => (
@@ -703,7 +704,7 @@ export function Landing() {
             )}
           </div>
 
-          {filteredCompanies.length > PAGE_SIZE && (
+          {filteredCompanies.length > 0 && (
             <div className="pagination-wrap">
               <div className="pagination">
                 <button
