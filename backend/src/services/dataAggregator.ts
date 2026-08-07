@@ -1055,36 +1055,31 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         // Rate limit: 1.5s between Finnhub calls
         await new Promise(r => setTimeout(r, 1500));
       } else {
-        // Finnhub fallback: try Yahoo Finance for website + hunter.io logo
-        const yahooProfile = await fetchYahooProfile(ticker);
-        if (yahooProfile?.website) {
+        // Finnhub fallback: yfinance sidecar (fuente de webs reales)
+        const yfInfo = await fetchYFinanceInfo(ticker);
+        const yfWebsite = yfInfo?.info?.website;
+        if (yfWebsite) {
           await prisma.company.update({
             where: { id: companyForProfile.id },
             data: {
-              website: yahooProfile.website,
-              logoUrl: buildLogoUrl(yahooProfile.website),
+              website: yfWebsite,
+              logoUrl: buildLogoUrl(yfWebsite),
             },
           });
-          console.log(`[Yahoo] Enriched ${ticker} with website/logo`);
-        }
-      }
-
-      // Fallback final: deducir dominio desde el nombre de la empresa
-      const name = companyForProfile.name;
-      if (name && !companyForProfile.website) {
-        let domain = name.toLowerCase().trim();
-        domain = domain.replace(/^(the\s+)/i, '');
-        domain = domain.replace(/\b(inc|corp|ltd|plc|llc|sa|ag|se|nv|gmbh|limited|corporation|company|group|holdings|holding|co\.|class\s+[ab])\b\.?$/gi, '');
-        domain = domain.replace(/[&]/g, 'and');
-        domain = domain.replace(/[^a-z0-9\s-]/g, '');
-        domain = domain.replace(/\s+/g, '');
-        if (domain && domain.length >= 3) {
-          const website = `https://www.${domain}.com`;
-          await prisma.company.update({
-            where: { id: companyForProfile.id },
-            data: { website, logoUrl: buildLogoUrl(website) },
-          });
-          console.log(`[Guess] Enriched ${ticker} → ${website}`);
+          console.log(`[YFinance] Enriched ${ticker} with website/logo`);
+        } else {
+          // Último recurso: Yahoo Finance
+          const yahooProfile = await fetchYahooProfile(ticker);
+          if (yahooProfile?.website) {
+            await prisma.company.update({
+              where: { id: companyForProfile.id },
+              data: {
+                website: yahooProfile.website,
+                logoUrl: buildLogoUrl(yahooProfile.website),
+              },
+            });
+            console.log(`[Yahoo] Enriched ${ticker} with website/logo`);
+          }
         }
       }
     }
