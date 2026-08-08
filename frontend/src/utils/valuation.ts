@@ -66,87 +66,107 @@ function sumField(items: Financial[], field: keyof Financial): number {
   return items.reduce((acc, f) => acc + ((f[field] as number) ?? 0), 0);
 }
 
-function sumFieldNull(items: Financial[], field: keyof Financial): number | null {
-  const total = items.reduce((acc, f) => acc + ((f[field] as number) ?? 0), 0);
-  return items.some(f => f[field] != null) ? total : null;
+// Latest annual (quarter=0) row. Yahoo's quarterly timeseries often leaves
+// cashflow/EBITDA inputs null for European tickers even though the annual rows
+// carry real values, so we fill those from the annual figures below.
+function latestAnnual<T extends { year: number; quarter?: number | null }>(arr: T[]): T | undefined {
+  return [...arr.filter(x => (x.quarter ?? 0) === 0)].sort((a, b) => b.year - a.year)[0];
+}
+
+// Sums `field` across the last-4 quarterly rows; if none of them carry a value
+// for the field (all null), falls back to the latest annual value.
+function ttmSumOrAnnual<T extends { year: number; quarter?: number | null }>(last4: T[], annual: T | undefined, field: keyof T): number | null {
+  const present = last4.filter(x => (x[field] as number | null) != null);
+  if (present.length > 0) {
+    return present.reduce((acc, x) => acc + ((x[field] as number) ?? 0), 0);
+  }
+  return (annual?.[field] as number | null | undefined) ?? null;
 }
 
 export function trailing12Months(financials: Financial[], balanceSheets: BalanceSheet[]): TTMData | null {
-  const quarterly = financials.filter(f => f.quarter != null && f.quarter > 0);
+  const sorted = [...financials].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  });
+  const byKey = new Map<string, Financial>();
+  for (const f of financials) {
+    byKey.set(`${f.year}-${f.quarter ?? 4}`, f);
+  }
+  const latestQ = sorted[0];
+  if (!latestQ) return null;
 
-  // Fallback to annual if no quarterly data
-  if (quarterly.length < 4) {
-    const f = latest(financials);
+  // Annual fallback: used when fewer than 4 reliable quarters exist. European
+  // tickers often leave quarterly cashflow/EBITDA fields null while annual
+  // rows carry real values, so we rebuild the TTM from the annual figures.
+  const annualFallback = (): TTMData | null => {
+    const f = latestAnnual(financials) ?? latest(financials);
     const bs = latest(balanceSheets);
     if (!f) return null;
     return {
       revenue: f.revenue,
       netIncome: f.netIncome,
-      ebitda: f.ebitda,
-      ebit: f.ebit,
-      operatingCashFlow: f.operatingCashFlow,
-      freeCashFlow: f.freeCashFlow,
-      capex: f.capex,
-      depreciation: f.depreciation,
-      sgaExpense: f.sgaExpense,
-      interestExpense: f.interestExpense,
-      taxExpense: f.taxExpense,
-      costOfRevenue: f.costOfRevenue,
+      ebitda: f.ebitda ?? null,
+      ebit: f.ebit ?? null,
+      operatingCashFlow: f.operatingCashFlow ?? null,
+      freeCashFlow: f.freeCashFlow ?? null,
+      capex: f.capex ?? 0,
+      depreciation: f.depreciation ?? 0,
+      sgaExpense: f.sgaExpense ?? 0,
+      interestExpense: f.interestExpense ?? 0,
+      taxExpense: f.taxExpense ?? 0,
+      costOfRevenue: f.costOfRevenue ?? 0,
       grossProfit: f.grossProfit ?? 0,
-      operatingExpenses: f.operatingExpenses,
-      rdExpense: f.rdExpense,
-      dividendsPaid: f.dividendsPaid,
-      shareRepurchases: f.shareRepurchases,
+      operatingExpenses: f.operatingExpenses ?? 0,
+      rdExpense: f.rdExpense ?? 0,
+      dividendsPaid: f.dividendsPaid ?? null,
+      shareRepurchases: f.shareRepurchases ?? null,
       balanceSheet: bs,
       isTTM: false,
-      hasGap: false,
+      hasGap: true,
     };
-  }
+  };
 
-  // Sort quarterly by year desc, quarter desc and take top 4
-  const sorted = [...quarterly].sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return (b.quarter ?? 0) - (a.quarter ?? 0);
-  });
-  const last4 = sorted.slice(0, 4);
-
-  // Detect gaps: quarters should be contiguous (differ by exactly 1)
-  let hasGap = false;
-  for (let i = 0; i < last4.length - 1; i++) {
-    const a = last4[i];
-    const b = last4[i + 1];
-    const aNum = (a.year ?? 0) * 4 + (a.quarter ?? 0);
-    const bNum = (b.year ?? 0) * 4 + (b.quarter ?? 0);
-    if (aNum - bNum !== 1) {
-      hasGap = true;
-      break;
+  // Walk back 4 consecutive quarters; if a quarter is missing or reports zero
+  // revenue, fall back to the annual figures.
+  let year = latestQ.year;
+  let quarter = latestQ.quarter ?? 4;
+  const last4: Financial[] = [];
+  for (let i = 0; i < 4; i++) {
+    const rec = byKey.get(`${year}-${quarter}`);
+    if (!rec || rec.revenue === 0) {
+      return annualFallback();
+    }
+    last4.push(rec);
+    quarter -= 1;
+    if (quarter === 0) {
+      quarter = 4;
+      year -= 1;
     }
   }
 
-  // Use latest balance sheet (point-in-time snapshot)
   const bs = latest(balanceSheets);
-
+  const annual = latestAnnual(financials);
   return {
     revenue: sumField(last4, 'revenue'),
     netIncome: sumField(last4, 'netIncome'),
-    ebitda: sumFieldNull(last4, 'ebitda'),
-    ebit: sumFieldNull(last4, 'ebit'),
-    operatingCashFlow: sumFieldNull(last4, 'operatingCashFlow'),
-    freeCashFlow: sumFieldNull(last4, 'freeCashFlow'),
-    capex: sumField(last4, 'capex'),
-    depreciation: sumField(last4, 'depreciation'),
-    sgaExpense: sumField(last4, 'sgaExpense'),
-    interestExpense: sumField(last4, 'interestExpense'),
-    taxExpense: sumField(last4, 'taxExpense'),
-    costOfRevenue: sumField(last4, 'costOfRevenue'),
-    grossProfit: sumField(last4, 'grossProfit'),
-    operatingExpenses: sumField(last4, 'operatingExpenses'),
-    rdExpense: sumField(last4, 'rdExpense'),
-    dividendsPaid: sumFieldNull(last4, 'dividendsPaid'),
-    shareRepurchases: sumFieldNull(last4, 'shareRepurchases'),
+    ebitda: ttmSumOrAnnual(last4, annual, 'ebitda'),
+    ebit: ttmSumOrAnnual(last4, annual, 'ebit'),
+    operatingCashFlow: ttmSumOrAnnual(last4, annual, 'operatingCashFlow'),
+    freeCashFlow: ttmSumOrAnnual(last4, annual, 'freeCashFlow'),
+    capex: ttmSumOrAnnual(last4, annual, 'capex') ?? 0,
+    depreciation: ttmSumOrAnnual(last4, annual, 'depreciation') ?? 0,
+    sgaExpense: ttmSumOrAnnual(last4, annual, 'sgaExpense') ?? 0,
+    interestExpense: ttmSumOrAnnual(last4, annual, 'interestExpense') ?? 0,
+    taxExpense: ttmSumOrAnnual(last4, annual, 'taxExpense') ?? 0,
+    costOfRevenue: ttmSumOrAnnual(last4, annual, 'costOfRevenue') ?? 0,
+    grossProfit: ttmSumOrAnnual(last4, annual, 'grossProfit') ?? 0,
+    operatingExpenses: ttmSumOrAnnual(last4, annual, 'operatingExpenses') ?? 0,
+    rdExpense: ttmSumOrAnnual(last4, annual, 'rdExpense') ?? 0,
+    dividendsPaid: ttmSumOrAnnual(last4, annual, 'dividendsPaid'),
+    shareRepurchases: ttmSumOrAnnual(last4, annual, 'shareRepurchases'),
     balanceSheet: bs,
     isTTM: true,
-    hasGap,
+    hasGap: false,
   };
 }
 
@@ -242,9 +262,9 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
     fcfSource = `${fcfValues.length} años`;
   }
-  const fcfWarning = fcf < 0
-    ? `FCF ${fcfSource} negativo: la empresa invierte más de lo que genera en efectivo. Un DCF con FCF negativo produce un valor intrínseco negativo, lo que indica que la empresa no genera suficiente caja libre para sostener su valoración actual.`
-    : undefined;
+  if (fcf <= 0) {
+    return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'FCF no positivo', configurable: true, inputs: [] };
+  }
 
   const g = config.growthRate / 100;
   const r = config.discountRate / 100;
@@ -258,7 +278,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const terminalPV = terminalValue / Math.pow(1 + r, config.horizonYears);
   const fairValue = (totalPV + terminalPV) / shares;
 
-  const conf = fcfSource === 'TTM' ? (fcf > 0 ? 'medium' : 'low') : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
+  const conf = isQuarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
 
   return {
     id: 'dcf', name: 'DCF (Flujo de Caja Descontado)',
@@ -270,7 +290,6 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     fairValue, confidence: conf,
     confidenceReason: `FCF ${fcfSource}: ${fmtB(fcf, input.currency)}`,
     configurable: true,
-    negativeInputWarning: fcfWarning,
     inputs: [
       { label: `FCF ${fcfSource}`, value: fmtB(fcf, input.currency), rawValue: fcf },
       { label: 'Crecimiento anual', value: `${config.growthRate}%`, rawValue: config.growthRate },
@@ -289,17 +308,14 @@ export function computePER(input: ValuationInput, config: { targetPE: number }):
   const ttm = trailing12Months(input.financials, input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!ttm || !stock || shares <= 0) {
-    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana 5 por acción y el P/E objetivo es 20x, el valor justo es 100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [], negativeInputWarning: undefined };
+  if (!ttm || !stock || shares <= 0 || ttm.netIncome <= 0) {
+    return { id: 'per', name: 'PER (Precio/Beneficio)', description: 'Valor basado en el beneficio neto por acción y el ratio P/E', explanation: 'Pregunta: "¿Cuánto pagarías por 1€ de beneficio?" Si la empresa gana 5 por acción y el P/E objetivo es 20x, el valor justo es 100. Es el método más utilizado por inversores institucionales. Un P/E bajo sugiere infravaloración; uno alto sobrevaloración o altas expectativas de crecimiento.', formula: 'EPS × Target P/E', fairValue: null, confidence: 'na', confidenceReason: 'Beneficio neto no positivo', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const netIncome = ttm.netIncome;
   const eps = netIncome / shares;
   const fairValue = eps * config.targetPE;
   const currentPE = stock.peRatio ?? 0;
   const conf = currentPE > 0 && currentPE < 50 ? 'high' : currentPE > 0 ? 'medium' : 'low';
-  const perWarning = netIncome <= 0
-    ? 'Beneficio neto negativo: la empresa genera pérdidas. El PER no es un indicador válido para empresas con beneficios negativos.'
-    : undefined;
   return {
     id: 'per', name: 'PER (Precio/Beneficio)',
     description: 'Valor basado en el beneficio neto por acción y el ratio P/E',
@@ -308,7 +324,6 @@ export function computePER(input: ValuationInput, config: { targetPE: number }):
     fairValue, confidence: conf,
     confidenceReason: currentPE > 0 ? `PER actual: ${currentPE.toFixed(1)}` : 'Sin PER disponible',
     configurable: true,
-    negativeInputWarning: perWarning,
     inputs: [
       { label: 'Beneficio neto', value: fmtB(netIncome, input.currency), rawValue: netIncome },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -326,16 +341,13 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
   const { stock } = input;
   const shares = sharesOf(stock);
   const equity = bs?.totalStockholdersEquity;
-  if (!stock || shares <= 0 || equity == null || equity === 0) {
+  if (!stock || shares <= 0 || equity == null || equity <= 0) {
     return { id: 'pb', name: 'P/B (Precio/Valor en Libro)', description: 'Patrimonio neto por acción multiplicado por P/B objetivo', explanation: 'Compara el precio de la acción con el valor contable de los activos netos (patrimonio). Un P/B de 1x significa que compras la empresa a precio de libros. Funciona mejor para bancos y empresas intensivas en activos. No es útil para empresas de servicios o tecnología donde los activos intangibles dominan.', formula: 'BVPS × Target P/B', fairValue: null, confidence: 'na', confidenceReason: 'Sin patrimonio neto', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   const bvps = equity / shares;
   const fairValue = bvps * config.targetPB;
   const currentPB = stock.pbRatio ?? 0;
   const conf = currentPB > 0 && currentPB < 10 ? 'high' : currentPB > 0 ? 'medium' : 'low';
-  const pbWarning = equity < 0
-    ? 'Patrimonio neto negativo: la empresa tiene más pasivos que activos. El P/B no es aplicable en este caso.'
-    : undefined;
   return {
     id: 'pb', name: 'P/B (Precio/Valor en Libro)',
     description: 'Patrimonio neto por acción multiplicado por P/B objetivo',
@@ -344,7 +356,6 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
     fairValue, confidence: conf,
     confidenceReason: currentPB > 0 ? `P/B actual: ${currentPB.toFixed(1)}` : 'Sin P/B disponible',
     configurable: true,
-    negativeInputWarning: pbWarning,
     inputs: [
       { label: 'Patrimonio total', value: fmtB(equity, input.currency), rawValue: equity },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -391,7 +402,7 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
   const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!ttm || !stock || shares <= 0 || !ttm.ebitda) {
+  if (!ttm || !stock || shares <= 0 || !ttm.ebitda || ttm.ebitda <= 0) {
     return {
       id: 'ev_ebitda', name: 'EV/EBITDA',
       description: 'Múltiplo de empresa sobre EBITDA',
@@ -409,9 +420,6 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
   const fairValue = (ev - nd) / shares;
   const currentMult = stock.enterpriseValue && ebitda ? stock.enterpriseValue / ebitda : 0;
   const conf = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
-  const evEbitdaWarning = ebitda < 0
-    ? 'EBITDA negativo: la operación no genera beneficio antes de intereses, impuestos y amortizaciones. El EV/EBITDA no es aplicable con EBITDA negativo.'
-    : undefined;
   return {
     id: 'ev_ebitda', name: 'EV/EBITDA',
     description: 'Múltiplo de empresa sobre EBITDA',
@@ -420,7 +428,6 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
     fairValue, confidence: conf,
     confidenceReason: currentMult > 0 ? `Múltiplo actual: ${currentMult.toFixed(1)}x` : 'Sin EV/EBITDA',
     configurable: true,
-    negativeInputWarning: evEbitdaWarning,
     inputs: [
       { label: 'EBITDA', value: fmtB(ebitda, input.currency), rawValue: ebitda },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
@@ -438,7 +445,7 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - (ttm.costOfRevenue + ttm.operatingExpenses + ttm.sgaExpense + ttm.rdExpense)) : null) ?? latest(input.financials)?.ebit ?? null;
+  const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - ttm.operatingExpenses) : null) ?? latest(input.financials)?.ebit ?? null;
   if (!ttm || !stock || shares <= 0 || ebit == null || ebit === 0) {
     return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit === 0 ? 'EBIT es cero' : 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
@@ -587,9 +594,8 @@ export function computeNetNet(input: ValuationInput): ValuationResult {
   const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const { stock } = input;
   const shares = sharesOf(stock);
-  if (!bs || !stock || shares <= 0 || bs.totalLiabilities == null) {
-    const reason = !bs ? 'Sin balance sheet' : bs.totalLiabilities == null ? 'Sin datos de pasivos totales' : 'Sin datos';
-    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: reason, configurable: false, inputs: [] };
+  if (!bs || !stock || shares <= 0) {
+    return { id: 'netnet', name: 'Net-Net (NCAV)', description: 'Net Current Asset Value de Benjamin Graham', explanation: 'La fórmula más conservadora de Graham. Calcula el valor de liquidación de los activos corrientes (efectivo, cobros, inventario) menos toda la deuda. Si la acción cuesta menos que esto, estás comprando la empresa por debajo de su valor de liquidación — una oportunidad rara pero real.', formula: '(Cash + 0.5×AR + 0.5×Inv − Total Liabilities) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'Sin balance sheet', configurable: false, inputs: [] };
   }
   const ncav = (bs.cashAndCashEquivalents ?? 0) + 0.5 * (bs.accountsReceivable ?? 0) + 0.5 * (bs.inventory ?? 0) - (bs.totalLiabilities ?? 0);
   const fairValue = ncav / shares;
@@ -904,6 +910,86 @@ const SECTOR_CONFIGS: Record<string, typeof DEFAULT_CONFIGS> = {
     evEbitda: { targetMultiple: 10 },
     evEbit: { targetMultiple: 12 },
     ddm: { growthRate: 3, requiredReturn: 10 },
+    fcfYield: { targetYield: 5 },
+  },
+  'software - infrastructure': {
+    dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 },
+    per: { targetPE: 25 },
+    pb: { targetPB: 8 },
+    ps: { targetPS: 8 },
+    evEbitda: { targetMultiple: 20 },
+    evEbit: { targetMultiple: 25 },
+    ddm: { growthRate: 5, requiredReturn: 10 },
+    fcfYield: { targetYield: 4 },
+  },
+  'software - application': {
+    dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 },
+    per: { targetPE: 25 },
+    pb: { targetPB: 8 },
+    ps: { targetPS: 8 },
+    evEbitda: { targetMultiple: 20 },
+    evEbit: { targetMultiple: 25 },
+    ddm: { growthRate: 5, requiredReturn: 10 },
+    fcfYield: { targetYield: 4 },
+  },
+  software: {
+    dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 },
+    per: { targetPE: 25 },
+    pb: { targetPB: 8 },
+    ps: { targetPS: 8 },
+    evEbitda: { targetMultiple: 20 },
+    evEbit: { targetMultiple: 25 },
+    ddm: { growthRate: 5, requiredReturn: 10 },
+    fcfYield: { targetYield: 4 },
+  },
+  telecom: {
+    dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 },
+    per: { targetPE: 15 },
+    pb: { targetPB: 1.5 },
+    ps: { targetPS: 2 },
+    evEbitda: { targetMultiple: 7 },
+    evEbit: { targetMultiple: 9 },
+    ddm: { growthRate: 3, requiredReturn: 9 },
+    fcfYield: { targetYield: 6 },
+  },
+  'communication services': {
+    dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 },
+    per: { targetPE: 15 },
+    pb: { targetPB: 1.5 },
+    ps: { targetPS: 2 },
+    evEbitda: { targetMultiple: 7 },
+    evEbit: { targetMultiple: 9 },
+    ddm: { growthRate: 3, requiredReturn: 9 },
+    fcfYield: { targetYield: 6 },
+  },
+  'telecom services': {
+    dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 },
+    per: { targetPE: 15 },
+    pb: { targetPB: 1.5 },
+    ps: { targetPS: 2 },
+    evEbitda: { targetMultiple: 7 },
+    evEbit: { targetMultiple: 9 },
+    ddm: { growthRate: 3, requiredReturn: 9 },
+    fcfYield: { targetYield: 6 },
+  },
+  'consumer defensive': {
+    dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 },
+    per: { targetPE: 18 },
+    pb: { targetPB: 3 },
+    ps: { targetPS: 1.5 },
+    evEbitda: { targetMultiple: 12 },
+    evEbit: { targetMultiple: 15 },
+    ddm: { growthRate: 4, requiredReturn: 10 },
+    fcfYield: { targetYield: 5 },
+  },
+  'grocery stores': {
+    dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 },
+    per: { targetPE: 18 },
+    pb: { targetPB: 3 },
+    ps: { targetPS: 1.5 },
+    evEbitda: { targetMultiple: 12 },
+    evEbit: { targetMultiple: 15 },
+    ddm: { growthRate: 4, requiredReturn: 10 },
     fcfYield: { targetYield: 5 },
   },
 };
