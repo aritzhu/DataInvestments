@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { apiFetch } from '../../utils/api';
 import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
+import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
 import '../../styles/admin.css';
 
 interface ProgressUpdate {
@@ -41,6 +42,18 @@ export interface CompanyData {
   } | null;
 }
 
+function getPageNumbers(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) pages.push('...');
+  for (let i = start; i <= end; i++) pages.push(i);
+  if (end < total - 1) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
 export function AdminPanel() {
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +70,16 @@ export function AdminPanel() {
   const [isFixingSectors, setIsFixingSectors] = useState(false);
   const [fixSectorsResult, setFixSectorsResult] = useState<{ total: number; updated: number } | null>(null);
   const [companySearch, setCompanySearch] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [grandTotal, setGrandTotal] = useState(0);
   const [heroSettings, setHeroSettings] = useState<Record<string, string>>({});
   const [heroSaving, setHeroSaving] = useState(false);
+  const [books, setBooks] = useState<Book[]>(() => DEFAULT_BOOKS.map((b) => ({ ...b })));
+  const [booksSaving, setBooksSaving] = useState(false);
   const [heroUploading, setHeroUploading] = useState(false);
   const [heroUploadError, setHeroUploadError] = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
@@ -80,23 +101,55 @@ export function AdminPanel() {
 
   const fetchCompanies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/companies', { headers: auth });
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('pageSize', String(pageSize));
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/admin/companies?${params.toString()}`, { headers: auth });
       const data = await res.json();
-      setCompanies(data);
+      if (Array.isArray(data.data)) {
+        setCompanies(data.data);
+        setTotal(typeof data.total === 'number' ? data.total : 0);
+        setTotalPages(typeof data.totalPages === 'number' ? data.totalPages : 1);
+        setGrandTotal(typeof data.grandTotal === 'number' ? data.grandTotal : data.total || 0);
+      }
     } catch (err) {
       console.error('Error fetching companies:', err);
     } finally {
       setLoading(false);
     }
+  }, [page, pageSize, search]);
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        setHeroSettings(data);
+        try {
+          const parsed = JSON.parse(data.books || '');
+          if (Array.isArray(parsed)) setBooks(parsed as Book[]);
+        } catch {
+          setBooks(DEFAULT_BOOKS.map((b) => ({ ...b })));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     fetchCompanies();
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => setHeroSettings(data))
-      .catch(() => {});
   }, [fetchCompanies]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(companySearch);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [companySearch]);
+
+  useEffect(() => {
+    if (page > 1 && total > 0 && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, total]);
 
   const handleCompanyAdded = () => fetchCompanies();
 
@@ -111,6 +164,42 @@ export function AdminPanel() {
     } finally {
       setHeroSaving(false);
     }
+  };
+
+  const handleSaveBooks = async () => {
+    setBooksSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...auth },
+        body: JSON.stringify({ books: JSON.stringify(books) }),
+      });
+      setHeroSettings((prev) => ({ ...prev, books: JSON.stringify(books) }));
+    } finally {
+      setBooksSaving(false);
+    }
+  };
+
+  const updateBook = (index: number, patch: Partial<Book>) => {
+    setBooks((prev) => prev.map((b, i) => (i === index ? { ...b, ...patch } : b)));
+  };
+
+  const moveBook = (index: number, dir: -1 | 1) => {
+    setBooks((prev) => {
+      const target = index + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const removeBook = (index: number) => {
+    setBooks((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addBook = () => {
+    setBooks((prev) => [...prev, { title: '', author: '', desc: '', active: true }]);
   };
 
   const handleHeroImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,13 +453,6 @@ export function AdminPanel() {
       setIsFixingSectors(false);
     }
   };
-
-  const filteredCompanies = companies.filter((c) =>
-    c.ticker.toLowerCase().includes(companySearch.toLowerCase()) ||
-    c.name.toLowerCase().includes(companySearch.toLowerCase()) ||
-    c.sector?.toLowerCase().includes(companySearch.toLowerCase()) ||
-    c.industry?.toLowerCase().includes(companySearch.toLowerCase())
-  );
 
   return (
     <div className="admin-content">
@@ -949,13 +1031,86 @@ export function AdminPanel() {
           </div>
         </div>
 
+        {/* Books Management */}
+        <div className="admin-form-section" style={{ border: '2px solid var(--amber-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--amber-pale) 0%, var(--amber-line) 100%)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>📚</span>
+              <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Libros Recomendados</h2>
+            </div>
+            <button onClick={handleSaveBooks} disabled={booksSaving} style={{ padding: '0.5rem 1.25rem', background: 'var(--amber)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: booksSaving ? 0.6 : 1 }}>
+              {booksSaving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: 0, marginBottom: '1.25rem' }}>
+            Los libros se muestran en el carrusel de la portada, en el orden de esta lista. El <strong>Enlace de afiliado Amazon</strong> se usa tal cual; si se deja vacío, el libro enlaza a la búsqueda de Amazon.es. Si no hay ISBN ni URL de portada, se muestra un placeholder.
+          </p>
+
+          <div className="admin-books-list">
+            {books.map((book, i) => (
+              <div key={i} className="admin-book-card">
+                <div className="admin-book-card-header">
+                  <span className="admin-book-card-index">#{i + 1}</span>
+                  <div className="admin-book-actions">
+                    <button type="button" className="admin-book-action-btn" onClick={() => moveBook(i, -1)} disabled={i === 0} aria-label="Mover arriba">
+                      <ArrowUp size={16} />
+                    </button>
+                    <button type="button" className="admin-book-action-btn" onClick={() => moveBook(i, 1)} disabled={i === books.length - 1} aria-label="Mover abajo">
+                      <ArrowDown size={16} />
+                    </button>
+                    <button type="button" className="admin-book-action-btn admin-book-action-btn--danger" onClick={() => removeBook(i)} aria-label="Eliminar libro">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="admin-book-fields">
+                  <label className="admin-label">
+                    Título *
+                    <input className="admin-input" value={book.title} onChange={(e) => updateBook(i, { title: e.target.value })} placeholder="The Intelligent Investor" />
+                  </label>
+                  <label className="admin-label">
+                    Autor
+                    <input className="admin-input" value={book.author} onChange={(e) => updateBook(i, { author: e.target.value })} placeholder="Benjamin Graham" />
+                  </label>
+                  <label className="admin-label">
+                    ISBN
+                    <input className="admin-input" value={book.isbn || ''} onChange={(e) => updateBook(i, { isbn: e.target.value })} placeholder="9780060555665" />
+                  </label>
+                  <label className="admin-label">
+                    URL de portada (opcional)
+                    <input className="admin-input" value={book.coverUrl || ''} onChange={(e) => updateBook(i, { coverUrl: e.target.value })} placeholder="https://..." />
+                  </label>
+                  <label className="admin-label admin-label--wide">
+                    Enlace de afiliado Amazon (opcional)
+                    <input className="admin-input" value={book.link || ''} onChange={(e) => updateBook(i, { link: e.target.value })} placeholder="https://www.amazon.es/dp/XXXXX?tag=tu-tag-21" />
+                  </label>
+                  <label className="admin-label admin-label--wide">
+                    Descripción
+                    <textarea className="admin-input admin-textarea" value={book.desc} onChange={(e) => updateBook(i, { desc: e.target.value })} placeholder="Resumen breve del libro..." rows={2} />
+                  </label>
+                  <label className="admin-book-active">
+                    <input type="checkbox" checked={book.active !== false} onChange={(e) => updateBook(i, { active: e.target.checked })} />
+                    Activo
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={addBook} style={{ marginTop: '1rem', padding: '0.5rem 1.25rem', background: 'var(--amber)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>
+            + Añadir libro
+          </button>
+        </div>
+
         {/* Companies Table */}
         <div className="admin-table-section">
           <div className="admin-table-header">
             <h2 className="admin-table-title">Empresas</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span className="admin-table-count">
-                {companySearch ? `${filteredCompanies.length} de ` : ''}{companies.length} empresas
+                {search ? `${total} de ` : ''}{grandTotal} empresas
               </span>
               <button onClick={fetchCompanies} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: '0.25rem', borderRadius: '0.375rem', transition: 'color 0.2s' }} title="Actualizar lista">
                 <RefreshCw size={18} />
@@ -963,7 +1118,7 @@ export function AdminPanel() {
             </div>
           </div>
 
-          {companies.length > 0 && (
+          {grandTotal > 0 && (
             <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border-default)' }}>
               <input
                 type="text"
@@ -981,13 +1136,13 @@ export function AdminPanel() {
               <div className="admin-spinner" style={{ margin: '0 auto 1rem' }} />
               <p>Cargando empresas...</p>
             </div>
-          ) : companies.length === 0 ? (
+          ) : grandTotal === 0 ? (
             <div className="admin-empty">
               <p>No hay empresas añadidas. Empieza añadiendo una arriba.</p>
             </div>
-          ) : filteredCompanies.length === 0 ? (
+          ) : companies.length === 0 ? (
             <div className="admin-empty">
-              <p>No se encontraron empresas para "{companySearch}"</p>
+              <p>No se encontraron empresas para "{search}"</p>
             </div>
           ) : (
             <div className="admin-table-wrapper">
@@ -1002,7 +1157,7 @@ export function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCompanies.map((company) => (
+                  {companies.map((company) => (
                     <CompanyRow
                       key={company.id}
                       company={company}
@@ -1012,6 +1167,34 @@ export function AdminPanel() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {companies.length > 0 && totalPages > 1 && (
+            <div className="admin-pagination">
+              <div className="admin-pagination-pages">
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === '...' ? (
+                    <span key={`e${i}`} className="admin-pagination-ellipsis">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      className={`admin-pagination-btn ${p === page ? 'admin-pagination-btn--active' : ''}`}
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+              </div>
+              <div className="admin-pagination-nav">
+                <button className="admin-pagination-btn" onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1}>
+                  Anterior
+                </button>
+                <button className="admin-pagination-btn" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
+                  Siguiente
+                </button>
+              </div>
             </div>
           )}
         </div>

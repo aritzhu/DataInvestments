@@ -10,44 +10,71 @@ import { STOXX_SECTOR_INDUSTRY, resolveCompanyMeta } from '../services/companyMe
 import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 import { getRecommendedModel } from '../services/valuationService';
+import { parsePagination, paginate } from '../utils/pagination';
 
 const router: ExpressRouter = Router();
 
 router.use(requireAdmin);
 
-// GET /api/admin/companies — list all companies with sync status
-router.get('/companies', async (_req, res) => {
+// GET /api/admin/companies — list companies with sync status (paginated)
+router.get('/companies', async (req, res) => {
   try {
-    const companies = await prisma.company.findMany({
-      include: {
-        dataSync: true,
-        _count: { select: { financialData: true, stockMetrics: true } },
-      },
-      orderBy: { ticker: 'asc' },
-    });
+    const { search } = req.query as Record<string, string>;
+    const { page, pageSize, skip, take } = parsePagination(req.query, 50);
+    const where: any = {};
 
-    res.json(
-      companies.map((c) => ({
-        id: c.id,
-        ticker: c.ticker,
-        name: c.name,
-        sector: c.sector,
-        industry: c.industry,
-        cik: c.cik,
-        createdAt: c.createdAt,
-        financialRecords: c._count.financialData,
-        stockRecords: c._count.stockMetrics,
-        sync: c.dataSync
-          ? {
-              lastSyncAt: c.dataSync.lastSyncAt,
-              yearsFetched: c.dataSync.yearsFetched,
-              secSync: c.dataSync.secSync,
-              finnhubSync: c.dataSync.finnhubSync,
-              errorMessage: c.dataSync.errorMessage,
-            }
-          : null,
-      }))
-    );
+    if (search && search.trim() !== '') {
+      where.OR = [
+        { ticker: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { sector: { contains: search, mode: 'insensitive' } },
+        { industry: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, grandTotal, companies] = await Promise.all([
+      prisma.company.count({ where }),
+      prisma.company.count(),
+      prisma.company.findMany({
+        where,
+        include: {
+          dataSync: true,
+          _count: { select: { financialData: true, stockMetrics: true } },
+        },
+        orderBy: { ticker: 'asc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    res.json({
+      ...paginate({
+        data: companies.map((c) => ({
+          id: c.id,
+          ticker: c.ticker,
+          name: c.name,
+          sector: c.sector,
+          industry: c.industry,
+          cik: c.cik,
+          createdAt: c.createdAt,
+          financialRecords: c._count.financialData,
+          stockRecords: c._count.stockMetrics,
+          sync: c.dataSync
+            ? {
+                lastSyncAt: c.dataSync.lastSyncAt,
+                yearsFetched: c.dataSync.yearsFetched,
+                secSync: c.dataSync.secSync,
+                finnhubSync: c.dataSync.finnhubSync,
+                errorMessage: c.dataSync.errorMessage,
+              }
+            : null,
+        })),
+        total,
+        page,
+        pageSize,
+      }),
+      grandTotal,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Error fetching companies' });
   }

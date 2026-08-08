@@ -38,13 +38,11 @@ export function AddHoldingModal({ onSave, onClose, initial }: Props) {
     }
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/companies?q=${encodeURIComponent(search)}`, { headers: getAuth() });
+        const res = await fetch(`/api/companies?q=${encodeURIComponent(search)}&pageSize=10`, { headers: getAuth() });
         if (res.ok) {
-          const all: CompanyOption[] = await res.json();
-          setCompanies(all.filter((c) =>
-            c.ticker.toLowerCase().includes(search.toLowerCase()) ||
-            c.name.toLowerCase().includes(search.toLowerCase())
-          ).slice(0, 10));
+          const data = await res.json();
+          const all: CompanyOption[] = Array.isArray(data.data) ? data.data : [];
+          setCompanies(all.slice(0, 10));
         }
       } catch { /* ignore */ }
     }, 200);

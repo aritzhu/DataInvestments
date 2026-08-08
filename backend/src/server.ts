@@ -18,7 +18,8 @@ import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
-import { requireAuth, requireAdmin, type AuthRequest } from './middleware/jwt';
+import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
+import { parsePagination, paginate } from './utils/pagination';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -93,24 +94,46 @@ app.get('/api/companies/search', async (_req, res) => {
 
 app.get('/api/companies', async (req, res) => {
   try {
-    const { sector, search, country } = req.query;
+    const query = req.query as Record<string, string>;
+    const { sector, country, sort, fav } = query;
+    const search = query.search || query.q;
+    const { page, pageSize, skip, take } = parsePagination(req.query, 24);
     const where: any = {};
 
     if (sector && sector !== 'null' && sector !== 'undefined') {
-      where.sector = sector as string;
+      where.sector = sector;
     }
     if (country && country !== 'null' && country !== 'undefined' && country !== '') {
-      where.country = country as string;
+      where.country = country;
     }
     if (search && search !== 'null' && search !== 'undefined') {
       where.OR = [
-        { ticker: { contains: search as string, mode: 'insensitive' } },
-        { name: { contains: search as string, mode: 'insensitive' } },
-        { sector: { contains: search as string, mode: 'insensitive' } },
-        { industry: { contains: search as string, mode: 'insensitive' } },
+        { ticker: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+        { sector: { contains: search, mode: 'insensitive' } },
+        { industry: { contains: search, mode: 'insensitive' } },
       ];
     }
 
+    if (fav === '1') {
+      const header = req.headers.authorization;
+      if (header && header.startsWith('Bearer ')) {
+        try {
+          const decoded = verifyToken(header.slice(7));
+          const favorites = await prisma.favorite.findMany({
+            where: { userId: decoded.id },
+            select: { companyId: true },
+          });
+          where.id = { in: favorites.map((f) => f.companyId) };
+        } catch {
+          return res.json(paginate({ data: [], total: 0, page, pageSize }));
+        }
+      } else {
+        return res.json(paginate({ data: [], total: 0, page, pageSize }));
+      }
+    }
+
+    const total = await prisma.company.count({ where });
     const companies = await prisma.company.findMany({
       where,
       select: {
@@ -123,11 +146,38 @@ app.get('/api/companies', async (req, res) => {
         website: true,
         logoUrl: true,
       },
-      orderBy: { ticker: 'asc' },
+      orderBy: { ticker: sort === 'desc' ? 'desc' : 'asc' },
+      skip,
+      take,
     });
-    res.json(companies);
+    res.json(paginate({ data: companies, total, page, pageSize }));
   } catch (error) {
     res.status(500).json({ error: 'Error fetching companies' });
+  }
+});
+
+app.get('/api/companies/facets', async (_req, res) => {
+  try {
+    const [sectorRows, countryRows] = await Promise.all([
+      prisma.company.findMany({
+        where: { sector: { not: null } },
+        select: { sector: true },
+        distinct: ['sector'],
+        orderBy: { sector: 'asc' },
+      }),
+      prisma.company.findMany({
+        where: { country: { not: null } },
+        select: { country: true },
+        distinct: ['country'],
+        orderBy: { country: 'asc' },
+      }),
+    ]);
+    res.json({
+      sectors: sectorRows.map((r) => r.sector as string),
+      countries: countryRows.map((r) => r.country as string),
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching facets' });
   }
 });
 

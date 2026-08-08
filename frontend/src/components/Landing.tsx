@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
-import { BookCarousel } from './BookCarousel';
+import { BookCarousel, type Book } from './BookCarousel';
 import { MarketTicker } from './hero/MarketTicker';
 import { MarketClocks } from './hero/MarketClocks';
 import { ScrollIndicator } from './hero/ScrollIndicator';
@@ -18,6 +18,16 @@ interface CompanyFromAPI {
   sector: string | null;
   industry: string | null;
   country: string | null;
+  website: string | null;
+  logoUrl: string | null;
+}
+
+interface FavoriteCompany {
+  id: string;
+  ticker: string;
+  name: string;
+  sector: string | null;
+  industry: string | null;
   website: string | null;
   logoUrl: string | null;
 }
@@ -84,6 +94,8 @@ export function Landing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const companiesSectionRef = useRef<HTMLDivElement>(null);
   const [companies, setCompanies] = useState<CompanyFromAPI[]>([]);
+  const [total, setTotal] = useState(0);
+  const [facets, setFacets] = useState<{ sectors: string[]; countries: string[] }>({ sectors: [], countries: [] });
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedSector, setSelectedSector] = useState<string | null>(searchParams.get('sector') || null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort') as 'asc' | 'desc') || 'asc');
@@ -100,10 +112,25 @@ export function Landing() {
   const [undervalued, setUndervalued] = useState<any[]>([]);
   const [overvalued, setOvervalued] = useState<any[]>([]);
 
+  const books = useMemo<Book[] | null>(() => {
+    const raw = heroSettings.books;
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as Book[]) : null;
+    } catch {
+      return null;
+    }
+  }, [heroSettings.books]);
+
   useEffect(() => {
-    fetch('/api/companies')
+    fetch('/api/companies/facets')
       .then((res) => res.json())
-      .then((data) => setCompanies(data))
+      .then((data) => {
+        if (data && Array.isArray(data.sectors) && Array.isArray(data.countries)) {
+          setFacets({ sectors: data.sectors, countries: data.countries });
+        }
+      })
       .catch(() => {});
     fetch('/api/settings')
       .then((res) => res.json())
@@ -113,6 +140,36 @@ export function Landing() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('pageSize', String(PAGE_SIZE));
+    if (searchTerm) params.set('search', searchTerm);
+    if (selectedSector) params.set('sector', selectedSector);
+    if (selectedCountry) params.set('country', selectedCountry);
+    if (sortOrder !== 'asc') params.set('sort', sortOrder);
+    if (showFavoritesOnly && user) params.set('fav', '1');
+
+    const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
+    fetch(`/api/companies?${params.toString()}`, { headers })
+      .then((res) => res.json())
+      .then((d) => {
+        if (cancelled) return;
+        setCompanies(Array.isArray(d.data) ? d.data : []);
+        setTotal(typeof d.total === 'number' ? d.total : 0);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCompanies([]);
+          setTotal(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, user]);
 
   useEffect(() => {
     if (!valuationLimits) return;
@@ -169,56 +226,20 @@ export function Landing() {
     return () => clearTimeout(timer);
   }, [location.hash, companies.length]);
 
-  const favoriteCompanies = useMemo(() => {
-    if (!favorites.length) return [];
-    const favIds = new Set(favorites.map((f) => f.companyId));
-    return companies.filter((c) => favIds.has(c.id));
-  }, [favorites, companies]);
+  const favoriteCompanies = useMemo<FavoriteCompany[]>(
+    () => favorites.map((f) => f.company as unknown as FavoriteCompany).filter(Boolean),
+    [favorites]
+  );
 
-  const availableSectors = useMemo(() => {
-    const sectorSet = new Set(companies.map((c) => c.sector).filter(Boolean));
-    return Array.from(sectorSet).sort() as string[];
-  }, [companies]);
+  const availableSectors = useMemo(() => facets.sectors, [facets.sectors]);
 
-  const availableCountries = useMemo(() => {
-    const countrySet = new Set(companies.map((c) => c.country).filter(Boolean));
-    return Array.from(countrySet).sort() as string[];
-  }, [companies]);
+  const availableCountries = useMemo(() => facets.countries, [facets.countries]);
 
-  const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.companyId)), [favorites]);
+  const paginatedCompanies = companies;
 
-  const filteredCompanies = useMemo(() => {
-    return companies
-      .filter((c) => {
-        if (showFavoritesOnly && !favoriteIds.has(c.id)) return false;
-
-        if (selectedCountry && c.country !== selectedCountry) return false;
-
-        const matchesSearch =
-          c.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.industry?.toLowerCase().includes(searchTerm.toLowerCase());
-
-        if (selectedSector) {
-          return matchesSearch && c.sector === selectedSector;
-        }
-        return matchesSearch;
-      })
-      .sort((a, b) => {
-        const cmp = a.ticker.localeCompare(b.ticker);
-        return sortOrder === 'asc' ? cmp : -cmp;
-      });
-  }, [companies, searchTerm, selectedSector, sortOrder, showFavoritesOnly, favoriteIds, selectedCountry]);
-
-  const paginatedCompanies = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredCompanies.slice(start, start + PAGE_SIZE);
-  }, [filteredCompanies, page]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageStart = (page - 1) * PAGE_SIZE + 1;
-  const pageEnd = Math.min(page * PAGE_SIZE, filteredCompanies.length);
+  const pageEnd = Math.min(page * PAGE_SIZE, total);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -427,7 +448,7 @@ export function Landing() {
               <h2 className="books-title">Lecturas recomendadas</h2>
               <p className="books-subtitle">Libros para entender el valor real de las empresas y el value investing</p>
             </div>
-            <BookCarousel />
+            <BookCarousel books={books} />
           </div>
         </section>
       </SectionReveal>
@@ -642,7 +663,7 @@ export function Landing() {
                   </Link>
                 </div>
               </SectionReveal>
-            ) : filteredCompanies.length === 0 ? (
+            ) : companies.length === 0 ? (
               <div className="companies-empty" style={viewMode === 'grid' ? { gridColumn: '1 / -1' } : undefined}>
                 <Database size={48} className="companies-empty-icon" />
                 <h3 className="companies-empty-title">Sin resultados</h3>
@@ -736,7 +757,7 @@ export function Landing() {
             )}
           </div>
 
-          {filteredCompanies.length > 0 && (
+          {total > 0 && (
             <div className="pagination-wrap">
               <div className="pagination">
                 <button
@@ -779,7 +800,7 @@ export function Landing() {
                 </button>
               </div>
               <p className="pagination-info">
-                Mostrando {pageStart}–{pageEnd} de {filteredCompanies.length} empresas
+                Mostrando {pageStart}–{pageEnd} de {total} empresas
               </p>
             </div>
           )}

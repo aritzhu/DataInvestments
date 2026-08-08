@@ -1,14 +1,17 @@
 import { useRef } from 'react';
 import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 
-interface Book {
+export interface Book {
   title: string;
   author: string;
-  isbn: string;
   desc: string;
+  coverUrl?: string | null;
+  isbn?: string | null;
+  link?: string | null;
+  active?: boolean;
 }
 
-const BOOKS: Book[] = [
+export const DEFAULT_BOOKS: Book[] = [
   {
     title: 'The Intelligent Investor',
     author: 'Benjamin Graham',
@@ -71,16 +74,23 @@ const BOOKS: Book[] = [
   },
 ];
 
-function amazonUrl(title: string): string {
+function amazonSearchUrl(title: string): string {
   return `https://www.amazon.es/s?k=${encodeURIComponent(title)}`;
 }
 
-function coverUrl(isbn: string): string {
-  return `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+function coverUrl(book: Book): string | null {
+  if (book.coverUrl) return book.coverUrl;
+  if (book.isbn) return `https://covers.openlibrary.org/b/isbn/${book.isbn}-M.jpg`;
+  return null;
 }
 
-export function BookCarousel() {
+interface BookCarouselProps {
+  books?: Book[] | null;
+}
+
+export function BookCarousel({ books }: BookCarouselProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const list = (books && Array.isArray(books) && books.length > 0 ? books : DEFAULT_BOOKS).filter((b) => b.active !== false);
 
   const scrollByCard = (dir: 1 | -1) => {
     const viewport = viewportRef.current;
@@ -104,34 +114,36 @@ export function BookCarousel() {
 
       <div className="book-carousel-viewport" ref={viewportRef}>
         <div className="book-carousel-track">
-          {BOOKS.map((book) => (
+          {list.map((book, i) => (
             <a
-              key={book.isbn}
-              href={amazonUrl(book.title)}
+              key={book.link || book.title || i}
+              href={book.link || amazonSearchUrl(book.title)}
               target="_blank"
               rel="noopener noreferrer"
               className="book-card"
-              title={`Ver "${book.title}" en Amazon`}
+              title={`Ver "${book.title}"`}
             >
               <div className="book-card-cover">
                 <div className="book-card-cover-fallback">
                   <BookOpen size={28} />
                 </div>
-                <img
-                  src={coverUrl(book.isbn)}
-                  alt={`Portada de ${book.title}`}
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+                {coverUrl(book) && (
+                  <img
+                    src={coverUrl(book)!}
+                    alt={`Portada de ${book.title}`}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                )}
               </div>
               <div className="book-card-body">
                 <div className="book-card-title">{book.title}</div>
                 <div className="book-card-author">{book.author}</div>
                 <p className="book-card-desc">{book.desc}</p>
-                <span className="book-card-cta">Ver en Amazon →</span>
+                <span className="book-card-cta">Ver libro →</span>
               </div>
             </a>
           ))}
