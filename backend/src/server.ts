@@ -28,7 +28,12 @@ app.use(cors({
   origin: true,
   credentials: true,
 }));
-app.use(compression());
+app.use(compression({
+  filter: (req, res) => {
+    if (res.getHeader('Content-Type') === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  },
+}));
 app.set('trust proxy', 2);
 app.use(express.json());
 

@@ -329,7 +329,7 @@ export function AdminPanel() {
     if (tickers.length === 0) return;
 
     setIsImporting(true);
-    setBulkProgress(null);
+    setBulkProgress({ current: 0, total: 1, ticker: 'Preparando…', status: 'syncing' });
     setBulkComplete(null);
 
     try {
@@ -339,11 +339,25 @@ export function AdminPanel() {
         body: JSON.stringify({ tickers, years: bulkYears }),
       });
 
+      if (!res.ok) {
+        let message = 'Error al iniciar la importación';
+        try {
+          const data = await res.json();
+          if (data?.error) message = data.error;
+        } catch { /* ignore */ }
+        setBulkComplete({ success: [], skipped: [], failed: [{ ticker: 'GLOBAL', error: message }] });
+        return;
+      }
+
       const reader = res.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        setBulkComplete({ success: [], skipped: [], failed: [{ ticker: 'GLOBAL', error: 'No se pudo leer la respuesta del servidor' }] });
+        return;
+      }
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let completed = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -362,11 +376,17 @@ export function AdminPanel() {
               setBulkProgress(msg);
             } else if (msg.type === 'complete') {
               setBulkComplete(msg);
+              completed = true;
             } else if (msg.type === 'error') {
               setBulkComplete({ success: [], skipped: [], failed: [{ ticker: 'GLOBAL', error: msg.error }] });
+              completed = true;
             }
           } catch { /* ignore parse errors */ }
         }
+      }
+
+      if (!completed) {
+        setBulkComplete({ success: [], skipped: [], failed: [{ ticker: 'GLOBAL', error: 'Conexión interrumpida — importación parcial' }] });
       }
 
       fetchCompanies();
@@ -386,7 +406,7 @@ export function AdminPanel() {
 
   const startBatchResync = async () => {
     setIsResyncing(true);
-    setResyncProgress(null);
+    setResyncProgress({ current: 0, total: 1, ticker: 'Preparando…', status: 'syncing' });
     setResyncComplete(null);
 
     try {
@@ -396,11 +416,25 @@ export function AdminPanel() {
         body: JSON.stringify({ years: 5 }),
       });
 
+      if (!res.ok) {
+        let message = 'Error al iniciar la re-sincronización';
+        try {
+          const data = await res.json();
+          if (data?.error) message = data.error;
+        } catch { /* ignore */ }
+        setResyncComplete({ succeeded: 0, failed: 1, errors: [{ ticker: 'GLOBAL', error: message }] });
+        return;
+      }
+
       const reader = res.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        setResyncComplete({ succeeded: 0, failed: 1, errors: [{ ticker: 'GLOBAL', error: 'No se pudo leer la respuesta del servidor' }] });
+        return;
+      }
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let completed = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -419,11 +453,17 @@ export function AdminPanel() {
               setResyncProgress(msg);
             } else if (msg.type === 'complete') {
               setResyncComplete(msg);
+              completed = true;
             } else if (msg.type === 'error') {
               setResyncComplete({ succeeded: 0, failed: 1, errors: [{ ticker: 'GLOBAL', error: msg.error }] });
+              completed = true;
             }
           } catch { /* ignore parse errors */ }
         }
+      }
+
+      if (!completed) {
+        setResyncComplete({ succeeded: 0, failed: 1, errors: [{ ticker: 'GLOBAL', error: 'Conexión interrumpida — re-sincronización parcial' }] });
       }
 
       fetchCompanies();
@@ -919,13 +959,13 @@ export function AdminPanel() {
 
           <button
             onClick={startBatchResync}
-            disabled={isResyncing || companies.length === 0}
+            disabled={isResyncing || grandTotal === 0}
             className="admin-form-btn"
             style={{
-              background: companies.length > 0 && !isResyncing
+              background: grandTotal > 0 && !isResyncing
                 ? 'linear-gradient(135deg, var(--amber) 0%, var(--orange) 100%)'
                 : 'var(--border-default)',
-              color: companies.length > 0 && !isResyncing ? 'white' : 'var(--text-tertiary)',
+              color: grandTotal > 0 && !isResyncing ? 'white' : 'var(--text-tertiary)',
               fontWeight: 600,
               padding: '0.6rem 1.5rem',
             }}
@@ -933,7 +973,7 @@ export function AdminPanel() {
             {isResyncing ? (
               <><Loader2 size={16} className="admin-spinner" /> Re-sincronizando...</>
             ) : (
-              <><RotateCcw size={16} /> Re-sincronizar {companies.length > 0 ? `(${companies.length})` : ''}</>
+              <><RotateCcw size={16} /> Re-sincronizar {grandTotal > 0 ? `(${grandTotal})` : ''}</>
             )}
           </button>
 

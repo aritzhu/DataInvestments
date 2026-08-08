@@ -132,6 +132,7 @@ router.post('/field-config/apply', async (req, res) => {
 
   const totalCompanies = await prisma.company.count();
   res.write(`data: ${JSON.stringify({ type: 'start', total: totalCompanies })}\n\n`);
+  (res as any).flush?.();
 
   try {
     // Clear caches so European data picks up new config
@@ -143,13 +144,16 @@ router.post('/field-config/apply', async (req, res) => {
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
+        (res as any).flush?.();
       },
     );
 
     res.write(`data: ${JSON.stringify({ type: 'complete', ...result })}\n\n`);
+    (res as any).flush?.();
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     res.write(`data: ${JSON.stringify({ type: 'error', error: msg })}\n\n`);
+    (res as any).flush?.();
   }
 
   res.end();

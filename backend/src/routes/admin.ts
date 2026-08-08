@@ -293,6 +293,7 @@ router.post('/companies/bulk-import', async (req, res) => {
   });
 
   res.write(`data: ${JSON.stringify({ type: 'start', total: tickers.length })}\n\n`);
+  (res as any).flush?.();
 
   try {
     const result = await bulkImportCompanies(
@@ -300,14 +301,17 @@ router.post('/companies/bulk-import', async (req, res) => {
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
+        (res as any).flush?.();
       },
     );
 
     res.write(`data: ${JSON.stringify({ type: 'complete', ...result })}\n\n`);
+    (res as any).flush?.();
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Admin] Bulk import error:', msg);
     res.write(`data: ${JSON.stringify({ type: 'error', error: msg })}\n\n`);
+    (res as any).flush?.();
   }
 
   res.end();
@@ -327,20 +331,24 @@ router.post('/companies/batch-resync', async (req, res) => {
   // Count total companies first
   const totalCompanies = await prisma.company.count();
   res.write(`data: ${JSON.stringify({ type: 'start', total: totalCompanies })}\n\n`);
+  (res as any).flush?.();
 
   try {
     const result = await batchResyncCompanies(
       Math.min(Math.max(parseInt(years) || 5, 1), 10),
       (progress) => {
         res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
+        (res as any).flush?.();
       },
     );
 
     res.write(`data: ${JSON.stringify({ type: 'complete', ...result })}\n\n`);
+    (res as any).flush?.();
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Admin] Batch resync error:', msg);
     res.write(`data: ${JSON.stringify({ type: 'error', error: msg })}\n\n`);
+    (res as any).flush?.();
   }
 
   res.end();
