@@ -475,6 +475,13 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <span>{active.negativeInputWarning}</span>
               </div>
             )}
+            {/* Warning for partial quarterly data */}
+            {active.dataWarning && (
+              <div className="val-negative-warning">
+                <span className="val-negative-warning-icon">⚠️</span>
+                <span>{active.dataWarning}</span>
+              </div>
+            )}
             {/* Confidence */}
             <div className="val-confidence-row">
               <span className="val-confidence-label">Confianza:</span>

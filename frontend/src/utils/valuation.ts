@@ -23,6 +23,7 @@ export interface ValuationResult {
   configurable: boolean;
   inputs: ValuationInputData[];
   negativeInputWarning?: string;
+  dataWarning?: string;
 }
 
 export interface ValuationInput {
@@ -59,7 +60,10 @@ interface TTMData {
   shareRepurchases: number | null;
   balanceSheet: BalanceSheet | undefined;
   isTTM: boolean;
-  hasGap: boolean;
+  // Fields rebuilt from the latest annual figure because the quarterly rows
+  // were missing values (partial quarters). `['*']` when the whole TTM is the
+  // annual fallback. Used to keep confidence honest.
+  annualFields: string[];
 }
 
 function sumField(items: Financial[], field: keyof Financial): number {
@@ -73,11 +77,12 @@ function latestAnnual<T extends { year: number; quarter?: number | null }>(arr: 
   return [...arr.filter(x => (x.quarter ?? 0) === 0)].sort((a, b) => b.year - a.year)[0];
 }
 
-// Sums `field` across the last-4 quarterly rows; if none of them carry a value
-// for the field (all null), falls back to the latest annual value.
+// Sums `field` across the last-4 quarterly rows only when all 4 carry a value;
+// if any quarter is missing the field, the partial sum would understate the
+// period, so we fall back to the latest annual figure instead.
 function ttmSumOrAnnual<T extends { year: number; quarter?: number | null }>(last4: T[], annual: T | undefined, field: keyof T): number | null {
   const present = last4.filter(x => (x[field] as number | null) != null);
-  if (present.length > 0) {
+  if (present.length === 4) {
     return present.reduce((acc, x) => acc + ((x[field] as number) ?? 0), 0);
   }
   return (annual?.[field] as number | null | undefined) ?? null;
@@ -122,7 +127,7 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
       shareRepurchases: f.shareRepurchases ?? null,
       balanceSheet: bs,
       isTTM: false,
-      hasGap: true,
+      annualFields: ['*'],
     };
   };
 
@@ -146,6 +151,12 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
 
   const bs = latest(balanceSheets);
   const annual = latestAnnual(financials);
+  const TRACKED_TTM_FIELDS = ['ebitda', 'ebit', 'operatingCashFlow', 'freeCashFlow', 'dividendsPaid', 'shareRepurchases'] as const;
+  const annualFields: string[] = [];
+  for (const field of TRACKED_TTM_FIELDS) {
+    const presentCount = last4.filter(x => (x[field] as number | null) != null).length;
+    if (presentCount < 4) annualFields.push(field);
+  }
   return {
     revenue: sumField(last4, 'revenue'),
     netIncome: sumField(last4, 'netIncome'),
@@ -166,7 +177,7 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
     shareRepurchases: ttmSumOrAnnual(last4, annual, 'shareRepurchases'),
     balanceSheet: bs,
     isTTM: true,
-    hasGap: false,
+    annualFields,
   };
 }
 
@@ -232,6 +243,17 @@ function applySanityBound(result: ValuationResult, currentPrice: number): Valuat
   return result;
 }
 
+// Data-quality: cap confidence to 'medium' when the field behind a method was
+// rebuilt from the latest annual figure because some quarterly rows were
+// missing values (partial quarters). This keeps valuations honest: a value
+// built on incomplete quarterly data must not claim full confidence.
+function capConfidence(conf: ValuationResult['confidence'], annualFields: string[] | undefined, fields: string[]): ValuationResult['confidence'] {
+  if (conf === 'high' && annualFields && fields.some((f) => annualFields.includes(f))) return 'medium';
+  return conf;
+}
+
+const PARTIAL_DATA_WARNING = 'Datos trimestrales incompletos: este cálculo usa el último ejercicio anual en lugar de los 4 trimestres.';
+
 // ── DCF ──
 export function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }): ValuationResult {
   const f = latest(input.financials);
@@ -246,8 +268,10 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   let fcf: number;
   let fcfSource: string;
   let fcfValues: number[] = [];
+  let ttmAnnualFields: string[] | undefined;
   if (isQuarterly) {
     const ttm = trailing12Months(input.financials, input.balanceSheets);
+    ttmAnnualFields = ttm?.annualFields;
     const ttmFCF = ttm?.freeCashFlow ?? ttm?.operatingCashFlow;
     if (ttmFCF == null || ttmFCF === 0) {
       return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre (TTM)', configurable: true, inputs: [] };
@@ -278,7 +302,9 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const terminalPV = terminalValue / Math.pow(1 + r, config.horizonYears);
   const fairValue = (totalPV + terminalPV) / shares;
 
-  const conf = isQuarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
+  const baseConf: ValuationResult['confidence'] = isQuarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
+  const conf = capConfidence(baseConf, ttmAnnualFields, ['freeCashFlow', 'operatingCashFlow']);
+  const dataWarning = ttmAnnualFields && ttmAnnualFields.some((f) => f === 'freeCashFlow' || f === 'operatingCashFlow') ? PARTIAL_DATA_WARNING : undefined;
 
   return {
     id: 'dcf', name: 'DCF (Flujo de Caja Descontado)',
@@ -290,6 +316,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     fairValue, confidence: conf,
     confidenceReason: `FCF ${fcfSource}: ${fmtB(fcf, input.currency)}`,
     configurable: true,
+    ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: `FCF ${fcfSource}`, value: fmtB(fcf, input.currency), rawValue: fcf },
       { label: 'Crecimiento anual', value: `${config.growthRate}%`, rawValue: config.growthRate },
@@ -414,12 +441,25 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
       negativeInputWarning: undefined,
     };
   }
+  if (stock.enterpriseValue != null && stock.enterpriseValue < 0) {
+    return {
+      id: 'ev_ebitda', name: 'EV/EBITDA',
+      description: 'Múltiplo de empresa sobre EBITDA',
+      explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.',
+      formula: '(EBITDA × Múltiplo − Net Debt) / Shares',
+      fairValue: null, confidence: 'na',
+      confidenceReason: 'EV negativo: no aplica a empresas con tesorería neta (banca/financieras)',
+      configurable: true, inputs: [],
+    };
+  }
   const ebitda = ttm.ebitda;
   const ev = ebitda * config.targetMultiple;
   const nd = netDebt(bs);
   const fairValue = (ev - nd) / shares;
   const currentMult = stock.enterpriseValue && ebitda ? stock.enterpriseValue / ebitda : 0;
-  const conf = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
+  const baseConf: ValuationResult['confidence'] = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
+  const conf = capConfidence(baseConf, ttm.annualFields, ['ebitda']);
+  const dataWarning = ttm.annualFields.includes('ebitda') ? PARTIAL_DATA_WARNING : undefined;
   return {
     id: 'ev_ebitda', name: 'EV/EBITDA',
     description: 'Múltiplo de empresa sobre EBITDA',
@@ -428,6 +468,7 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
     fairValue, confidence: conf,
     confidenceReason: currentMult > 0 ? `Múltiplo actual: ${currentMult.toFixed(1)}x` : 'Sin EV/EBITDA',
     configurable: true,
+    ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: 'EBITDA', value: fmtB(ebitda, input.currency), rawValue: ebitda },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
@@ -449,11 +490,16 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   if (!ttm || !stock || shares <= 0 || ebit == null || ebit === 0) {
     return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit === 0 ? 'EBIT es cero' : 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
+  if (stock.enterpriseValue != null && stock.enterpriseValue < 0) {
+    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'EV negativo: no aplica a empresas con tesorería neta (banca/financieras)', configurable: true, inputs: [] };
+  }
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
   const fairValue = (evEbit - ndEbit) / shares;
   const currentMultEbit = stock.enterpriseValue && ebit ? stock.enterpriseValue / ebit : 0;
-  const conf = currentMultEbit > 0 && currentMultEbit < 50 ? 'high' : currentMultEbit > 0 ? 'medium' : 'low';
+  const baseConf: ValuationResult['confidence'] = currentMultEbit > 0 && currentMultEbit < 50 ? 'high' : currentMultEbit > 0 ? 'medium' : 'low';
+  const conf = capConfidence(baseConf, ttm.annualFields, ['ebit']);
+  const dataWarning = ttm.annualFields.includes('ebit') ? PARTIAL_DATA_WARNING : undefined;
   const evEbitWarning = ebit < 0
     ? 'EBIT negativo: la empresa tiene pérdidas operativas. El EV/EBIT no es aplicable con EBIT negativo.'
     : undefined;
@@ -466,6 +512,7 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
     confidenceReason: currentMultEbit > 0 ? `Múltiplo actual: ${currentMultEbit.toFixed(1)}x` : 'Sin EV/EBIT',
     configurable: true,
     negativeInputWarning: evEbitWarning,
+    ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: 'EBIT', value: fmtB(ebit, input.currency), rawValue: ebit },
       { label: 'Múltiplo target', value: `${config.targetMultiple}x`, rawValue: config.targetMultiple },
@@ -493,7 +540,9 @@ export function computeDDM(input: ValuationInput, config: { growthRate: number; 
   const g = config.growthRate / 100;
   const fairValue = r > g ? d1 / (r - g) : null;
   const divYield = stock.dividendYield ?? 0;
-  const conf = divYield > 0.02 && fairValue !== null ? 'high' : divYield > 0 ? 'medium' : 'low';
+  const baseConf: ValuationResult['confidence'] = divYield > 0.02 && fairValue !== null ? 'high' : divYield > 0 ? 'medium' : 'low';
+  const conf = capConfidence(baseConf, ttm?.annualFields, ['dividendsPaid']);
+  const dataWarning = ttm && ttm.annualFields.includes('dividendsPaid') ? PARTIAL_DATA_WARNING : undefined;
   return {
     id: 'ddm', name: 'DDM (Descuento de Dividendos)',
     description: 'Valor intrínseco por dividendos futuros descontados',
@@ -502,6 +551,7 @@ export function computeDDM(input: ValuationInput, config: { growthRate: number; 
     fairValue, confidence: conf,
     confidenceReason: divYield > 0 ? `Yield: ${(divYield * 100).toFixed(1)}%` : 'Sin yield disponible',
     configurable: true,
+    ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: 'Dividendo total', value: fmtB(Math.abs(divPaid ?? 0), input.currency), rawValue: Math.abs(divPaid ?? 0) },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
@@ -565,7 +615,9 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
   const fcfPerShare = fcf / shares;
   const fairValue = config.targetYield > 0 ? fcfPerShare / (config.targetYield / 100) : null;
   const currentYield = stock.currentPrice > 0 ? fcfPerShare / stock.currentPrice : 0;
-  const conf = currentYield > 0.05 ? 'high' : currentYield > 0.02 ? 'medium' : currentYield > 0 ? 'low' : 'na';
+  const baseConf: ValuationResult['confidence'] = currentYield > 0.05 ? 'high' : currentYield > 0.02 ? 'medium' : currentYield > 0 ? 'low' : 'na';
+  const conf = capConfidence(baseConf, ttm.annualFields, ['freeCashFlow', 'operatingCashFlow']);
+  const dataWarning = ttm.annualFields.some((f) => f === 'freeCashFlow' || f === 'operatingCashFlow') ? PARTIAL_DATA_WARNING : undefined;
   const fcfYieldWarning = fcf < 0
     ? 'FCF negativo: la empresa genera un flujo de caja libre negativo. Un yield negativo produce un valor intrínseco negativo, indicando que la empresa destruye valor en efectivo.'
     : undefined;
@@ -578,6 +630,7 @@ export function computeFCFYield(input: ValuationInput, config: { targetYield: nu
     confidenceReason: currentYield > 0 ? `FCF yield actual: ${(currentYield * 100).toFixed(1)}%` : 'Sin FCF positivo',
     configurable: true,
     negativeInputWarning: fcfYieldWarning,
+    ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: 'FCF total', value: fmtB(fcf, input.currency), rawValue: fcf },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
