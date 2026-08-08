@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Landing } from './components/Landing';
 import { CompanyPage } from './components/CompanyPage';
@@ -11,6 +11,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { PortfolioDetailPage } from './pages/PortfolioDetailPage';
+import { LegalPage } from './pages/LegalPage';
 
 function App() {
   return (
@@ -35,6 +36,8 @@ function App() {
                       <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
                       <Route path="/portfolios" element={<ProtectedRoute><PortfoliosPage /></ProtectedRoute>} />
                       <Route path="/portfolios/:id" element={<ProtectedRoute><PortfolioDetailPage /></ProtectedRoute>} />
+                      <Route path="/legal" element={<Navigate to="/legal/terminos" replace />} />
+                      <Route path="/legal/:slug" element={<LegalPage />} />
                     </Routes>
                   </main>
                 </>

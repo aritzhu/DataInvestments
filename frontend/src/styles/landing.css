@@ -5,7 +5,7 @@
 /* --- Hero --- */
 .hero {
   position: relative;
-  background: var(--gradient-dark);
+  background: #05070a;
   color: var(--text-primary);
   overflow: hidden;
   min-height: 90vh;
@@ -16,6 +16,10 @@
   background-position: center;
 }
 
+[data-theme="light"] .hero {
+  background: var(--gradient-dark);
+}
+
 .hero--has-bg {
   color: white;
 }
@@ -23,12 +27,21 @@
 .hero--has-bg .hero-pattern {
   background-image:
     linear-gradient(var(--overlay-soft), var(--overlay)),
+    radial-gradient(circle 32rem at 14% 12%, var(--gold-mid) 0%, var(--gold-faint) 45%, transparent 75%),
     radial-gradient(circle at 20% 80%, var(--gold-faint)),
     radial-gradient(circle at 80% 20%, var(--blue-soft));
 }
 
 .hero--has-bg .hero-subtitle {
   color: #d3cfc3;
+}
+
+[data-theme="light"] .hero--has-bg .hero-pattern {
+  background-image:
+    linear-gradient(var(--overlay-soft), var(--overlay)),
+    radial-gradient(circle 32rem at 14% 12%, var(--gold-glow) 0%, var(--gold-soft) 45%, transparent 75%),
+    radial-gradient(circle at 20% 80%, var(--gold-soft)),
+    radial-gradient(circle at 80% 20%, var(--blue-pale));
 }
 
 @media (min-width: 768px) {
@@ -39,9 +52,17 @@
   position: absolute;
   inset: 0;
   background-image:
+    radial-gradient(circle 32rem at 14% 12%, var(--gold-mid) 0%, var(--gold-faint) 45%, transparent 75%),
     radial-gradient(circle at 20% 80%, var(--gold-faint)),
     radial-gradient(circle at 80% 20%, var(--blue-soft));
   pointer-events: none;
+}
+
+[data-theme="light"] .hero-pattern {
+  background-image:
+    radial-gradient(circle 32rem at 14% 12%, var(--gold-glow) 0%, var(--gold-soft) 45%, transparent 75%),
+    radial-gradient(circle at 20% 80%, var(--gold-soft)),
+    radial-gradient(circle at 80% 20%, var(--blue-pale));
 }
 
 .hero-glow {
@@ -50,7 +71,7 @@
   left: 0;
   right: 0;
   height: 8rem;
-  background: linear-gradient(to top, var(--surface-0), transparent 10%);
+  background: linear-gradient(to top, #05070a, transparent 10%);
   pointer-events: none;
 }
 
@@ -707,6 +728,27 @@
   color: var(--red);
 }
 
+.valuation-disclaimer {
+  margin-bottom: 1.5rem;
+}
+
+.valuation-card-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.valuation-note {
+  font-size: 0.62rem;
+  color: var(--text-tertiary);
+}
+
+.valuation-note--warn {
+  color: var(--amber);
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .valuation-metrics {
     display: none;
@@ -1045,6 +1087,23 @@
   font-weight: 600;
   color: var(--text-secondary);
   font-size: 0.85rem;
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  justify-content: center;
+}
+
+.footer-legal-link {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  transition: color 0.2s var(--ease-out);
+}
+
+.footer-legal-link:hover {
+  color: var(--text-primary);
 }
 
 /* --- Root wrapper --- */

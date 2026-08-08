@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2 } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
@@ -401,7 +401,7 @@ export function CompanyPage() {
             {stock && (
               <div className="cp-price">
                 <span className="cp-price-value">
-                  $<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
+                  {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
                 </span>
               </div>
             )}
@@ -685,6 +685,12 @@ export function CompanyPage() {
       <footer className="cp-footer">
         <span>DataInvestments</span>
         <span>Datos de SEC EDGAR / Yahoo Finance</span>
+        <nav className="cp-footer-legal">
+          <Link to="/legal/terminos" className="cp-footer-legal-link">Términos</Link>
+          <Link to="/legal/privacidad" className="cp-footer-legal-link">Privacidad</Link>
+          <Link to="/legal/aviso-legal" className="cp-footer-legal-link">Aviso Legal</Link>
+          <Link to="/legal/riesgos" className="cp-footer-legal-link">Riesgos</Link>
+        </nav>
       </footer>
     </div>
   );

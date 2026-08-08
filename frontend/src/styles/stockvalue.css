@@ -893,7 +893,29 @@
 .val-alarm-modal-desc {
   font-size: 0.85rem;
   color: var(--text-secondary, var(--text-secondary));
+  margin: 0 0 0.5rem;
+}
+
+.val-alarm-note {
+  font-size: 0.72rem;
+  color: var(--text-tertiary, var(--text-tertiary));
+  line-height: 1.5;
   margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--amber, #d97706);
+  background: var(--surface-1, var(--surface-1));
+  border-radius: 4px;
+}
+
+.val-disclaimer {
+  margin-bottom: 1rem;
+}
+
+.val-stale-warning {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  color: var(--amber, #d97706);
+  line-height: 1.5;
 }
 
 .val-alarm-options {

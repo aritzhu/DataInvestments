@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogIn, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
+import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
 import '../styles/navbar.css';
@@ -137,7 +137,7 @@ export function Navbar() {
               </div>
             ) : (
               <Link to="/login" className="navbar-icon-btn" title="Iniciar sesión">
-                <LogIn size={20} />
+                <User size={20} />
               </Link>
             )}
           </div>
@@ -226,7 +226,7 @@ export function Navbar() {
               </button>
             ) : (
               <Link to="/login" className="navbar-mobile-link">
-                <LogIn size={20} />
+                <User size={20} />
                 Iniciar sesión
               </Link>
             )}

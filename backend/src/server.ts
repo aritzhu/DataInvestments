@@ -182,6 +182,7 @@ interface RecommendedValuation {
   intrinsicValue: number;
   marginOfSafety: number;
   recommendedModel: string;
+  asOf: string | null;
 }
 
 const MAX_VALUATION_MARGIN = Math.abs(parseFloat(process.env.VALUATION_MAX_MARGIN || '1')) || 1;
@@ -256,6 +257,7 @@ async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
         intrinsicValue: recommended.fairValue,
         marginOfSafety: (recommended.fairValue - stock.currentPrice) / stock.currentPrice,
         recommendedModel: recommended.id,
+        asOf: stock.date ? new Date(stock.date).toISOString().slice(0, 10) : null,
       });
     } catch (err) {
       console.error(`[Valuations] ${c.ticker} skipped: ${err instanceof Error ? err.message : err}`);

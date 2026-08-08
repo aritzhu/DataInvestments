@@ -8,6 +8,7 @@ import { formatPct } from '../../utils/format';
 import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, latestFinancialPeriod, type ValuationInput } from '../../utils/valuation';
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X } from 'lucide-react';
+import { DisclaimerBanner } from '../DisclaimerBanner';
 import '../../styles/stockvalue.css';
 
 const getAuth = () => {
@@ -174,6 +175,11 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
 
   return (
     <div className="val-tab">
+      {/* Investment disclaimer */}
+      <SectionReveal delay={0}>
+        <DisclaimerBanner className="val-disclaimer" />
+      </SectionReveal>
+
       {/* Hero Summary */}
       <SectionReveal delay={0}>
         <div className="val-hero-summary">
@@ -231,6 +237,11 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         <p className="verdict-explanation">
           La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[recommendedModel] || recommendedModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
         </p>
+        {periodInfo.year && periodInfo.year < new Date().getFullYear() - 2 && (
+          <p className="val-stale-warning">
+            ⚠ Esta valoración se basa en datos financieros del ejercicio <strong>{periodInfo.year}</strong>. Los datos pueden estar desactualizados y las estimaciones podrían no reflejar la situación actual de la empresa.
+          </p>
+        )}
       </SectionReveal>
 
       {/* Method Grid */}
@@ -249,7 +260,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               >
                 <div className="val-method-card-header">
                   <span className="val-method-card-name">{r.name}</span>
-                  {isRecommended && <span className="val-recommended-badge">Recomendado</span>}
+                  {isRecommended && <span className="val-recommended-badge">Método sugerido por sector</span>}
                   <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
                 </div>
                 <span className={`val-method-card-value ${isNegative ? 'val-method-card-value--negative' : ''}`}>
@@ -545,6 +556,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
             </div>
             <div className="val-alarm-modal-body">
               <p className="val-alarm-modal-desc">¿Cuándo quieres que te avise?</p>
+              <p className="val-alarm-note">Los estados ("Subvalorada", "Justa", "Sobrevalorada") son estimaciones automáticas del modelo de valoración, no recomendaciones de compra o venta.</p>
               <div className="val-alarm-options">
                 {([
                   { value: 'buy' as const, label: 'Subvalorada', desc: 'Cuando el sistema detecte que está por debajo de su valor justo', color: 'var(--blue-light)' },

@@ -10,12 +10,18 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!acceptedTerms) {
+      setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad.');
+      return;
+    }
 
     if (password !== confirm) {
       setError('Las contraseñas no coinciden');
@@ -100,7 +106,24 @@ export function RegisterPage() {
             />
           </div>
 
-          <button type="submit" className="auth-submit" disabled={loading}>
+          <div className="auth-field auth-consent">
+            <label className="auth-consent-label">
+              <input
+                type="checkbox"
+                className="auth-consent-checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                required
+              />
+              <span>
+                He leído y acepto los{' '}
+                <Link to="/legal/terminos" className="auth-link">Términos y Condiciones</Link> y la{' '}
+                <Link to="/legal/privacidad" className="auth-link">Política de Privacidad</Link>.
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" className="auth-submit" disabled={loading || !acceptedTerms}>
             {loading ? 'Creando...' : 'Crear cuenta'}
           </button>
         </form>

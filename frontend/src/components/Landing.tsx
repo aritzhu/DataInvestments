@@ -5,6 +5,7 @@ import { SectionReveal } from './ui/SectionReveal';
 import { MarketTicker } from './hero/MarketTicker';
 import { MarketClocks } from './hero/MarketClocks';
 import { ScrollIndicator } from './hero/ScrollIndicator';
+import { DisclaimerBanner } from './DisclaimerBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
 import '../styles/landing.css';
@@ -299,6 +300,7 @@ export function Landing() {
                 </div>
               </div>
             )}
+            <DisclaimerBanner className="valuation-disclaimer" />
             <div className="valuation-grid">
               {/* Undervalued */}
               {undervalued.length > 0 && (
@@ -306,8 +308,8 @@ export function Landing() {
                   <SectionReveal delay={0}>
                     <div className="valuation-header valuation-header--green">
                       <TrendingUp size={22} className="valuation-icon valuation-icon--green" />
-                      <h2 className="valuation-title">{heroSettings.undervalued_title || 'Oportunidades de Inversión'}</h2>
-                      <p className="valuation-subtitle">{heroSettings.undervalued_subtitle || 'Empresas con margen de seguridad positivo según nuestro análisis'}</p>
+                      <h2 className="valuation-title">{heroSettings.undervalued_title || 'Empresas potencialmente infravaloradas'}</h2>
+                      <p className="valuation-subtitle">{heroSettings.undervalued_subtitle || 'Empresas con margen de seguridad positivo según estimaciones de modelo. Análisis informativo, no una recomendación de compra.'}</p>
                     </div>
                   </SectionReveal>
                   <div className="valuation-list">
@@ -341,6 +343,14 @@ export function Landing() {
                               <span className="valuation-metric-value">+{(c.marginOfSafety * 100).toFixed(0)}%</span>
                             </div>
                           </div>
+                          <div className="valuation-card-notes">
+                            {c.marginOfSafety > 0.5 && (
+                              <span className="valuation-note valuation-note--warn">⚠ Estimación con alta incertidumbre</span>
+                            )}
+                            {c.asOf && (
+                              <span className="valuation-note">Datos a fecha {c.asOf}</span>
+                            )}
+                          </div>
                         </Link>
                       </SectionReveal>
                     ))}
@@ -354,8 +364,8 @@ export function Landing() {
                   <SectionReveal delay={100}>
                     <div className="valuation-header valuation-header--red">
                       <TrendingDown size={22} className="valuation-icon valuation-icon--red" />
-                      <h2 className="valuation-title">{heroSettings.overvalued_title || 'Empresas Sobrevaloradas'}</h2>
-                      <p className="valuation-subtitle">{heroSettings.overvalued_subtitle || 'Empresas que el mercado sobreestima según nuestro análisis'}</p>
+                      <h2 className="valuation-title">{heroSettings.overvalued_title || 'Empresas potencialmente sobrevaloradas'}</h2>
+                      <p className="valuation-subtitle">{heroSettings.overvalued_subtitle || 'Empresas que el mercado sobreestima según estimaciones de modelo. Análisis informativo, no una recomendación de venta.'}</p>
                     </div>
                   </SectionReveal>
                   <div className="valuation-list">
@@ -388,6 +398,14 @@ export function Landing() {
                               <span className="valuation-metric-label">Sobrevaloración</span>
                               <span className="valuation-metric-value">{(c.marginOfSafety * 100).toFixed(0)}%</span>
                             </div>
+                          </div>
+                          <div className="valuation-card-notes">
+                            {Math.abs(c.marginOfSafety) > 0.5 && (
+                              <span className="valuation-note valuation-note--warn">⚠ Estimación con alta incertidumbre</span>
+                            )}
+                            {c.asOf && (
+                              <span className="valuation-note">Datos a fecha {c.asOf}</span>
+                            )}
                           </div>
                         </Link>
                       </SectionReveal>
@@ -449,9 +467,9 @@ export function Landing() {
               <div className="feature-icon feature-icon--purple">
                 <Shield size={28} />
               </div>
-              <h3 className="feature-title">Seguridad</h3>
+              <h3 className="feature-title">Fundamental</h3>
               <p className="feature-desc">
-                Identifica oportunidades de inversión con márgenes de seguridad y análisis fundamental sólido.
+                Explora márgenes de seguridad y análisis fundamental para comprender mejor cada empresa y sus números.
               </p>
               <div className="feature-tags">
                 {['Fundamental', 'Riesgo', 'Valor', 'Crecimiento'].map((tag) => (
@@ -759,7 +777,7 @@ export function Landing() {
         <section className="cta-section">
           <div className="cta-inner">
             <PieChart size={48} className="cta-icon" />
-            <h2 className="cta-title">Toma mejores decisiones de inversión</h2>
+            <h2 className="cta-title">Entiende los datos antes de decidir</h2>
             <p className="cta-desc">
               Analiza empresas de forma visual e intuitiva con datos financieros reales
             </p>
@@ -780,6 +798,12 @@ export function Landing() {
           <p className="footer-copyright">
             &copy; {new Date().getFullYear()} DataInvestments — Análisis de inversión con datos reales
           </p>
+          <nav className="footer-legal">
+            <Link to="/legal/terminos" className="footer-legal-link">Términos</Link>
+            <Link to="/legal/privacidad" className="footer-legal-link">Privacidad</Link>
+            <Link to="/legal/aviso-legal" className="footer-legal-link">Aviso Legal</Link>
+            <Link to="/legal/riesgos" className="footer-legal-link">Riesgos</Link>
+          </nav>
         </div>
       </footer>
     </div>

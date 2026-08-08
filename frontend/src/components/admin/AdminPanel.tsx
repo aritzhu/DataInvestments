@@ -574,6 +574,40 @@ export function AdminPanel() {
               ))}
             </div>
           </div>
+
+          {/* Legal Data Config */}
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--pink-pale)', paddingTop: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pink-deep)', margin: 0 }}>Datos Legales</h3>
+              <a href="/legal/aviso-legal" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--pink)', fontWeight: 600 }}>
+                Ver Aviso Legal ↗
+              </a>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 0, marginBottom: '1rem' }}>
+              Se muestran en el Aviso Legal y la Política de Privacidad. Los campos vacíos aparecen como pendientes de configurar.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {[
+                { key: 'legal_titular', label: 'Titular (nombre o razón social)', placeholder: 'DataInvestments S.L.' },
+                { key: 'legal_nif', label: 'NIF/CIF', placeholder: 'B00000000' },
+                { key: 'legal_domicilio', label: 'Domicilio', placeholder: 'Calle Falsa 123, 28000 Madrid' },
+                { key: 'legal_email', label: 'Email de contacto', placeholder: 'contacto@datainvestments.com' },
+                { key: 'legal_registral', label: 'Datos registrales (opcional)', placeholder: 'Inscrita en el Registro Mercantil de Madrid, Tomo X' },
+                { key: 'legal_updated_at', label: 'Fecha de actualización de los documentos', placeholder: 'Agosto 2026' },
+              ].map((field) => (
+                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)' }}>{field.label}</label>
+                  <input
+                    type="text"
+                    value={heroSettings[field.key] || ''}
+                    onChange={(e) => setHeroSettings((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-default)', fontSize: '0.85rem', outline: 'none' }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Data Statistics */}
