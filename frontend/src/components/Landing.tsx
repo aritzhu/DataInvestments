@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
+import { BookCarousel } from './BookCarousel';
 import { MarketTicker } from './hero/MarketTicker';
 import { MarketClocks } from './hero/MarketClocks';
 import { ScrollIndicator } from './hero/ScrollIndicator';
@@ -417,6 +418,19 @@ export function Landing() {
           </div>
         </section>
       )}
+
+      {/* Recommended books */}
+      <SectionReveal delay={0}>
+        <section id="books" className="books-section">
+          <div className="books-inner">
+            <div className="books-header">
+              <h2 className="books-title">Lecturas recomendadas</h2>
+              <p className="books-subtitle">Libros para entender el valor real de las empresas y el value investing</p>
+            </div>
+            <BookCarousel />
+          </div>
+        </section>
+      </SectionReveal>
 
       {/* Features */}
       <section id="features" className="features-section">
