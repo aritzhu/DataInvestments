@@ -303,6 +303,7 @@ export function Landing() {
       {(undervalued.length > 0 || overvalued.length > 0) && (
         <section className="valuation-section">
           <div className="valuation-inner">
+            <DisclaimerBanner className="valuation-disclaimer" />
             {availableCountries.length > 0 && (
               <div className="valuation-filters">
                 <div className="country-filter-wrapper">
@@ -322,7 +323,6 @@ export function Landing() {
                 </div>
               </div>
             )}
-            <DisclaimerBanner className="valuation-disclaimer" />
             <div className="valuation-grid">
               {/* Undervalued */}
               {undervalued.length > 0 && (
@@ -458,6 +458,7 @@ export function Landing() {
         <div className="features-grid">
           <SectionReveal delay={0}>
             <div className="features-header">
+              <span className="features-kicker">Herramientas de análisis</span>
               <h2 className="features-title">¿Qué puedes analizar?</h2>
               <p className="features-subtitle">Herramientas diseñadas para inversores que buscan entender los números</p>
             </div>
@@ -465,6 +466,7 @@ export function Landing() {
 
           <SectionReveal delay={80}>
             <div className="feature-card">
+              <span className="feature-num">01</span>
               <div className="feature-icon feature-icon--blue">
                 <DollarSign size={28} />
               </div>
@@ -482,6 +484,7 @@ export function Landing() {
 
           <SectionReveal delay={160}>
             <div className="feature-card">
+              <span className="feature-num">02</span>
               <div className="feature-icon feature-icon--emerald">
                 <TrendingUp size={28} />
               </div>
@@ -499,6 +502,7 @@ export function Landing() {
 
           <SectionReveal delay={240}>
             <div className="feature-card">
+              <span className="feature-num">03</span>
               <div className="feature-icon feature-icon--purple">
                 <Shield size={28} />
               </div>
@@ -828,6 +832,7 @@ export function Landing() {
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-brand">
+            <img src="/logo.svg" alt="DataInvestments" className="footer-brand-logo" />
             <span className="footer-brand-text">DataInvestments</span>
           </div>
           <p className="footer-copyright">

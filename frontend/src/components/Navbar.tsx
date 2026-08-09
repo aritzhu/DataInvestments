@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { TrendingUp, Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
+import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
 import '../styles/navbar.css';
@@ -72,9 +72,7 @@ export function Navbar() {
               <img src={siteLogoUrl} alt="DataInvestments" className="navbar-logo-img" />
             ) : (
               <>
-                <div className="navbar-logo-icon">
-                  <TrendingUp size={22} />
-                </div>
+                <img src="/logo.svg" alt="DataInvestments" className="navbar-logo-img" />
                 <span className="navbar-logo-text">DataInvestments</span>
               </>
             )}

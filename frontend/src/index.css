@@ -10,12 +10,12 @@
   --animate-countUp: countUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   --animate-shimmer: shimmer 2s infinite;
   --animate-pulseSoft: pulseSoft 3s ease-in-out infinite;
-  --color-primary: #8fb4cc;
-  --color-primary-dark: #4e6f89;
-  --color-primary-light: #bcd6e8;
-  --color-secondary: #0a0d11;
-  --color-accent: #193e57;
-  --color-success: #193e57;
+  --color-primary: #7eaad4;
+  --color-primary-dark: #37607f;
+  --color-primary-light: #c4dcf0;
+  --color-secondary: #05060a;
+  --color-accent: #1b4e7a;
+  --color-success: #1b4e7a;
   --color-danger: #c26972;
   --color-warning: #bda064;
   --font-family-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -24,7 +24,7 @@
 
 :root {
   /* Accent — steel ice blue */
-  --gold: #8fb4cc;
+  --gold: #7eaad4;
   --gold-light: #bcd6e8;
   --gold-dark: #4e6f89;
   --gold-bright: #a7c9dd;
@@ -39,9 +39,9 @@
   --gold-strong: rgba(143, 180, 204, 0.35);
 
   /* Blue accents — DionEstudio navy */
-  --blue: #193e57;
-  --blue-light: #4f8fb5;
-  --sky: #79b3d6;
+  --blue: #1b4e7a;
+  --blue-light: #3d86c0;
+  --sky: #5fa8d9;
   --blue-soft: rgba(79, 143, 181, 0.08);
   --blue-pale: rgba(79, 143, 181, 0.14);
   --blue-mid: rgba(79, 143, 181, 0.3);
@@ -123,11 +123,11 @@
   --scrollbar-thumb-hover: #48515e;
 
   /* Surfaces — cool charcoal */
-  --surface-0: #0a0d11;
-  --surface-1: #11151b;
-  --surface-2: #171c24;
-  --surface-3: #1d232c;
-  --surface-4: #242b36;
+  --surface-0: #05060a;
+  --surface-1: #0a0d13;
+  --surface-2: #0f131b;
+  --surface-3: #141a23;
+  --surface-4: #1a2230;
 
   /* Text */
   --text-primary: #e7edf3;
@@ -151,11 +151,11 @@
   --shadow-gold: 0 4px 18px rgba(143, 180, 204, 0.22);
 
   /* Gradients */
-  --gradient-primary: linear-gradient(135deg, #a7c9dd 0%, #4e6f89 100%);
+  --gradient-primary: linear-gradient(135deg, #8fc0e0 0%, #37607f 100%);
   --gradient-dark: linear-gradient(135deg, #0a0d11 0%, #141a22 50%, #0a0d11 100%);
   --gradient-surface: linear-gradient(180deg, #11151b 0%, #0a0d11 100%);
   --gradient-glass: linear-gradient(135deg, rgba(17, 21, 27, 0.85) 0%, rgba(17, 21, 27, 0.6) 100%);
-  --gradient-title: linear-gradient(135deg, #bcd6e8 0%, #8fb4cc 45%, #e7edf3 100%);
+  --gradient-title: linear-gradient(135deg, #c4dcf0 0%, #7eaad4 45%, #e7edf3 100%);
 
   /* Border radius */
   --radius-sm: 8px;
@@ -182,8 +182,8 @@
    Light Theme — cool porcelain
    ============================ */
 [data-theme="light"] {
-  --blue-light: #2e6b94;
-  --sky: #4f87ab;
+  --blue-light: #1f6fb0;
+  --sky: #3f7fb0;
   --red: #b05863;
   --red-deep: #8c3f4a;
   --amber: #97793f;
@@ -218,10 +218,10 @@
   --surface-4: #dde2e8;
 
   /* Text */
-  --text-primary: #161a21;
-  --text-secondary: #3f4a57;
+  --text-primary: #0d1117;
+  --text-secondary: #2f3a48;
   --text-tertiary: #75808d;
-  --text-inverse: #161a21;
+  --text-inverse: #0d1117;
 
   /* Borders */
   --border-light: rgba(0, 0, 0, 0.06);
@@ -242,7 +242,7 @@
   --gradient-dark: linear-gradient(135deg, #f5f7f9 0%, #eef2f6 50%, #f5f7f9 100%);
   --gradient-surface: linear-gradient(180deg, #ffffff 0%, #f5f7f9 100%);
   --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
-  --gradient-title: linear-gradient(135deg, #b7d3e6 0%, #6d93ad 45%, #161a21 100%);
+  --gradient-title: linear-gradient(135deg, #a3cbe6 0%, #4e86ab 45%, #0d1117 100%);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
