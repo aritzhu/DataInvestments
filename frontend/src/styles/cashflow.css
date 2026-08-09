@@ -703,6 +703,10 @@
   height: auto;
 }
 
+.fs-sankey-min {
+  min-width: 920px;
+}
+
 /* --- Balance Section --- */
 .cs-balance-card {
   background: var(--surface-0);
@@ -835,8 +839,9 @@
 /* --- Sankey Tooltip --- */
 .cs-sankey-tooltip {
   position: absolute;
-  background: var(--text-primary);
-  color: white;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
   padding: 0.4rem 0.65rem;
   border-radius: var(--radius-sm);
   font-size: 0.7rem;
@@ -845,6 +850,18 @@
   z-index: 10;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cs-sankey-note {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.cs-sankey-note b {
+  color: var(--teal);
+  font-weight: 700;
 }
 
 /* --- Cash Flow Verdict --- */

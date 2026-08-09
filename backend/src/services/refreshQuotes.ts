@@ -106,8 +106,8 @@ export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: 
         numberOfAnalystOpinions: info?.numberOfAnalystOpinions ?? existing?.numberOfAnalystOpinions ?? null,
         payoutRatio: info?.payoutRatio ?? existing?.payoutRatio ?? null,
         dividendRate: info?.dividendRate ?? existing?.dividendRate ?? null,
-        roe: info?.returnOnEquity != null ? info.returnOnEquity * 100 : existing?.roe ?? null,
-        roa: info?.returnOnAssets != null ? info.returnOnAssets * 100 : existing?.roa ?? null,
+        roe: info?.returnOnEquity != null ? info.returnOnEquity : existing?.roe ?? null,
+        roa: info?.returnOnAssets != null ? info.returnOnAssets : existing?.roa ?? null,
       };
 
       if (existing) {

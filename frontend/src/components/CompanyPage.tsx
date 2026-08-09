@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2, Globe } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
-import { DashboardTab } from './tabs/DashboardTab';
+import { formatPct, safeDiv } from '../utils/format';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, type ValuationInput } from '../utils/valuation';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
@@ -136,10 +137,9 @@ export interface CompanyProfile {
   } | null;
 }
 
-export type TabId = 'dashboard' | 'financials' | 'sankey' | 'valuation' | 'fundamental';
+export type TabId = 'financials' | 'sankey' | 'valuation' | 'fundamental';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'dashboard', label: 'Dashboard' },
   { id: 'financials', label: 'Estados financieros' },
   { id: 'sankey', label: 'Flujo de caja' },
   { id: 'valuation', label: 'Valoración' },
@@ -165,7 +165,7 @@ function CompanySkeleton() {
         </div>
       </div>
       <div className="cp-tabs">
-        {Array.from({ length: 5 }).map((_, i) => (
+        {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} width={i === 0 ? '90px' : '70px'} height="32px" borderRadius="8px" />
         ))}
       </div>
@@ -190,7 +190,7 @@ export function CompanyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestedTab = searchParams.get('tab') as TabId;
-  const [activeTab, setActiveTab] = useState<TabId>(TABS.some((t) => t.id === requestedTab) ? requestedTab : 'dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>(TABS.some((t) => t.id === requestedTab) ? requestedTab : 'financials');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -389,6 +389,17 @@ export function CompanyPage() {
   const stock = stockMetrics[0] || null;
   const availableYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
   const currentFinancial = financials.find((f) => f.year === selectedYear) || financials[0];
+
+  const marketCap = stock?.marketCap;
+  const ev = stock?.enterpriseValue;
+  const grossMargin = currentFinancial ? safeDiv(currentFinancial.grossProfit ?? 0, currentFinancial.revenue) : null;
+  const netMargin = currentFinancial ? safeDiv(currentFinancial.netIncome, currentFinancial.revenue) : null;
+  const ebitdaMargin = currentFinancial ? safeDiv(currentFinancial.ebitda ?? 0, currentFinancial.revenue) : null;
+
+  const valInput: ValuationInput = { financials, balanceSheets, stock: stock!, currency: company.currency || 'USD' };
+  const valResults = stock ? computeAll(valInput, getSectorConfigs(company.sector, company.industry)) : [];
+  const avgFair = weightedAverage(valResults);
+  const { verdict, upside, label: verdictLabel } = getVerdict(avgFair, stock?.currentPrice ?? 0);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -616,12 +627,99 @@ export function CompanyPage() {
             {company.exchange && (
               <span className="cp-meta-item">{company.exchange}</span>
             )}
+            {company.website && (
+              <span className="cp-meta-item">
+                <Globe size={14} />
+                <a href={company.website} target="_blank" rel="noopener noreferrer" className="cp-meta-link">
+                  {company.website.replace(/^https?:\/\//, '')}
+                </a>
+              </span>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Quick stats — key metrics for evaluating the company */}
+      <div className="cp-quick">
+        {avgFair != null && stock && (
+          <div className="cp-quick-item cp-quick-verdict">
+            <span className="cp-quick-label">Valoración</span>
+            <span className="cp-quick-value">
+              <span className="cp-quick-verdict-dot" style={{ background: VERDICT_COLORS[verdict] }} />
+              <span className="cp-quick-verdict-label" style={{ color: VERDICT_COLORS[verdict] }}>{verdictLabel}</span>
+              {upside != null && (
+                <span className="cp-quick-verdict-pct" style={{ color: VERDICT_COLORS[verdict] }}>
+                  {upside > 0 ? '+' : ''}{(upside * 100).toFixed(1)}%
+                </span>
+              )}
+              <span className="cp-quick-verdict-fair">
+                {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{avgFair.toFixed(2)}
+              </span>
+            </span>
+          </div>
+        )}
+        {marketCap != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">Market Cap</span>
+            <span className="cp-quick-value"><AnimatedNumber value={marketCap} /></span>
+          </div>
+        )}
+        {ev != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">EV</span>
+            <span className="cp-quick-value"><AnimatedNumber value={ev} /></span>
+          </div>
+        )}
+        {currentFinancial && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">Beneficio Neto</span>
+            <span className="cp-quick-value"><AnimatedNumber value={currentFinancial.netIncome} /></span>
+          </div>
+        )}
+        {currentFinancial && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">Free Cash Flow</span>
+            <span className="cp-quick-value"><AnimatedNumber value={currentFinancial.freeCashFlow ?? 0} /></span>
+          </div>
+        )}
+        {currentFinancial && (
+          <div className="cp-quick-item cp-quick-item--margins">
+            <span className="cp-quick-label">Márgenes</span>
+            <span className="cp-quick-value">
+              {grossMargin != null && <>Bruto {formatPct(grossMargin)}</>}
+              {netMargin != null && <> · Neto {formatPct(netMargin)}</>}
+              {ebitdaMargin != null && <> · EBITDA {formatPct(ebitdaMargin)}</>}
+            </span>
+          </div>
+        )}
+        {stock?.peRatio != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">P/E</span>
+            <span className="cp-quick-value">{stock.peRatio.toFixed(1)}</span>
+          </div>
+        )}
+        {stock?.pbRatio != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">P/B</span>
+            <span className="cp-quick-value">{stock.pbRatio.toFixed(1)}</span>
+          </div>
+        )}
+        {stock?.roe != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">ROE</span>
+            <span className="cp-quick-value">{formatPct(stock.roe)}</span>
+          </div>
+        )}
+        {stock?.roa != null && (
+          <div className="cp-quick-item">
+            <span className="cp-quick-label">ROA</span>
+            <span className="cp-quick-value">{formatPct(stock.roa)}</span>
+          </div>
+        )}
+      </div>
+
       {/* Year Selector — only in tabs where content depends on selected year */}
-      {availableYears.length > 1 && ['financials', 'sankey', 'dashboard'].includes(activeTab) && (
+      {availableYears.length > 1 && ['financials', 'sankey'].includes(activeTab) && (
         <div className="cp-year-bar">
           <Calendar size={16} />
           <span className="cp-year-label">Año fiscal:</span>
@@ -659,15 +757,6 @@ export function CompanyPage() {
             <AlertTriangle size={18} />
             <span>Sin datos financieros disponibles. Sincroniza esta empresa desde el panel de administración.</span>
           </div>
-        )}
-        {activeTab === 'dashboard' && (
-          <DashboardTab
-            company={company}
-            financial={currentFinancial}
-            financials={financials}
-            balanceSheets={balanceSheets}
-            stock={stock}
-          />
         )}
         {activeTab === 'financials' && (
           <FinancialStatementsTab

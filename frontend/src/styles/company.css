@@ -179,6 +179,93 @@
   font-weight: 500;
 }
 
+.cp-meta-link {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 0.2s var(--ease-out);
+}
+
+.cp-meta-link:hover {
+  color: var(--text-primary);
+}
+
+/* --- Quick Stats --- */
+.cp-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.9rem 0;
+  padding: 1rem 2rem;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.cp-quick-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--border-light);
+}
+
+.cp-quick-item:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.cp-quick-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.cp-quick-value {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.cp-quick-item--margins .cp-quick-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.cp-quick-verdict-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cp-quick-verdict-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.cp-quick-verdict-pct {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cp-quick-verdict-fair {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
 /* --- Year Bar --- */
 .cp-year-bar {
   display: flex;

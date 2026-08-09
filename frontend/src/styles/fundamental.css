@@ -7,13 +7,13 @@
 .fund-empty {
   padding: 2rem;
   text-align: center;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-secondary);
 }
 
 .fund-intro {
   font-size: 0.85rem;
   line-height: 1.5;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -31,7 +31,7 @@
   font-weight: 600;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid var(--border, #e5e8f0);
+  border: 1px solid var(--border-light);
 }
 
 .fund-freshness-chip--ok {
@@ -60,9 +60,9 @@
 .fund-gaps-banner {
   font-size: 0.78rem;
   line-height: 1.5;
-  color: #b45309;
-  background: rgba(217, 119, 6, 0.08);
-  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid var(--amber-line);
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
 }
@@ -83,13 +83,13 @@
 }
 
 .fund-confidence--partial {
-  color: #d97706;
-  background: rgba(217, 119, 6, 0.15);
+  color: var(--amber);
+  background: var(--amber-soft);
 }
 
 .fund-confidence--low {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.15);
+  color: var(--red);
+  background: var(--red-soft);
 }
 
 .fund-confidence::after {
@@ -126,10 +126,17 @@
 }
 
 .fund-section {
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border, #e5e8f0);
-  border-radius: 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
   padding: 1rem 1.1rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+
+.fund-section:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-default);
 }
 
 .fund-section-header {
@@ -147,6 +154,7 @@
   height: 30px;
   border-radius: 8px;
   color: #fff;
+  box-shadow: var(--shadow-xs);
 }
 
 .fund-section-icon--green { background: #16a34a; }
@@ -169,7 +177,7 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text, #1f2430);
+  color: var(--text-primary);
 }
 
 .fund-guide {
@@ -188,7 +196,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-tertiary);
 }
 
 .fund-guide-select-wrapper {
@@ -201,7 +209,7 @@
   left: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-tertiary);
   pointer-events: none;
   z-index: 1;
 }
@@ -211,9 +219,9 @@
   -webkit-appearance: none;
   padding: 0.55rem 2.2rem 0.55rem 2.1rem;
   border-radius: 9999px;
-  border: 1px solid var(--border, #e5e8f0);
-  background: var(--metric-bg, #f6f7fb) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a766d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
-  color: var(--text-secondary, #4b5563);
+  border: 1px solid var(--border-default);
+  background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a766d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+  color: var(--text-secondary);
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
@@ -223,26 +231,26 @@
 }
 
 .fund-guide-select:hover {
-  background-color: var(--surface-2, #fff);
-  border-color: var(--border-strong, #c9cede);
-  color: var(--text, #1f2430);
+  background-color: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .fund-guide-select:focus {
   outline: none;
-  border-color: var(--accent, #2563eb);
-  box-shadow: 0 0 0 3px var(--accent-glow, rgba(37, 99, 235, 0.18));
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
 .fund-guide-body {
   margin: 0.55rem 0 0;
   padding: 0.6rem 0.8rem;
-  border-left: 3px solid var(--accent, #2563eb);
+  border-left: 3px solid var(--gold-line);
   border-radius: 0 8px 8px 0;
-  background: var(--metric-bg, #f6f7fb);
+  background: var(--surface-2);
   font-size: 0.78rem;
   line-height: 1.55;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-secondary);
 }
 
 .fund-guide-pills {
@@ -262,13 +270,13 @@
 
   .fund-guide-pill {
     appearance: none;
-    border: 1px solid var(--border, #e5e8f0);
+    border: 1px solid var(--border-default);
     border-radius: 9999px;
-    background: var(--metric-bg, #f6f7fb);
+    background: var(--surface-2);
     padding: 0.5rem 0.9rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted, #8a93a6);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s ease;
     font-family: inherit;
@@ -276,18 +284,18 @@
   }
 
   .fund-guide-pill:hover {
-    border-color: var(--border-strong, #c9cede);
-    color: var(--text, #1f2430);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
   }
 
   .fund-guide-pill--active {
-    background: var(--accent, #2563eb);
-    border-color: var(--accent, #2563eb);
-    color: #fff;
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--text-inverse);
   }
 
   .fund-guide-pill--active:hover {
-    color: #fff;
+    color: var(--text-inverse);
   }
 }
 
@@ -301,9 +309,17 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  background: var(--metric-bg, #f6f7fb);
-  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
   padding: 0.55rem 0.7rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.fund-metric:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
 }
 
 .fund-metric-label {
@@ -311,24 +327,25 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-tertiary);
 }
 
 .fund-metric-value {
   font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text, #1f2430);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.fund-metric-value.metric-val--pos { color: #16a34a; }
-.fund-metric-value.metric-val--neg { color: #dc2626; }
+.fund-metric-value.metric-val--pos { color: var(--teal); }
+.fund-metric-value.metric-val--neg { color: var(--red); }
 
 .fund-note {
   margin: 0.7rem 0 0;
   font-size: 0.78rem;
   line-height: 1.5;
-  color: var(--text-muted, #8a93a6);
-  border-left: 3px solid var(--border, #e5e8f0);
+  color: var(--text-secondary);
+  border-left: 3px solid var(--border-default);
   padding-left: 0.6rem;
 }
 
@@ -354,7 +371,7 @@
 .fund-dupont-op {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-tertiary);
 }
 
 .fund-dupont .fund-metric {
@@ -366,6 +383,6 @@
   margin: 0;
   font-size: 0.75rem;
   line-height: 1.5;
-  color: var(--text-muted, #8a93a6);
+  color: var(--text-secondary);
   font-style: italic;
 }

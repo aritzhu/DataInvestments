@@ -762,8 +762,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               pbRatio: yfInfo.info.priceToBook ?? null,
               psRatio: yfInfo.info.priceToSalesTrailing12Months ?? null,
               dividendYield: yfInfo.info.dividendYield ?? null,
-              roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity * 100 : null,
-              roa: yfInfo.info.returnOnAssets != null ? yfInfo.info.returnOnAssets * 100 : null,
+              roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity : null,
+              roa: yfInfo.info.returnOnAssets != null ? yfInfo.info.returnOnAssets : null,
               beta: yfInfo.info.beta ?? null,
               forwardPE: yfInfo.info.forwardPE ?? null,
               targetMeanPrice: yfInfo.info.targetMeanPrice ?? null,
@@ -1057,8 +1057,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           if (!existingStock.pbRatio && finnhubMetrics.pbQuarterly) finnhubData.pbRatio = finnhubMetrics.pbQuarterly;
           if (!existingStock.psRatio && finnhubMetrics.psTTM) finnhubData.psRatio = finnhubMetrics.psTTM;
           if (!existingStock.dividendYield && finnhubMetrics.dividendYieldIndicatedAnnual) finnhubData.dividendYield = finnhubMetrics.dividendYieldIndicatedAnnual;
-          if (!existingStock.roe && finnhubMetrics.ROETTM) finnhubData.roe = finnhubMetrics.ROETTM;
-          if (!existingStock.roa && finnhubMetrics.ROATTM) finnhubData.roa = finnhubMetrics.ROATTM;
+          if (!existingStock.roe && finnhubMetrics.ROETTM) finnhubData.roe = finnhubMetrics.ROETTM / 100;
+          if (!existingStock.roa && finnhubMetrics.ROATTM) finnhubData.roa = finnhubMetrics.ROATTM / 100;
           if (!existingStock.currentRatio && finnhubMetrics.currentRatioQuarterly) finnhubData.currentRatio = finnhubMetrics.currentRatioQuarterly;
           if (!existingStock.debtToEquity && finnhubMetrics.totalDebtToTotalEquityQuarterly) finnhubData.debtToEquity = finnhubMetrics.totalDebtToTotalEquityQuarterly;
 

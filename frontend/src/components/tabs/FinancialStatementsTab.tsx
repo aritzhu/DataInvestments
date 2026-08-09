@@ -4,6 +4,7 @@ import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { SkeletonTable } from '../ui/Skeleton';
+import { FinancialSankey } from '../FinancialSankey';
 import { formatNum, pctOf, safeDiv } from '../../utils/format';
 import '../../styles/statements.css';
 import '../../styles/cashflow.css';
@@ -20,6 +21,7 @@ const SEGMENT_COLORS = ['var(--blue)', 'var(--blue-light)', 'var(--amber)', 'var
 
 export function FinancialStatementsTab({ financial, balanceSheet, stock, segments }: Props) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+    sankey: true,
     income: true,
     balance: false,
     waterfall: false,
@@ -141,6 +143,22 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
           </div>
         </SectionReveal>
       )}
+
+      {/* Financial Sankey */}
+      <SectionReveal delay={0}>
+        <button className="fs-section-toggle" onClick={() => toggle('sankey')}>
+          <span className="fs-section-title">Sankey: cómo la empresa genera y usa el dinero — {f.year}</span>
+          <span className={`fs-section-arrow ${openSections.sankey ? 'fs-section-arrow--open' : ''}`}>▾</span>
+        </button>
+        {openSections.sankey && (
+          <div className="fs-section-body">
+            <FinancialSankey financial={f} balanceSheet={bs} />
+            <p className="verdict-explanation">
+              El Sankey sigue todo el ciclo del dinero en un solo diagrama: <strong>1 · Financiación</strong> (deuda, proveedores y patrimonio neto) → <strong>2 · Activos</strong> (en qué se invierte) → <strong>3 · Generación</strong> (ingresos y costes hasta el beneficio neto). Pasa el ratón sobre cualquier nodo para seguir su camino completo a través del diagrama. Los flujos de caja (operativo, inversión y distribución) se analizan en detalle en la pestaña Flujos de caja.
+            </p>
+          </div>
+        )}
+      </SectionReveal>
 
       {/* Income Statement */}
       <SectionReveal delay={0}>
