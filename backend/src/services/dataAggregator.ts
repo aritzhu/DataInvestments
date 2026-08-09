@@ -103,6 +103,31 @@ function safeInt(val: unknown): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+// Fields whose absence distorts the fundamental ratios shown in the app
+const GAP_FINANCIAL_FIELDS = ['ebit', 'ebitda', 'operatingCashFlow', 'freeCashFlow', 'interestExpense', 'dividendsPaid', 'shareRepurchases'];
+const GAP_BALANCE_FIELDS = ['shortTermDebt', 'longTermDebt', 'totalCurrentAssets', 'totalCurrentLiabilities', 'inventory', 'accountsReceivable', 'accountsPayable', 'totalAssets', 'totalStockholdersEquity'];
+
+// Validates the latest stored rows and reports out-of-range values (warnings)
+// plus important fields missing (gaps), so the frontend can warn about
+// partial data instead of silently showing misleading ratios.
+export async function computeQualityIssues(companyId: string): Promise<{ warnings: string[]; gaps: string[] }> {
+  const warnings: string[] = [];
+  const gaps: string[] = [];
+  const [fin, bs] = await Promise.all([
+    prisma.financialData.findFirst({ where: { companyId }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+    prisma.balanceSheet.findFirst({ where: { companyId }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+  ]);
+  if (fin) {
+    for (const w of validateFinancialData(fin as any)) warnings.push(w.message);
+    for (const f of GAP_FINANCIAL_FIELDS) if ((fin as any)[f] == null) gaps.push(f);
+  }
+  if (bs) {
+    for (const w of validateBalanceSheet(bs as any)) warnings.push(w.message);
+    for (const f of GAP_BALANCE_FIELDS) if ((bs as any)[f] == null) gaps.push(f);
+  }
+  return { warnings: warnings.slice(0, 20), gaps: gaps.slice(0, 20) };
+}
+
 export interface SyncResult {
   ticker: string;
   secSync: boolean;
@@ -306,8 +331,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
       investingCashFlow: investingCashFlowMap.get(year) || null,
       financingCashFlow: financingCashFlowMap.get(year) || null,
       freeCashFlow: fcf,
-      dividendsPaid: dividendsPaidMap.get(year) || null,
-      shareRepurchases: shareRepurchasesMap.get(year) || null,
+      dividendsPaid: dividendsPaidMap.get(year) != null ? Math.abs(dividendsPaidMap.get(year)!) : null,
+      shareRepurchases: shareRepurchasesMap.get(year) != null ? Math.abs(shareRepurchasesMap.get(year)!) : null,
       totalAssets: totalAssetsMap.get(year) || null,
       totalLiabilities: totalLiabilitiesMap.get(year) || null,
       totalEquity: totalEquityMap.get(year) || null,
@@ -406,6 +431,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         enterpriseValue: info?.enterpriseValue ?? (mcap != null
           ? mcap + (latestLiabilities || 0) - (cashMap.get(latestYear || 0) || 0)
           : null),
+        beta: info?.beta ?? null,
+        forwardPE: info?.forwardPE ?? null,
+        targetMeanPrice: info?.targetMeanPrice ?? null,
+        targetHighPrice: info?.targetHighPrice ?? null,
+        targetLowPrice: info?.targetLowPrice ?? null,
+        recommendationKey: info?.recommendationKey ?? null,
+        recommendationMean: info?.recommendationMean ?? null,
+        numberOfAnalystOpinions: info?.numberOfAnalystOpinions ?? null,
+        payoutRatio: info?.payoutRatio ?? null,
+        dividendRate: info?.dividendRate ?? null,
         sharesOutstanding: shares,
         roe: info?.returnOnEquity != null ? info.returnOnEquity * 100 : (latestNetIncome > 0 && latestEquity && latestEquity > 0 ? (latestNetIncome / latestEquity) * 100 : null),
         roa: info?.returnOnAssets != null ? info.returnOnAssets * 100 : (latestNetIncome > 0 && latestAssets && latestAssets > 0 ? (latestNetIncome / latestAssets) * 100 : null),
@@ -579,8 +614,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               investingCashFlow: cfMapped?.investingCashFlow ?? null,
               financingCashFlow: cfMapped?.financingCashFlow ?? null,
               freeCashFlow: cfMapped?.freeCashFlow ?? null,
-              dividendsPaid: cfMapped?.dividendsPaid ?? null,
-              shareRepurchases: cfMapped?.shareRepurchases ?? null,
+              dividendsPaid: cfMapped?.dividendsPaid != null ? Math.abs(cfMapped.dividendsPaid) : null,
+              shareRepurchases: cfMapped?.shareRepurchases != null ? Math.abs(cfMapped.shareRepurchases) : null,
               totalAssets: bsMapped?.totalAssets ?? null,
               totalLiabilities: bsMapped?.totalLiabilities ?? null,
               totalEquity: bsMapped?.totalStockholdersEquity ?? null,
@@ -665,8 +700,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 investingCashFlow: cfMapped?.investingCashFlow ?? null,
                 financingCashFlow: cfMapped?.financingCashFlow ?? null,
                 freeCashFlow: cfMapped?.freeCashFlow ?? null,
-                dividendsPaid: cfMapped?.dividendsPaid ?? null,
-                shareRepurchases: cfMapped?.shareRepurchases ?? null,
+                dividendsPaid: cfMapped?.dividendsPaid != null ? Math.abs(cfMapped.dividendsPaid) : null,
+                shareRepurchases: cfMapped?.shareRepurchases != null ? Math.abs(cfMapped.shareRepurchases) : null,
                 totalAssets: bsMapped?.totalAssets ?? null,
                 totalLiabilities: bsMapped?.totalLiabilities ?? null,
                 totalEquity: bsMapped?.totalStockholdersEquity ?? null,
@@ -729,6 +764,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               dividendYield: yfInfo.info.dividendYield ?? null,
               roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity * 100 : null,
               roa: yfInfo.info.returnOnAssets != null ? yfInfo.info.returnOnAssets * 100 : null,
+              beta: yfInfo.info.beta ?? null,
+              forwardPE: yfInfo.info.forwardPE ?? null,
+              targetMeanPrice: yfInfo.info.targetMeanPrice ?? null,
+              targetHighPrice: yfInfo.info.targetHighPrice ?? null,
+              targetLowPrice: yfInfo.info.targetLowPrice ?? null,
+              recommendationKey: yfInfo.info.recommendationKey ?? null,
+              recommendationMean: yfInfo.info.recommendationMean ?? null,
+              numberOfAnalystOpinions: yfInfo.info.numberOfAnalystOpinions ?? null,
+              payoutRatio: yfInfo.info.payoutRatio ?? null,
+              dividendRate: yfInfo.info.dividendRate ?? null,
               currentRatio: yfInfo.info.currentRatio ?? null,
               debtToEquity: yfInfo.info.debtToEquity != null ? yfInfo.info.debtToEquity / 100 : null,
               roic: null,
@@ -934,6 +979,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0)
                 : null,
               sharesOutstanding: stockSharesOutstanding,
+              beta: null,
+              forwardPE: null,
+              targetMeanPrice: null,
+              targetHighPrice: null,
+              targetLowPrice: null,
+              recommendationKey: null,
+              recommendationMean: null,
+              numberOfAnalystOpinions: null,
+              payoutRatio: null,
+              dividendRate: null,
               roe: latestNetIncome > 0 && latestEquity && latestEquity > 0 ? (latestNetIncome / latestEquity) * 100 : null,
               roa: latestNetIncome > 0 && latestAssets && latestAssets > 0 ? (latestNetIncome / latestAssets) * 100 : null,
               roic: null,
@@ -1159,6 +1214,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     // If European sync was successful, store available tags for coverage reporting
     const tagsToStore = result.europeanSync && europeanAvailableTags ? europeanAvailableTags : [];
 
+    const { warnings, gaps } = await computeQualityIssues(company.id);
+
     await prisma.dataSync.upsert({
       where: { companyId: company.id },
       update: {
@@ -1169,6 +1226,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         europeanSync: result.europeanSync,
         errorMessage: result.error || null,
         availableTags: tagsToStore,
+        validationWarnings: warnings,
+        dataGaps: gaps,
       },
       create: {
         companyId: company.id,
@@ -1179,6 +1238,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         europeanSync: result.europeanSync,
         errorMessage: result.error || null,
         availableTags: tagsToStore,
+        validationWarnings: warnings,
+        dataGaps: gaps,
       },
     });
   }

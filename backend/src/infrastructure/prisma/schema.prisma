@@ -157,6 +157,17 @@ model StockMetric {
   altmanZ        Float?
   piotroskiScore Float?
 
+  beta                  Float?
+  forwardPE             Float?
+  targetMeanPrice       Float?
+  targetHighPrice       Float?
+  targetLowPrice        Float?
+  recommendationKey     String?
+  recommendationMean    Float?
+  numberOfAnalystOpinions Int?
+  payoutRatio           Float?
+  dividendRate          Float?
+
   intrinsicValue Float?
   marginOfSafety Float?
 
@@ -176,6 +187,8 @@ model DataSync {
   europeanSync  Boolean  @default(false)
   errorMessage  String?
   availableTags String[] @default([])
+  validationWarnings String[] @default([])
+  dataGaps          String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -217,6 +230,8 @@ model Alarm {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
+  alarmType     String   @default('verdict')
+  alarmConfig   String?
   targetVerdict String
   lastVerdict   String?
   lastPrice     Float?

@@ -26,13 +26,19 @@ interface Props {
 export function CompareTab({ company, financial, stock }: Props) {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const sector = company.sector || 'Technology';
+    setLoading(true);
+    setFetchError(null);
     fetch(`/api/market/sector-averages?sector=${encodeURIComponent(sector)}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Error ${r.status} al obtener promedios del sector`);
+        return r.json();
+      })
       .then((data) => { setMarketData(data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch((err) => { setFetchError(err instanceof Error ? err.message : 'Error de red'); setLoading(false); });
   }, [company.sector]);
 
   const evEbitda = stock?.enterpriseValue && financial?.ebitda
@@ -93,6 +99,21 @@ export function CompareTab({ company, financial, stock }: Props) {
     );
   }
 
+  if (fetchError) {
+    return (
+      <div className="cmp-tab">
+        <div className="cmp-header">
+          <h3 className="cmp-title">Comparacion con el Mercado</h3>
+          <p className="cmp-subtitle">No se pudieron cargar los promedios del sector</p>
+        </div>
+        <div className="cmp-empty">
+          <Info size={32} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
+          <p>{fetchError}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!marketData || validMetrics.length === 0) {
     return (
       <div className="cmp-tab">
@@ -115,7 +136,7 @@ export function CompareTab({ company, financial, stock }: Props) {
         <div className="cmp-header">
           <h3 className="cmp-title">Comparacion con el Mercado</h3>
           <p className="cmp-subtitle">
-            Como se compara <strong>{company.ticker}</strong> con su sector ({company.sector || 'N/A'}) y el S&P 500
+            Como se compara <strong>{company.ticker}</strong> con su sector ({company.sector || 'N/A'}) y el S&P 500{financial?.year ? ` · Período de la empresa: ejercicio ${financial.year}` : ''}
           </p>
         </div>
       </SectionReveal>

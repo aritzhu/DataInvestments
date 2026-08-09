@@ -20,6 +20,12 @@ interface CompanyFromAPI {
   country: string | null;
   website: string | null;
   logoUrl: string | null;
+  metrics?: {
+    pe: number | null;
+    netMargin: number | null;
+    fcfYield: number | null;
+    ndEbitda: number | null;
+  } | null;
 }
 
 interface FavoriteCompany {
@@ -111,6 +117,12 @@ export function Landing() {
   const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(null);
   const [undervalued, setUndervalued] = useState<any[]>([]);
   const [overvalued, setOvervalued] = useState<any[]>([]);
+  const [screenMinMargin, setScreenMinMargin] = useState('');
+  const [screenMaxPe, setScreenMaxPe] = useState('');
+  const [screenMinFcf, setScreenMinFcf] = useState('');
+  const [screenMaxNd, setScreenMaxNd] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
 
   const books = useMemo<Book[] | null>(() => {
     const raw = heroSettings.books;
@@ -151,6 +163,11 @@ export function Landing() {
     if (selectedCountry) params.set('country', selectedCountry);
     if (sortOrder !== 'asc') params.set('sort', sortOrder);
     if (showFavoritesOnly && user) params.set('fav', '1');
+    if (screenMinMargin) params.set('minNetMargin', String(parseFloat(screenMinMargin) / 100));
+    if (screenMaxPe) params.set('maxPe', screenMaxPe);
+    if (screenMinFcf) params.set('minFcfYield', String(parseFloat(screenMinFcf) / 100));
+    if (screenMaxNd) params.set('maxNetDebtEbitda', screenMaxNd);
+    if (sortBy) params.set('sortBy', sortBy);
 
     const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
     fetch(`/api/companies?${params.toString()}`, { headers })
@@ -169,7 +186,7 @@ export function Landing() {
     return () => {
       cancelled = true;
     };
-  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, user]);
+  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
 
   useEffect(() => {
     if (!valuationLimits) return;
@@ -632,6 +649,58 @@ export function Landing() {
                   </button>
                 </div>
               </div>
+              <div className="screener-row">
+                <span className="screener-title">Screening</span>
+                <input
+                  type="number"
+                  placeholder="Margen neto mín. %"
+                  value={screenMinMargin}
+                  onChange={(e) => setScreenMinMargin(e.target.value)}
+                  className="screener-input"
+                />
+                <input
+                  type="number"
+                  placeholder="P/E máx."
+                  value={screenMaxPe}
+                  onChange={(e) => setScreenMaxPe(e.target.value)}
+                  className="screener-input"
+                />
+                <input
+                  type="number"
+                  placeholder="FCF yield mín. %"
+                  value={screenMinFcf}
+                  onChange={(e) => setScreenMinFcf(e.target.value)}
+                  className="screener-input"
+                />
+                <input
+                  type="number"
+                  placeholder="ND/EBITDA máx."
+                  value={screenMaxNd}
+                  onChange={(e) => setScreenMaxNd(e.target.value)}
+                  className="screener-input"
+                />
+                <select className="screener-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                  <option value="">Orden: Ticker</option>
+                  <option value="pe">Orden: P/E</option>
+                  <option value="netMargin">Orden: Margen neto</option>
+                  <option value="fcfYield">Orden: FCF yield</option>
+                  <option value="ndEbitda">Orden: ND/EBITDA</option>
+                </select>
+                {screeningActive && (
+                  <button
+                    className="screener-clear"
+                    onClick={() => {
+                      setScreenMinMargin('');
+                      setScreenMaxPe('');
+                      setScreenMinFcf('');
+                      setScreenMaxNd('');
+                      setSortBy('');
+                    }}
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
               {availableSectors.length > 0 && (
                 <div className="sector-pills">
                   <button
@@ -744,6 +813,14 @@ export function Landing() {
                       <span className="company-list-sector">{company.sector || company.industry || 'N/A'}</span>
                       <span className="company-list-country">{COUNTRY_NAMES[company.country || ''] || company.country || ''}</span>
                     </div>
+                    {screeningActive && company.metrics && (
+                      <div className="company-list-metrics">
+                        <span className="company-metric" title="P/E">{company.metrics.pe != null ? `${company.metrics.pe.toFixed(1)}x` : '—'}</span>
+                        <span className="company-metric" title="Margen neto">{company.metrics.netMargin != null ? `${(company.metrics.netMargin * 100).toFixed(1)}%` : '—'}</span>
+                        <span className="company-metric" title="FCF yield">{company.metrics.fcfYield != null ? `${(company.metrics.fcfYield * 100).toFixed(1)}%` : '—'}</span>
+                        <span className="company-metric" title="ND/EBITDA">{company.metrics.ndEbitda != null ? `${company.metrics.ndEbitda.toFixed(1)}x` : '—'}</span>
+                      </div>
+                    )}
                     <div className="company-list-actions">
                       <button
                         className={`company-card-heart ${user && isFavorite(company.id) ? 'company-card-heart--active' : ''}`}

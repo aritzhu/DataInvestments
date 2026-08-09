@@ -198,6 +198,17 @@ export function latestFinancialPeriod(financials: Financial[]): { year: number |
   return { year: f?.year ?? null, quarter: null, isTTM: false };
 }
 
+// Human-readable label of the financial period a metric is based on:
+// "TTM Q2 2026" when the last 4 quarters are used, "Ejercicio 2025" otherwise.
+export function ttmPeriodLabel(financials: Financial[]): string {
+  const p = latestFinancialPeriod(financials);
+  if (!p.year) return '—';
+  if (p.isTTM && p.quarter != null) {
+    return `TTM Q${p.quarter} ${p.year}`;
+  }
+  return `Ejercicio ${p.year}`;
+}
+
 function netDebt(bs: BalanceSheet | undefined): number {
   return (bs?.shortTermDebt ?? 0) + (bs?.longTermDebt ?? 0) - (bs?.cashAndCashEquivalents ?? 0);
 }

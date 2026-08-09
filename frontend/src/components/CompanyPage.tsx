@@ -8,7 +8,7 @@ import { DashboardTab } from './tabs/DashboardTab';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
-import { EducationTab } from './tabs/EducationTab';
+import { FundamentalTab } from './tabs/FundamentalTab';
 import { useAuth } from '../contexts/AuthContext';
 import { listPortfolios, addHolding, createPortfolio } from '../services/portfolioService';
 import type { Portfolio } from '../types/portfolio';
@@ -77,6 +77,16 @@ export interface CompanyProfile {
     debtToEquity: number | null;
     altmanZ: number | null;
     piotroskiScore: number | null;
+    beta: number | null;
+    forwardPE: number | null;
+    targetMeanPrice: number | null;
+    targetHighPrice: number | null;
+    targetLowPrice: number | null;
+    recommendationKey: string | null;
+    recommendationMean: number | null;
+    numberOfAnalystOpinions: number | null;
+    payoutRatio: number | null;
+    dividendRate: number | null;
     intrinsicValue: number | null;
     marginOfSafety: number | null;
   }>;
@@ -113,16 +123,27 @@ export interface CompanyProfile {
     revenue: number;
     percentage: number | null;
   }>;
+  dataSync: {
+    id: string;
+    lastSyncAt: string;
+    yearsFetched: number;
+    secSync: boolean;
+    finnhubSync: boolean;
+    europeanSync: boolean;
+    errorMessage: string | null;
+    validationWarnings: string[];
+    dataGaps: string[];
+  } | null;
 }
 
-export type TabId = 'dashboard' | 'financials' | 'sankey' | 'valuation' | 'education';
+export type TabId = 'dashboard' | 'financials' | 'sankey' | 'valuation' | 'fundamental';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'financials', label: 'Estados financieros' },
   { id: 'sankey', label: 'Flujo de caja' },
   { id: 'valuation', label: 'Valoración' },
-  { id: 'education', label: 'Educativo' },
+  { id: 'fundamental', label: 'Análisis fundamental' },
 ];
 
 function CompanySkeleton() {
@@ -168,7 +189,8 @@ export function CompanyPage() {
   const [data, setData] = useState<CompanyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>((searchParams.get('tab') as TabId) || 'dashboard');
+  const requestedTab = searchParams.get('tab') as TabId;
+  const [activeTab, setActiveTab] = useState<TabId>(TABS.some((t) => t.id === requestedTab) ? requestedTab : 'dashboard');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -363,7 +385,7 @@ export function CompanyPage() {
     );
   }
 
-  const { company, financials, stockMetrics, balanceSheets, segments } = data;
+  const { company, financials, stockMetrics, balanceSheets, segments, dataSync } = data;
   const stock = stockMetrics[0] || null;
   const availableYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
   const currentFinancial = financials.find((f) => f.year === selectedYear) || financials[0];
@@ -672,11 +694,14 @@ export function CompanyPage() {
             selectedYear={selectedYear}
           />
         )}
-        {activeTab === 'education' && (
-          <EducationTab
+        {activeTab === 'fundamental' && (
+          <FundamentalTab
+            company={company}
             financial={currentFinancial}
-            balanceSheet={balanceSheets.find((b) => b.year === selectedYear) || null}
+            financials={financials}
+            balanceSheets={balanceSheets}
             stock={stock}
+            dataSync={dataSync}
           />
         )}
       </div>

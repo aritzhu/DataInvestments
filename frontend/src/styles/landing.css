@@ -1611,6 +1611,92 @@
   color: var(--text-primary);
 }
 
+.screener-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  border: 1px dashed var(--border-strong, #d9d4c8);
+  background: var(--surface-1);
+}
+
+.screener-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.screener-input {
+  min-width: 0;
+  width: 8.5rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.screener-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.screener-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.45rem 1.9rem 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a766d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.6rem center;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.screener-clear {
+  margin-left: auto;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--red, #dc2626);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.screener-clear:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.company-list-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.company-metric {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-1);
+  white-space: nowrap;
+}
+
 .fav-filter-btn {
   display: flex;
   align-items: center;

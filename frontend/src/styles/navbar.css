@@ -468,3 +468,29 @@
   background: var(--red-pale);
   color: var(--color-danger);
 }
+
+/* ============================
+   Light Theme overrides
+   ============================ */
+[data-theme="light"] .navbar {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .navbar-icon-btn,
+[data-theme="light"] .navbar-favorites-clock,
+[data-theme="light"] .navbar-search-icon,
+[data-theme="light"] .navbar-mobile-search-icon {
+  color: #475569;
+}
+
+[data-theme="light"] .navbar-icon-btn:hover {
+  color: var(--blue, #1b4e7a);
+  background: var(--surface-2, #eef1f4);
+}
+
+[data-theme="light"] .navbar-link:hover {
+  color: var(--blue, #1b4e7a);
+  background: var(--surface-2, #eef1f4);
+}

@@ -17,6 +17,7 @@ import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
+import { getMarketAverages } from './services/marketAverages';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
 import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
 import { parsePagination, paginate } from './utils/pagination';
@@ -100,7 +101,7 @@ app.get('/api/companies/search', async (_req, res) => {
 app.get('/api/companies', async (req, res) => {
   try {
     const query = req.query as Record<string, string>;
-    const { sector, country, sort, fav } = query;
+    const { sector, country, sort, fav, sortBy } = query;
     const search = query.search || query.q;
     const { page, pageSize, skip, take } = parsePagination(req.query, 24);
     const where: any = {};
@@ -138,28 +139,115 @@ app.get('/api/companies', async (req, res) => {
       }
     }
 
-    const total = await prisma.company.count({ where });
-    const companies = await prisma.company.findMany({
-      where,
-      select: {
-        id: true,
-        ticker: true,
-        name: true,
-        sector: true,
-        industry: true,
-        country: true,
-        website: true,
-        logoUrl: true,
-      },
-      orderBy: { ticker: sort === 'desc' ? 'desc' : 'asc' },
-      skip,
-      take,
-    });
-    res.json(paginate({ data: companies, total, page, pageSize }));
+    const minNetMargin = parseFloatParam(query.minNetMargin);
+    const maxPe = parseFloatParam(query.maxPe);
+    const minFcfYield = parseFloatParam(query.minFcfYield);
+    const maxNetDebtEbitda = parseFloatParam(query.maxNetDebtEbitda);
+    const screeningActive = sortBy != null || minNetMargin != null || maxPe != null || minFcfYield != null || maxNetDebtEbitda != null;
+
+    const baseSelect = {
+      id: true,
+      ticker: true,
+      name: true,
+      sector: true,
+      industry: true,
+      country: true,
+      website: true,
+      logoUrl: true,
+    };
+
+    if (!screeningActive) {
+      const total = await prisma.company.count({ where });
+      const companies = await prisma.company.findMany({
+        where,
+        select: baseSelect,
+        orderBy: { ticker: sort === 'desc' ? 'desc' : 'asc' },
+        skip,
+        take,
+      });
+      return res.json(paginate({ data: companies, total, page, pageSize }));
+    }
+
+    // Screening path: compute per-company fundamentals and filter/sort on them
+    const allCompanies = await prisma.company.findMany({ where, select: baseSelect });
+    const metrics = await getCompanyMetrics(allCompanies.map((c) => c.id));
+
+    let rows = allCompanies
+      .map((c) => ({ ...c, metrics: metrics.get(c.id) ?? null }))
+      .filter((r) => {
+        const m = r.metrics;
+        if (!m) return false;
+        if (minNetMargin != null && (m.netMargin == null || m.netMargin < minNetMargin)) return false;
+        if (maxPe != null && (m.pe == null || m.pe <= 0 || m.pe > maxPe)) return false;
+        if (minFcfYield != null && (m.fcfYield == null || m.fcfYield < minFcfYield)) return false;
+        if (maxNetDebtEbitda != null && (m.ndEbitda == null || m.ndEbitda > maxNetDebtEbitda)) return false;
+        return true;
+      });
+
+    const dir = sort === 'desc' ? -1 : 1;
+    const metricVal = (r: (typeof rows)[number], key: string): number => {
+      const v = r.metrics?.[key];
+      if (v == null) return dir > 0 ? Infinity : -Infinity;
+      return v;
+    };
+    if (sortBy === 'pe' || sortBy === 'fcfYield' || sortBy === 'netMargin' || sortBy === 'ndEbitda') {
+      rows = [...rows].sort((a, b) => metricVal(a, sortBy) - metricVal(b, sortBy));
+    } else {
+      rows = [...rows].sort((a, b) => (a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0) * (sort === 'desc' ? -1 : 1));
+    }
+
+    const total = rows.length;
+    res.json(paginate({ data: rows.slice(skip, skip + take), total, page, pageSize }));
   } catch (error) {
     res.status(500).json({ error: 'Error fetching companies' });
   }
 });
+
+function parseFloatParam(value: string | undefined): number | null {
+  if (value == null || value === '') return null;
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Latest fundamentals per company for screening: P/E, net margin, FCF yield
+// and net-debt/EBITDA from the most recent stock/financial/balance rows.
+async function getCompanyMetrics(ids: string[]): Promise<Map<string, Record<string, number | null>>> {
+  const [stocks, financials, balanceSheets] = await Promise.all([
+    prisma.stockMetric.findMany({ where: { companyId: { in: ids } }, orderBy: { date: 'desc' } }),
+    prisma.financialData.findMany({ where: { companyId: { in: ids } }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+    prisma.balanceSheet.findMany({ where: { companyId: { in: ids } }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+  ]);
+
+  const latestBy = <T extends { companyId: string }>(rows: T[]): Map<string, T> => {
+    const map = new Map<string, T>();
+    for (const row of rows) if (!map.has(row.companyId)) map.set(row.companyId, row);
+    return map;
+  };
+  const latestStock = latestBy(stocks);
+  const latestFin = latestBy(financials);
+  const latestBs = latestBy(balanceSheets);
+
+  const out = new Map<string, Record<string, number | null>>();
+  for (const id of ids) {
+    const st = latestStock.get(id);
+    const fin = latestFin.get(id);
+    if (!st || !fin) continue;
+    const m: Record<string, number | null> = {
+      pe: st.peRatio ?? null,
+      netMargin: fin.revenue > 0 ? fin.netIncome / fin.revenue : null,
+      fcfYield: st.marketCap && st.marketCap > 0 && fin.freeCashFlow != null ? fin.freeCashFlow / st.marketCap : null,
+      ndEbitda: null,
+    };
+    const bs = latestBs.get(id);
+    if (bs && fin.ebitda && fin.ebitda > 0) {
+      const cash = (bs.cashAndCashEquivalents ?? 0) + (bs.shortTermInvestments ?? 0);
+      const debt = (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0);
+      m.ndEbitda = (debt - cash) / fin.ebitda;
+    }
+    out.set(id, m);
+  }
+  return out;
+}
 
 app.get('/api/companies/facets', async (_req, res) => {
   try {
@@ -216,7 +304,11 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
       orderBy: { year: 'desc' },
     });
 
-    res.json({ company, financials, stockMetrics, balanceSheets, segments });
+    const dataSync = await prisma.dataSync.findUnique({
+      where: { companyId: company.id },
+    });
+
+    res.json({ company, financials, stockMetrics, balanceSheets, segments, dataSync });
   } catch (error) {
     console.error('[Companies] Error fetching profile:', error);
     res.status(500).json({ error: 'Error fetching company profile' });
@@ -402,6 +494,16 @@ app.get('/api/market/tape', async (_req, res) => {
     res.json(data);
   } catch {
     res.status(500).json({ error: 'Error fetching market tape' });
+  }
+});
+
+app.get('/api/market/sector-averages', async (req, res) => {
+  try {
+    const sector = (req.query.sector as string) || 'Technology';
+    const averages = await getMarketAverages(sector);
+    res.json(averages);
+  } catch {
+    res.status(500).json({ error: 'Error fetching sector averages' });
   }
 });
 
