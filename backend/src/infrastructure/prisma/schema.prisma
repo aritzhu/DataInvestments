@@ -230,7 +230,7 @@ model Alarm {
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   companyId String
 
-  alarmType     String   @default('verdict')
+  alarmType     String   @default("verdict")
   alarmConfig   String?
   targetVerdict String
   lastVerdict   String?
