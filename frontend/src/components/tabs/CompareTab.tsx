@@ -53,11 +53,11 @@ export function CompareTab({ company, financial, stock }: Props) {
   const fmtPct = (v: number) => v.toFixed(1) + '%';
 
   const metrics: MetricDetail[] = marketData ? [
-    { key: 'pe', label: 'P/E Ratio', companyVal: stock?.peRatio ?? null, sectorVal: marketData.pe, marketVal: marketData.pe, higherIsBetter: false, format: fmt2, explanation: 'Cuanto paga el mercado por $1 de beneficio. Alto = expectativas altas de crecimiento.' },
-    { key: 'pb', label: 'P/B Ratio', companyVal: stock?.pbRatio ?? null, sectorVal: marketData.pb, marketVal: marketData.pb, higherIsBetter: false, format: fmt2, explanation: 'Precio vs valor en libros. Alto = el mercado valora activos intangibles o expectativas.' },
-    { key: 'ps', label: 'P/S Ratio', companyVal: stock?.psRatio ?? null, sectorVal: marketData.ps, marketVal: marketData.ps, higherIsBetter: false, format: fmt2, explanation: 'Precio por cada $1 de ventas. Utiliza para empresas con beneficios negativos.' },
-    { key: 'evEbitda', label: 'EV/EBITDA', companyVal: evEbitda, sectorVal: marketData.evEbitda, marketVal: marketData.evEbitda, higherIsBetter: false, format: fmt2, explanation: 'Valor de empresa vs beneficios operativos. Menor = potencialmente mas barato.' },
-    { key: 'fcfYield', label: 'FCF Yield', companyVal: fcfYield, sectorVal: marketData.fcfYield, marketVal: marketData.fcfYield, higherIsBetter: true, format: fmtPct, explanation: 'Free Cash Flow como % del market cap. Mayor = genera mas efectivo relativo a su precio.' },
+    { key: 'pe', label: 'P/E Ratio', companyVal: stock?.peRatio ?? null, sectorVal: marketData.pe, marketVal: marketData.market?.pe ?? marketData.pe, higherIsBetter: false, format: fmt2, explanation: 'Cuanto paga el mercado por $1 de beneficio. Alto = expectativas altas de crecimiento.' },
+    { key: 'pb', label: 'P/B Ratio', companyVal: stock?.pbRatio ?? null, sectorVal: marketData.pb, marketVal: marketData.market?.pb ?? marketData.pb, higherIsBetter: false, format: fmt2, explanation: 'Precio vs valor en libros. Alto = el mercado valora activos intangibles o expectativas.' },
+    { key: 'ps', label: 'P/S Ratio', companyVal: stock?.psRatio ?? null, sectorVal: marketData.ps, marketVal: marketData.market?.ps ?? marketData.ps, higherIsBetter: false, format: fmt2, explanation: 'Precio por cada $1 de ventas. Utiliza para empresas con beneficios negativos.' },
+    { key: 'evEbitda', label: 'EV/EBITDA', companyVal: evEbitda, sectorVal: marketData.evEbitda, marketVal: marketData.market?.evEbitda ?? marketData.evEbitda, higherIsBetter: false, format: fmt2, explanation: 'Valor de empresa vs beneficios operativos. Menor = potencialmente mas barato.' },
+    { key: 'fcfYield', label: 'FCF Yield', companyVal: fcfYield, sectorVal: marketData.fcfYield, marketVal: marketData.market?.fcfYield ?? marketData.fcfYield, higherIsBetter: true, format: fmtPct, explanation: 'Free Cash Flow como % del market cap. Mayor = genera mas efectivo relativo a su precio.' },
   ] : [];
 
   const validMetrics = metrics.filter(m => m.companyVal != null && m.companyVal > 0);

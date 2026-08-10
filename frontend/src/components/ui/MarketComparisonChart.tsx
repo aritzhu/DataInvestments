@@ -1,4 +1,4 @@
-import { SectionReveal } from './SectionReveal';
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 export interface MarketData {
   pe: number;
@@ -8,6 +8,13 @@ export interface MarketData {
   fcfYield: number;
   sector: string;
   source: string;
+  market?: {
+    pe: number;
+    pb: number;
+    ps: number;
+    evEbitda: number;
+    fcfYield: number;
+  };
 }
 
 interface Props {
@@ -25,6 +32,7 @@ interface Props {
 interface MetricRow {
   key: string;
   label: string;
+  unit: string;
   companyVal: number | null;
   sectorVal: number;
   marketVal: number;
@@ -33,85 +41,108 @@ interface MetricRow {
 }
 
 function isOvervalued(companyVal: number, benchmark: number, higherIsBetter: boolean): boolean {
-  if (higherIsBetter) return companyVal > benchmark;
-  return companyVal < benchmark;
+  if (higherIsBetter) return companyVal < benchmark;
+  return companyVal > benchmark;
+}
+
+const SERIES = [
+  { key: 'Sector', fill: 'var(--indigo)' },
+  { key: 'Mercado', fill: 'var(--text-tertiary)' },
+];
+
+function MetricTooltip({ active, payload, format }: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; dataKey?: string | number; fill?: string }>;
+  format: (v: number) => string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="mkt-tooltip">
+      {payload.map((entry, i) => (
+        <div key={i} className="mkt-tooltip-row">
+          <span className="mkt-tooltip-dot" style={{ background: entry.fill }} />
+          <span className="mkt-tooltip-name">{entry.name}</span>
+          <span className="mkt-tooltip-value">{entry.value != null ? format(entry.value) : 'N/D'}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function MarketComparisonChart({ company, market, ticker }: Props) {
-  const fmt2 = (v: number) => v.toFixed(1) + 'x';
-  const fmtPct = (v: number) => v.toFixed(1) + '%';
+  const fmtX = (v: number) => `${v.toFixed(1)}x`;
+  const fmtPct = (v: number) => `${v.toFixed(1)}%`;
+  const mkt = market.market ?? market;
 
   const metrics: MetricRow[] = [
-    { key: 'pe', label: 'P/E', companyVal: company.pe, sectorVal: market.pe, marketVal: market.pe, higherIsBetter: false, format: fmt2 },
-    { key: 'pb', label: 'P/B', companyVal: company.pb, sectorVal: market.pb, marketVal: market.pb, higherIsBetter: false, format: fmt2 },
-    { key: 'ps', label: 'P/S', companyVal: company.ps, sectorVal: market.ps, marketVal: market.ps, higherIsBetter: false, format: fmt2 },
-    { key: 'evEbitda', label: 'EV/EBITDA', companyVal: company.evEbitda, sectorVal: market.evEbitda, marketVal: market.evEbitda, higherIsBetter: false, format: fmt2 },
-    { key: 'fcfYield', label: 'FCF Yield', companyVal: company.fcfYield, sectorVal: market.fcfYield, marketVal: market.fcfYield, higherIsBetter: true, format: fmtPct },
+    { key: 'pe', label: 'P/E', unit: 'x', companyVal: company.pe, sectorVal: market.pe, marketVal: mkt.pe, higherIsBetter: false, format: fmtX },
+    { key: 'pb', label: 'P/B', unit: 'x', companyVal: company.pb, sectorVal: market.pb, marketVal: mkt.pb, higherIsBetter: false, format: fmtX },
+    { key: 'ps', label: 'P/S', unit: 'x', companyVal: company.ps, sectorVal: market.ps, marketVal: mkt.ps, higherIsBetter: false, format: fmtX },
+    { key: 'evEbitda', label: 'EV/EBITDA', unit: 'x', companyVal: company.evEbitda, sectorVal: market.evEbitda, marketVal: mkt.evEbitda, higherIsBetter: false, format: fmtX },
+    { key: 'fcfYield', label: 'FCF Yield', unit: '%', companyVal: company.fcfYield, sectorVal: market.fcfYield, marketVal: mkt.fcfYield, higherIsBetter: true, format: fmtPct },
   ];
 
   const validMetrics = metrics.filter(m => m.companyVal != null && m.companyVal > 0);
   if (validMetrics.length === 0) return null;
 
-  // Find max value for scaling (exclude FCF Yield which is %)
-  const barMetrics = validMetrics.filter(m => m.key !== 'fcfYield');
-  const maxVal = Math.max(
-    ...barMetrics.map(m => Math.max(m.companyVal!, m.sectorVal, m.marketVal)),
-    1
-  );
-
   return (
-    <SectionReveal delay={0}>
-      <div className="mkt-chart">
+    <div className="mkt-wrap">
+      <div className="mkt-legend">
+        <span className="mkt-legend-item">
+          <span className="mkt-legend-dot mkt-legend-dot--company-good" />
+          {ticker} <em>(verde = infravalorada, rojo = sobrevalorada)</em>
+        </span>
+        {SERIES.map((s) => (
+          <span key={s.key} className="mkt-legend-item">
+            <span className="mkt-legend-dot" style={{ background: s.fill }} />
+            {s.key}
+          </span>
+        ))}
+      </div>
+
+      <div className="mkt-grid">
         {validMetrics.map((m) => {
-          const isNA = m.companyVal == null || m.companyVal <= 0;
-          const scale = m.key === 'fcfYield' ? 100 / Math.max(m.sectorVal, m.marketVal, m.companyVal || 0, 1) : 100 / maxVal;
-          const companyW = isNA ? 0 : m.companyVal! * scale;
-          const sectorW = m.sectorVal * scale;
-          const marketW = m.marketVal * scale;
-          const overValued = !isNA && isOvervalued(m.companyVal!, m.marketVal, m.higherIsBetter);
+          const overValued = isOvervalued(m.companyVal!, m.marketVal, m.higherIsBetter);
+          const companyFill = overValued ? 'var(--red)' : 'var(--teal)';
+          const data = [{ name: m.label, Empresa: m.companyVal, Sector: m.sectorVal, Mercado: m.marketVal }];
 
           return (
-            <div key={m.key} className="mkt-row">
-              <div className="mkt-row-label">{m.label}</div>
-              <div className="mkt-bars">
-                {/* Company bar */}
-                <div className="mkt-bar-group">
-                  <span className="mkt-bar-label">{ticker}</span>
-                  <div className="mkt-bar-track">
-                    <div
-                      className={`mkt-bar mkt-bar--company ${!isNA ? (overValued ? 'mkt-bar--red' : 'mkt-bar--green') : ''}`}
-                      style={{ width: `${Math.min(companyW, 100)}%` }}
+            <div key={m.key} className="mkt-cell">
+              <div className="mkt-cell-title">
+                {m.label}
+                <span className="mkt-cell-unit">{m.unit}</span>
+              </div>
+              <div className="mkt-cell-chart">
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={data} margin={{ top: 22, right: 8, left: 8, bottom: 0 }} barCategoryGap="20%">
+                    <CartesianGrid vertical={false} stroke="var(--border-light)" strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: 'var(--text-tertiary)', fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                  </div>
-                  <span className="mkt-bar-value">{isNA ? 'N/D' : m.format(m.companyVal!)}</span>
-                </div>
-                {/* Sector bar */}
-                <div className="mkt-bar-group">
-                  <span className="mkt-bar-label">Sector</span>
-                  <div className="mkt-bar-track">
-                    <div
-                      className="mkt-bar mkt-bar--sector"
-                      style={{ width: `${Math.min(sectorW, 100)}%` }}
+                    <YAxis hide domain={[0, 'dataMax']} />
+                    <Tooltip
+                      cursor={{ fill: 'var(--surface-1)', opacity: 0.5 }}
+                      content={<MetricTooltip format={m.format} />}
                     />
-                  </div>
-                  <span className="mkt-bar-value">{m.format(m.sectorVal)}</span>
-                </div>
-                {/* Market bar */}
-                <div className="mkt-bar-group">
-                  <span className="mkt-bar-label">Mercado</span>
-                  <div className="mkt-bar-track">
-                    <div
-                      className="mkt-bar mkt-bar--market"
-                      style={{ width: `${Math.min(marketW, 100)}%` }}
-                    />
-                  </div>
-                  <span className="mkt-bar-value">{m.format(m.marketVal)}</span>
-                </div>
+                    <Bar dataKey="Empresa" fill={companyFill} maxBarSize={34}>
+                      <LabelList dataKey="Empresa" position="top" fill="var(--text-primary)" fontSize={11} fontWeight={700} formatter={(v: unknown) => (typeof v === 'number' ? m.format(v) : 'N/D')} />
+                    </Bar>
+                    <Bar dataKey="Sector" fill="var(--indigo)" maxBarSize={34} radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="Sector" position="top" fill="var(--text-secondary)" fontSize={11} formatter={(v: unknown) => (typeof v === 'number' ? m.format(v) : 'N/D')} />
+                    </Bar>
+                    <Bar dataKey="Mercado" fill="var(--text-tertiary)" maxBarSize={34} radius={[3, 3, 0, 0]}>
+                      <LabelList dataKey="Mercado" position="top" fill="var(--text-secondary)" fontSize={11} formatter={(v: unknown) => (typeof v === 'number' ? m.format(v) : 'N/D')} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
           );
         })}
       </div>
-    </SectionReveal>
+    </div>
   );
 }

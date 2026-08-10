@@ -8,6 +8,13 @@ export interface MarketAverages {
   fcfYield: number;
   sector: string;
   source: string;
+  market: {
+    pe: number;
+    pb: number;
+    ps: number;
+    evEbitda: number;
+    fcfYield: number;
+  };
 }
 
 // Cache: 1 hour TTL
@@ -121,6 +128,13 @@ export async function getMarketAverages(sector: string): Promise<MarketAverages>
     source: pe != null
       ? `Mediana de ${peerCount} empresas del sector en la base de datos`
       : 'Promedios históricos S&P 500 por sector',
+    market: {
+      pe: MARKET_DEFAULTS.pe,
+      pb: MARKET_DEFAULTS.pb,
+      ps: MARKET_DEFAULTS.ps,
+      evEbitda: MARKET_DEFAULTS.evEbitda,
+      fcfYield: MARKET_DEFAULTS.fcfYield,
+    },
   };
 
   cache = { data: result, sector, timestamp: now };

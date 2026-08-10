@@ -131,7 +131,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
   }, [validLinks, positions, nodeWidth, height]);
 
   const handleMouseEnter = useCallback((e: React.MouseEvent, text: string) => {
-    const rect = e.currentTarget.closest('svg')?.getBoundingClientRect();
+    const rect = e.currentTarget.closest('.cs-sankey-container')?.getBoundingClientRect();
     if (!rect) return;
     setTooltip({
       x: e.clientX - rect.left + 12,
@@ -144,7 +144,7 @@ function CashFlowSankeyDiagram({ nodes, links }: { nodes: SankeyNode[]; links: S
   const vFontSize = isMobile ? 8 : 10;
 
   return (
-    <div className="cs-sankey-container" style={{ position: 'relative' }}>
+    <div className="cs-sankey-container">
       {tooltip && (
         <div
           className="cs-sankey-tooltip"

@@ -238,3 +238,116 @@
   margin-top: 0.75rem;
   font-style: italic;
 }
+
+/* --- Real Chart (small multiples) --- */
+.mkt-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.mkt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.mkt-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mkt-legend-item em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.mkt-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mkt-legend-dot--company-good {
+  background: linear-gradient(90deg, var(--teal) 50%, var(--red) 50%);
+}
+
+.mkt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.9rem;
+}
+
+.mkt-cell {
+  background: var(--surface-1);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.6rem 0.4rem;
+}
+
+.mkt-cell-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.mkt-cell-unit {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: 99px;
+  padding: 0.05rem 0.4rem;
+}
+
+.mkt-cell-chart {
+  width: 100%;
+}
+
+.mkt-tooltip {
+  background: var(--surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mkt-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mkt-tooltip-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mkt-tooltip-name {
+  color: var(--text-secondary);
+}
+
+.mkt-tooltip-value {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}

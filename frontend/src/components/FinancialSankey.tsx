@@ -331,7 +331,7 @@ export function FinancialSankey({ financial, balanceSheet }: Props) {
   );
 
   const handleMouseEnter = useCallback((e: ReactMouseEvent, text: string) => {
-    const rect = e.currentTarget.closest('svg')?.getBoundingClientRect();
+    const rect = e.currentTarget.closest('.cs-sankey-container')?.getBoundingClientRect();
     if (!rect) return;
     setTooltip({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 10, text });
   }, []);

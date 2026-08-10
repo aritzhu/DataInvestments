@@ -687,6 +687,7 @@
 }
 
 .cs-sankey-container {
+  position: relative;
   background: var(--surface-1);
   border-radius: var(--radius-md);
   padding: 1rem;
