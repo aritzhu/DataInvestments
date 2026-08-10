@@ -79,7 +79,7 @@
 
 .ui-section-reveal--visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
 
 /* --- Premium Card --- */

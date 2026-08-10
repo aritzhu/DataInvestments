@@ -119,10 +119,19 @@
 }
 
 .fund-confidence:hover::after,
+.fund-confidence:focus::after,
 .fund-confidence:focus-visible::after,
 .fund-confidence:active::after {
   opacity: 1;
   visibility: visible;
+}
+
+/* Neutralize the card hover transform on mobile so it cannot become the
+   containing block of the fixed (viewport-centered) tooltip. */
+@media (max-width: 767px) {
+  .fund-page .fund-metric:hover {
+    transform: none;
+  }
 }
 
 .fund-section {

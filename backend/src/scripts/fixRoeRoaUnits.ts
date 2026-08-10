@@ -1,26 +1,54 @@
 import prisma from '../infrastructure/prisma/client';
 
-// Normaliza ROE/ROA a fracción (0.36 → 36%) en filas existentes guardadas
-// como porcentaje (yahoo/finnhub las almacenaban ×100).
-// Heurística: los valores reales en fracción son ≤ 3; los de porcentaje son > 3.
+// Recalcula ROE/ROA como fracción (netIncome / equity, netIncome / assets)
+// a partir de los estados financieros, que es la única fuente fiable:
+// las vías SEC/Europea guardaban ×100 (porcentaje) y el heurístico >3 no
+// cubre porcentajes bajos ni negativos. Las empresas sin datos financieros
+// solo recibieron valores fracción (yahoo/finnhub), así que se dejan intactas.
 async function main() {
-  const rows = await prisma.stockMetric.findMany({
-    where: { OR: [{ roe: { gt: 3 } }, { roa: { gt: 3 } }] },
-    select: { id: true, roe: true, roa: true },
-  });
+  const companies = await prisma.company.findMany({ select: { id: true, ticker: true } });
 
-  let updated = 0;
-  for (const row of rows) {
-    const data: { roe?: number; roa?: number } = {};
-    if (row.roe != null && row.roe > 3) data.roe = row.roe / 100;
-    if (row.roa != null && row.roa > 3) data.roa = row.roa / 100;
-    if (Object.keys(data).length > 0) {
-      await prisma.stockMetric.update({ where: { id: row.id }, data });
-      updated++;
+  let recomputed = 0;
+  let skippedNoFinancials = 0;
+
+  for (const company of companies) {
+    const fd = await prisma.financialData.findFirst({
+      where: { companyId: company.id },
+      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+      select: { year: true, netIncome: true, totalEquity: true },
+    });
+    const bs = await prisma.balanceSheet.findFirst({
+      where: { companyId: company.id },
+      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+      select: { year: true, totalAssets: true },
+    });
+
+    if (!fd || fd.netIncome == null) {
+      skippedNoFinancials++;
+      continue;
     }
+
+    const equity = fd.totalEquity ?? null;
+    const assets = bs?.year === fd.year ? (bs.totalAssets ?? null) : null;
+
+    const roe = fd.netIncome > 0 && equity && equity > 0 ? fd.netIncome / equity : null;
+    const roa = fd.netIncome > 0 && assets && assets > 0 ? fd.netIncome / assets : null;
+
+    const stock = await prisma.stockMetric.findFirst({
+      where: { companyId: company.id },
+      orderBy: { date: 'desc' },
+      select: { id: true },
+    });
+    if (!stock) {
+      skippedNoFinancials++;
+      continue;
+    }
+
+    await prisma.stockMetric.update({ where: { id: stock.id }, data: { roe, roa } });
+    recomputed++;
   }
 
-  console.log(`ROE/ROA normalizados a fracción en ${updated} filas.`);
+  console.log(`ROE/ROA recalculados desde estados financieros en ${recomputed} filas (${skippedNoFinancials} sin datos financieros, intactas).`);
 }
 
 main()

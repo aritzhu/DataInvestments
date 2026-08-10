@@ -99,6 +99,8 @@ export function Landing() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const companiesSectionRef = useRef<HTMLDivElement>(null);
+  const pendingRestore = useRef<number | null>(null);
+  const restoreDone = useRef(false);
   const [companies, setCompanies] = useState<CompanyFromAPI[]>([]);
   const [total, setTotal] = useState(0);
   const [facets, setFacets] = useState<{ sectors: string[]; countries: string[] }>({ sectors: [], countries: [] });
@@ -187,6 +189,36 @@ export function Landing() {
       cancelled = true;
     };
   }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const path = anchor.getAttribute('href') || '';
+      if (/^\/(empresa|cashflow|valuation)\//.test(path)) {
+        sessionStorage.setItem('landing_scroll', String(window.scrollY));
+      }
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('landing_scroll');
+    if (raw == null) return;
+    sessionStorage.removeItem('landing_scroll');
+    const saved = Number(raw);
+    if (Number.isFinite(saved)) pendingRestore.current = saved;
+  }, []);
+
+  useEffect(() => {
+    if (restoreDone.current) return;
+    if (pendingRestore.current == null) return;
+    if (companies.length === 0) return;
+    restoreDone.current = true;
+    window.scrollTo({ top: pendingRestore.current, behavior: 'instant' });
+    pendingRestore.current = null;
+  }, [companies]);
 
   useEffect(() => {
     if (!valuationLimits) return;

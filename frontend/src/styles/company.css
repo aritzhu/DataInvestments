@@ -7,6 +7,7 @@
   display: flex;
   flex-direction: column;
   background: var(--surface-1);
+  overflow-x: hidden;
 }
 
 /* --- Loading --- */
@@ -852,4 +853,7 @@
   .cp-footer { padding: 0.6rem 1rem; }
   .cp-portfolio-modal { width: 280px; right: -0.5rem; }
   .cp-alarm-modal { width: 260px; right: -0.5rem; }
+  .cp-quick { padding: 0.75rem 1rem; }
+  .cp-quick-item { padding-left: 1rem; }
+  .cp-quick-value { font-size: 0.82rem; }
 }

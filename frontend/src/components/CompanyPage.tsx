@@ -235,7 +235,7 @@ export function CompanyPage() {
 
   useEffect(() => {
     if (!loading && data && headerRef.current) {
-      headerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      headerRef.current.scrollIntoView({ behavior: 'instant', block: 'start' });
     }
   }, [loading, data]);
 

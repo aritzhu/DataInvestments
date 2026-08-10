@@ -475,8 +475,25 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .abbr-tip:hover::after,
+.abbr-tip:focus::after,
 .abbr-tip:focus-visible::after,
 .abbr-tip:active::after {
   opacity: 1;
   visibility: visible;
+}
+
+/* On small screens the tooltip is centered on the viewport (fixed) so it never
+   gets cut off when the abbreviation sits near the edge of the screen. */
+@media (max-width: 767px) {
+  .fund-page .abbr-tip::after,
+  .fund-page .fund-confidence::after {
+    position: fixed;
+    left: 50%;
+    top: auto;
+    right: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: min(260px, calc(100vw - 32px));
+  }
 }

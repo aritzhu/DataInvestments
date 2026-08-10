@@ -106,7 +106,7 @@ export function computeGrowth(input: FundamentalInput): GrowthMetrics {
     const payouts = (dividends ?? 0) + (buybacks ?? 0);
     const payout = payouts > 0 && netIncome > 0 ? payouts / netIncome : 0;
     const retention = Math.max(0, 1 - payout);
-    sustainableGrowth = (roe / 100) * retention;
+    sustainableGrowth = roe * retention;
   }
 
   return {
