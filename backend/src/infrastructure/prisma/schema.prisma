@@ -252,8 +252,25 @@ model Portfolio {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   holdings Holding[]
+  snapshots PortfolioSnapshot[]
 
   @@index([userId])
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(uuid())
+  portfolioId String
+  date        DateTime
+
+  marketValue Float
+  targetValue Float
+  undervaluedCount Int
+  holdings    Json?
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, date])
+  @@index([portfolioId])
 }
 
 model Holding {

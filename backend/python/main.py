@@ -543,6 +543,50 @@ async def get_annual(ticker: str):
         raise HTTPException(status_code=502, detail=f"yfinance error: {str(e)}")
 
 
+@app.get("/api/yfinance/{ticker}/history")
+async def get_history(ticker: str, period1: int | None = None, period2: int | None = None):
+    """Daily adjusted close history via Yahoo chart API.
+    Defaults to the last 2 years. Returns [{date, close}] sorted ascending."""
+    try:
+        symbol = _resolve_symbol(ticker)
+        _ensure_crumb()
+        p1 = period1 or int(time.time() - 2 * 365 * 86400)
+        p2 = period2 or int(time.time()) + 7 * 86400
+
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            f"?period1={p1}&period2={p2}&interval=1d&events=history"
+        )
+
+        r = _session.get(url, timeout=20)
+        if r.status_code != 200:
+            print(f"[yfinance] history {ticker} status {r.status_code}")
+            return {"ticker": ticker, "history": []}
+
+        data = r.json()
+        result = data.get("chart", {}).get("result", [])
+        if not result:
+            return {"ticker": ticker, "history": []}
+
+        timestamps = result[0].get("timestamp", [])
+        close = result[0].get("indicators", {}).get("quote", [{}])[0].get("close", [])
+        meta = result[0].get("meta", {})
+        is_gbp_pence = str(meta.get("currency", "")).upper() == "GBP"
+        points = []
+        for ts, price in zip(timestamps, close):
+            if price is None:
+                continue
+            if is_gbp_pence:
+                price = price / 100
+            date = time.strftime("%Y-%m-%d", time.gmtime(ts))
+            points.append({"date": date, "close": price})
+
+        return {"ticker": ticker, "history": points}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"yfinance error: {str(e)}")
+
+
 @app.get("/api/yfinance/{ticker}/info")
 async def get_info(ticker: str):
     """Company info + stock metrics via quoteSummary."""

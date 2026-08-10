@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import * as portfolioService from '../services/portfolioService';
+import prisma from '../infrastructure/prisma/client';
 
 const router: ExpressRouter = Router();
 router.use(requireAuth);
@@ -126,6 +127,36 @@ router.get('/:id/valuation', async (req: AuthRequest, res) => {
     res.json(valuation);
   } catch (error) {
     res.status(500).json({ error: 'Error calculating portfolio valuation' });
+  }
+});
+
+// Snapshot history for the target-vs-price convergence chart
+router.get('/:id/history', async (req: AuthRequest, res) => {
+  try {
+    const months = Math.min(24, Math.max(1, Number(req.query.months) || 12));
+    const since = new Date(Date.now() - months * 30 * 24 * 60 * 60 * 1000);
+    const portfolio = await prisma.portfolio.findFirst({ where: { id: req.params.id as string, userId: req.user!.id } });
+    if (!portfolio) {
+      res.status(404).json({ error: 'Portfolio not found' });
+      return;
+    }
+    const snapshots = await prisma.portfolioSnapshot.findMany({
+      where: { portfolioId: portfolio.id, date: { gte: since } },
+      orderBy: { date: 'asc' },
+    });
+    res.json({
+      portfolioId: portfolio.id,
+      months,
+      points: snapshots.map((s) => ({
+        date: s.date,
+        marketValue: s.marketValue,
+        targetValue: s.targetValue,
+        undervaluedCount: s.undervaluedCount,
+        holdings: s.holdings as Array<{ ticker: string; marketValue: number; targetValue: number }> | null,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching portfolio history' });
   }
 });
 

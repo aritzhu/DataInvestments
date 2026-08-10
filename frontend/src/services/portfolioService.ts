@@ -1,4 +1,4 @@
-import type { Portfolio, Holding, PortfolioValuation } from '../types/portfolio';
+import type { Portfolio, Holding, PortfolioValuation, PortfolioHistory } from '../types/portfolio';
 
 const BASE_URL = '/api/portfolios';
 
@@ -79,5 +79,11 @@ export async function removeHolding(portfolioId: string, holdingId: string): Pro
 export async function getPortfolioValuation(id: string): Promise<PortfolioValuation> {
   const res = await fetch(`${BASE_URL}/${id}/valuation`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Error fetching portfolio valuation');
+  return res.json();
+}
+
+export async function getPortfolioHistory(id: string, months: number): Promise<PortfolioHistory> {
+  const res = await fetch(`${BASE_URL}/${id}/history?months=${months}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Error fetching portfolio history');
   return res.json();
 }

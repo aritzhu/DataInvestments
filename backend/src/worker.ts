@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { refreshAllQuotes } from './services/refreshQuotes';
 import { resyncStaleCompanies } from './scripts/resyncStale';
+import { recordPortfolioSnapshots } from './services/portfolioSnapshot';
 
 const running = new Set<string>();
 
@@ -29,6 +30,14 @@ cron.schedule('0 6 * * *', () => {
   });
 });
 
+// Snapshot diaria de carteras (06:30 UTC, tras actualizar precios/valoraciones)
+cron.schedule('30 6 * * *', () => {
+  void runOnce('portfolio-snapshots', async () => {
+    const result = await recordPortfolioSnapshots();
+    console.log(`[Worker] portfolio-snapshots portfolios=${result.portfolios} snapshots=${result.snapshots}`);
+  });
+});
+
 // Fundamentals semanales incrementales (lunes 07:30 UTC)
 cron.schedule('30 7 * * 1', () => {
   void runOnce('resync-fundamentals', async () => {
@@ -36,7 +45,7 @@ cron.schedule('30 7 * * 1', () => {
   });
 });
 
-console.log('[Worker] sync-worker iniciado. Quotes diarias 06:00, fundamentals semanales lunes 07:30 (UTC).');
+console.log('[Worker] sync-worker iniciado. Quotes diarias 06:00, snapshots de cartera 06:30, fundamentals semanales lunes 07:30 (UTC).');
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {

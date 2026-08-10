@@ -21,6 +21,8 @@ const fmtPct = (n: number | null) => {
 export function PortfolioSummary({ valuation }: Props) {
   const { summary } = valuation;
   const isPositive = summary.totalPL >= 0;
+  const gap = summary.valuationGapPct;
+  const isUndervaluedPortfolio = gap != null && gap >= 0;
 
   return (
     <div className="pf-summary-grid">
@@ -42,6 +44,20 @@ export function PortfolioSummary({ valuation }: Props) {
         <p className="pf-summary-label">Rentabilidad</p>
         <p className={`pf-summary-value ${isPositive ? 'pf-summary-value--positive' : 'pf-summary-value--negative'}`}>
           {fmtPct(summary.totalPLPercent)}
+        </p>
+      </div>
+      <div className="pf-summary-card">
+        <p className="pf-summary-label">Subvaloradas</p>
+        <p className="pf-summary-value pf-summary-value--positive">{summary.undervaluedCount} / {summary.holdingCount}</p>
+      </div>
+      <div className="pf-summary-card">
+        <p className="pf-summary-label">Valor Intrínseco</p>
+        <p className="pf-summary-value">{fmt(summary.fairValueTotal)}</p>
+      </div>
+      <div className="pf-summary-card">
+        <p className="pf-summary-label">Gap vs Cotización</p>
+        <p className={`pf-summary-value ${isUndervaluedPortfolio ? 'pf-summary-value--positive' : 'pf-summary-value--negative'}`}>
+          {fmtPct(gap)}
         </p>
       </div>
     </div>
