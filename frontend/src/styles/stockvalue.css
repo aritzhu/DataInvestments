@@ -663,6 +663,20 @@
   white-space: nowrap;
 }
 
+@media (max-width: 640px) {
+  .vc-row {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      "label value badge"
+      "track track track";
+    column-gap: 0.6rem;
+  }
+  .vc-label { grid-area: label; min-width: 0; text-align: left; }
+  .vc-value { grid-area: value; }
+  .vc-badge { grid-area: badge; }
+  .vc-track { grid-area: track; }
+}
+
 /* --- Quality & Strength Grid --- */
 .val-quality {
   background: var(--surface-0);
