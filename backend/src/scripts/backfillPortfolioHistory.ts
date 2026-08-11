@@ -105,6 +105,72 @@ async function buildCompanyTarget(companyId: string, ticker: string, sector: str
   return entries;
 }
 
+export async function backfillPortfolioHistory(portfolioId: string): Promise<number> {
+  const portfolio = await prisma.portfolio.findUnique({
+    where: { id: portfolioId },
+    include: {
+      holdings: {
+        include: { company: { select: { id: true, ticker: true, sector: true, industry: true } } },
+      },
+    },
+  });
+  if (!portfolio || portfolio.holdings.length === 0) return 0;
+
+  const histories = new Map<string, PricePoint[]>();
+  const targets = new Map<string, TargetEntry[]>();
+
+  for (const h of portfolio.holdings) {
+    const history = await fetchHistory(h.company.ticker);
+    if (history.length > 0) histories.set(h.company.ticker, history);
+    const target = await buildCompanyTarget(h.company.id, h.company.ticker, h.company.sector, h.company.industry);
+    if (target.length > 0) targets.set(h.company.ticker, target);
+    console.log(`[BackfillHistory] ${h.company.ticker}: ${history.length} precios, ${target.length} periodos de valoracion`);
+  }
+
+  const dateSet = new Set<string>();
+  for (const pts of histories.values()) for (const p of pts) dateSet.add(p.date);
+  const dates = [...dateSet].sort();
+  if (dates.length === 0) return 0;
+
+  let written = 0;
+  for (const dateStr of dates) {
+    const date = new Date(`${dateStr}T00:00:00Z`);
+    let marketValue = 0;
+    let targetValue = 0;
+    let undervalued = 0;
+    let any = false;
+    const holdings: Array<{ ticker: string; marketValue: number; targetValue: number; price: number }> = [];
+    for (const h of portfolio.holdings) {
+      const qty = Number(h.quantity);
+      if (qty <= 0) continue;
+      const price = priceAt(histories.get(h.company.ticker) ?? [], date);
+      if (price == null) continue;
+      any = true;
+      const mv = qty * price;
+      marketValue += mv;
+      const fv = fairValueAt(targets.get(h.company.ticker) ?? [], date);
+      let tv = 0;
+      if (fv != null && fv > 0) {
+        tv = qty * fv;
+        targetValue += tv;
+        if (fv > price * 1.15) undervalued++;
+      }
+      holdings.push({ ticker: h.company.ticker, marketValue: mv, targetValue: tv, price });
+    }
+    if (!any || marketValue <= 0) continue;
+
+    await prisma.portfolioSnapshot.upsert({
+      where: { portfolioId_date: { portfolioId: portfolio.id, date } },
+      update: { marketValue, targetValue, undervaluedCount: undervalued, holdings },
+      create: { portfolioId: portfolio.id, date, marketValue, targetValue, undervaluedCount: undervalued, holdings },
+    });
+    written++;
+  }
+
+  console.log(`[BackfillHistory] portfolio ${portfolio.id} (${portfolio.name}): ${written} snapshots`);
+  return written;
+}
+
 export async function backfillAllPortfolioHistory(): Promise<{ portfolios: number; snapshots: number }> {
   const portfolios = await prisma.portfolio.findMany({
     include: {
@@ -117,60 +183,7 @@ export async function backfillAllPortfolioHistory(): Promise<{ portfolios: numbe
   let snapshots = 0;
   for (const portfolio of portfolios) {
     if (portfolio.holdings.length === 0) continue;
-
-    const histories = new Map<string, PricePoint[]>();
-    const targets = new Map<string, TargetEntry[]>();
-
-    for (const h of portfolio.holdings) {
-      const history = await fetchHistory(h.company.ticker);
-      if (history.length > 0) histories.set(h.company.ticker, history);
-      const target = await buildCompanyTarget(h.company.id, h.company.ticker, h.company.sector, h.company.industry);
-      if (target.length > 0) targets.set(h.company.ticker, target);
-      console.log(`[BackfillHistory] ${h.company.ticker}: ${history.length} precios, ${target.length} periodos de valoracion`);
-    }
-
-    const dateSet = new Set<string>();
-    for (const pts of histories.values()) for (const p of pts) dateSet.add(p.date);
-    const dates = [...dateSet].sort();
-    if (dates.length === 0) continue;
-
-    let written = 0;
-    for (const dateStr of dates) {
-      const date = new Date(`${dateStr}T00:00:00Z`);
-      let marketValue = 0;
-      let targetValue = 0;
-      let undervalued = 0;
-      let any = false;
-      const holdings: Array<{ ticker: string; marketValue: number; targetValue: number; price: number }> = [];
-      for (const h of portfolio.holdings) {
-        const qty = Number(h.quantity);
-        if (qty <= 0) continue;
-        const price = priceAt(histories.get(h.company.ticker) ?? [], date);
-        if (price == null) continue;
-        any = true;
-        const mv = qty * price;
-        marketValue += mv;
-        const fv = fairValueAt(targets.get(h.company.ticker) ?? [], date);
-        let tv = 0;
-        if (fv != null && fv > 0) {
-          tv = qty * fv;
-          targetValue += tv;
-          if (fv > price * 1.15) undervalued++;
-        }
-        holdings.push({ ticker: h.company.ticker, marketValue: mv, targetValue: tv, price });
-      }
-      if (!any || marketValue <= 0) continue;
-
-      await prisma.portfolioSnapshot.upsert({
-        where: { portfolioId_date: { portfolioId: portfolio.id, date } },
-        update: { marketValue, targetValue, undervaluedCount: undervalued, holdings },
-        create: { portfolioId: portfolio.id, date, marketValue, targetValue, undervaluedCount: undervalued, holdings },
-      });
-      written++;
-    }
-
-    console.log(`[BackfillHistory] portfolio ${portfolio.id} (${portfolio.name}): ${written} snapshots`);
-    snapshots += written;
+    snapshots += await backfillPortfolioHistory(portfolio.id);
   }
 
   return { portfolios: portfolios.filter((p) => p.holdings.length > 0).length, snapshots };

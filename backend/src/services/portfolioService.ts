@@ -1,5 +1,12 @@
 import { computeAll, weightedAverage, getVerdict, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
+import { backfillPortfolioHistory } from '../scripts/backfillPortfolioHistory';
+
+function scheduleHistoryBackfill(portfolioId: string) {
+  void backfillPortfolioHistory(portfolioId).catch((err) => {
+    console.error(`[Portfolio] Backfill de histórico fallido para ${portfolioId}: ${err instanceof Error ? err.message : err}`);
+  });
+}
 
 export async function createPortfolio(userId: string, data: { name: string; description?: string; currency?: string }) {
   return prisma.portfolio.create({
@@ -70,7 +77,7 @@ export async function addHolding(portfolioId: string, userId: string, data: { co
   const company = await prisma.company.findUnique({ where: { id: data.companyId } });
   if (!company) return null;
 
-  return prisma.holding.create({
+  const holding = await prisma.holding.create({
     data: {
       portfolioId,
       companyId: data.companyId,
@@ -81,19 +88,23 @@ export async function addHolding(portfolioId: string, userId: string, data: { co
       company: { select: { id: true, ticker: true, name: true, sector: true, industry: true } },
     },
   });
+  scheduleHistoryBackfill(portfolioId);
+  return holding;
 }
 
 export async function updateHolding(holdingId: string, portfolioId: string, userId: string, data: { quantity?: number; averageCost?: number }) {
   const portfolio = await prisma.portfolio.findFirst({ where: { id: portfolioId, userId } });
   if (!portfolio) return null;
 
-  return prisma.holding.update({
+  const holding = await prisma.holding.update({
     where: { id: holdingId },
     data,
     include: {
       company: { select: { id: true, ticker: true, name: true, sector: true, industry: true } },
     },
   });
+  scheduleHistoryBackfill(portfolioId);
+  return holding;
 }
 
 export async function removeHolding(holdingId: string, portfolioId: string, userId: string) {
@@ -101,6 +112,7 @@ export async function removeHolding(holdingId: string, portfolioId: string, user
   if (!portfolio) return false;
 
   await prisma.holding.delete({ where: { id: holdingId } });
+  scheduleHistoryBackfill(portfolioId);
   return true;
 }
 
