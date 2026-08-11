@@ -742,7 +742,7 @@ export function getVerdict(fairValue: number | null, currentPrice: number): { ve
     return { verdict: 'na', upside: null, label: 'Sin datos' };
   }
   const upside = (fairValue - currentPrice) / currentPrice;
-  if (upside > 0.15) return { verdict: 'buy', upside, label: 'Subvalorada' };
+  if (upside > 0.15) return { verdict: 'buy', upside, label: 'Infravalorada' };
   if (upside < -0.15) return { verdict: 'sell', upside, label: 'Sobrevalorada' };
   return { verdict: 'hold', upside, label: 'Justa' };
 }

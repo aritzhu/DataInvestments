@@ -674,9 +674,9 @@ export function AdminPanel() {
             <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--pink-deep)', marginBottom: '1rem' }}>Secciones de Valoración</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               {[
-                { key: 'undervalued_title', label: 'Título subvaloradas', placeholder: 'Oportunidades de Inversión' },
-                { key: 'undervalued_subtitle', label: 'Subtítulo subvaloradas', placeholder: 'Empresas con margen de seguridad positivo...' },
-                { key: 'undervalued_limit', label: 'Límite subvaloradas (1-20)', placeholder: '5' },
+                { key: 'undervalued_title', label: 'Título infravaloradas', placeholder: 'Oportunidades de Inversión' },
+                { key: 'undervalued_subtitle', label: 'Subtítulo infravaloradas', placeholder: 'Empresas con margen de seguridad positivo...' },
+                { key: 'undervalued_limit', label: 'Límite infravaloradas (1-20)', placeholder: '5' },
                 { key: 'overvalued_title', label: 'Título sobrevaloradas', placeholder: 'Empresas Sobrevaloradas' },
                 { key: 'overvalued_subtitle', label: 'Subtítulo sobrevaloradas', placeholder: 'Empresas que el mercado sobreestima...' },
                 { key: 'overvalued_limit', label: 'Límite sobrevaloradas (1-20)', placeholder: '5' },

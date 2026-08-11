@@ -334,7 +334,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 {existingAlarm && (
                   <div className="val-alarm-summary">
                     <span className="val-alarm-target">
-                      Objetivo: {existingAlarm.targetVerdict === 'buy' ? 'Subvalorada' : existingAlarm.targetVerdict === 'hold' ? 'Justa' : 'Sobrevalorada'}
+                      Objetivo: {existingAlarm.targetVerdict === 'buy' ? 'Infravalorada' : existingAlarm.targetVerdict === 'hold' ? 'Justa' : 'Sobrevalorada'}
                     </span>
                     <span className={`val-alarm-status ${existingAlarm.triggered ? 'val-alarm-status--triggered' : ''}`}>
                       {existingAlarm.triggered ? '✓ Alcanzado' : '○ Pendiente'}
@@ -563,10 +563,10 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
             </div>
             <div className="val-alarm-modal-body">
               <p className="val-alarm-modal-desc">¿Cuándo quieres que te avise?</p>
-              <p className="val-alarm-note">Los estados ("Subvalorada", "Justa", "Sobrevalorada") son estimaciones automáticas del modelo de valoración, no recomendaciones de compra o venta.</p>
+              <p className="val-alarm-note">Los estados ("Infravalorada", "Justa", "Sobrevalorada") son estimaciones automáticas del modelo de valoración, no recomendaciones de compra o venta.</p>
               <div className="val-alarm-options">
                 {([
-                  { value: 'buy' as const, label: 'Subvalorada', desc: 'Cuando el sistema detecte que está por debajo de su valor justo', color: 'var(--blue-light)' },
+                  { value: 'buy' as const, label: 'Infravalorada', desc: 'Cuando el sistema detecte que está por debajo de su valor justo', color: 'var(--blue-light)' },
                   { value: 'hold' as const, label: 'Justa', desc: 'Cuando el precio esté cerca del valor intrínseco', color: 'var(--amber)' },
                   { value: 'sell' as const, label: 'Sobrevalorada', desc: 'Cuando el sistema detecte que está por encima de su valor justo', color: 'var(--red)' },
                 ]).map((opt) => (

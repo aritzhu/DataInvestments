@@ -81,7 +81,7 @@ export function CompareTab({ company, financial, stock }: Props) {
 
   const verdictConfig = {
     overvalued: { label: 'Sobrevalorada vs Mercado', color: 'var(--red)', bg: 'var(--red-pale)', border: 'var(--red-line)', icon: TrendingUp },
-    undervalued: { label: 'Subvalorada vs Mercado', color: 'var(--blue-light)', bg: 'var(--blue-pale)', border: 'var(--blue-line)', icon: TrendingDown },
+    undervalued: { label: 'Infravalorada vs Mercado', color: 'var(--blue-light)', bg: 'var(--blue-pale)', border: 'var(--blue-line)', icon: TrendingDown },
     fair: { label: 'Alineada con el Mercado', color: 'var(--amber)', bg: 'var(--amber-pale)', border: 'var(--amber-line)', icon: Minus },
   };
   const vConfig = verdictConfig[overallVerdict];
@@ -150,7 +150,7 @@ export function CompareTab({ company, financial, stock }: Props) {
           <div className="cmp-verdict-hero-body">
             <span className="cmp-verdict-hero-label" style={{ color: vConfig.color }}>{vConfig.label}</span>
             <span className="cmp-verdict-hero-detail">
-              {overvaluedCount} de {validMetrics.length} ratios indican sobrevaloracion &middot; {undervaluedCount} indican subvaloracion
+              {overvaluedCount} de {validMetrics.length} ratios indican sobrevaloracion &middot; {undervaluedCount} indican infravaloracion
             </span>
           </div>
         </div>
@@ -212,7 +212,7 @@ export function CompareTab({ company, financial, stock }: Props) {
                     isOver = m.companyVal! > m.marketVal;
                   }
                   const diffColor = isOver === true ? 'var(--red)' : isOver === false ? 'var(--blue-light)' : 'var(--amber)';
-                  const verdictLabel = isOver === true ? 'Sobrevalorada' : isOver === false ? 'Subvalorada' : 'Justa';
+                  const verdictLabel = isOver === true ? 'Sobrevalorada' : isOver === false ? 'Infravalorada' : 'Justa';
 
                   return (
                     <tr key={m.key}>

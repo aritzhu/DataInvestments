@@ -47,7 +47,7 @@ export function PortfolioSummary({ valuation }: Props) {
         </p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Subvaloradas</p>
+        <p className="pf-summary-label">Infravaloradas</p>
         <p className="pf-summary-value pf-summary-value--positive">{summary.undervaluedCount} / {summary.holdingCount}</p>
       </div>
       <div className="pf-summary-card">

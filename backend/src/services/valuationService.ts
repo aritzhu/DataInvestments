@@ -556,7 +556,7 @@ export function getVerdict(fairValue: number | null, currentPrice: number): Verd
 }
 
 export const VERDICT_LABELS: Record<Verdict, string> = {
-  buy: 'Subvalorada',
+  buy: 'Infravalorada',
   hold: 'Justa',
   sell: 'Sobrevalorada',
   na: 'Sin datos',

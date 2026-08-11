@@ -563,7 +563,7 @@ export function CompanyPage() {
                       <p className="cp-alarm-modal-desc">Recibe una alerta cuando {company.ticker} entre en este estado:</p>
                       <div className="cp-alarm-options">
                         {([
-                          { key: 'buy' as const, label: 'Subvalorada', desc: 'Por debajo de su valor justo', color: 'var(--blue-light)' },
+                          { key: 'buy' as const, label: 'Infravalorada', desc: 'Por debajo de su valor justo', color: 'var(--blue-light)' },
                           { key: 'hold' as const, label: 'Justa', desc: 'Cerca del valor intrínseco', color: 'var(--amber)' },
                           { key: 'sell' as const, label: 'Sobrevalorada', desc: 'Por encima de su valor justo', color: 'var(--red)' },
                         ]).map((opt) => (

@@ -32,7 +32,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
         heading: '2. Naturaleza de la información',
         paragraphs: [
           'Toda la información mostrada (datos financieros, valoraciones, ratios, gráficos y textos) se ofrece únicamente con fines informativos y educativos.',
-          'Los valores intrínsecos, márgenes de seguridad y veredictos ("subvalorada", "justa", "sobrevalorada") son el resultado de modelos matemáticos automáticos con hipótesis subjetivas. No constituyen una recomendación de inversión ni una invitación a comprar o vender valores.',
+          'Los valores intrínsecos, márgenes de seguridad y veredictos ("infravalorada", "justa", "sobrevalorada") son el resultado de modelos matemáticos automáticos con hipótesis subjetivas. No constituyen una recomendación de inversión ni una invitación a comprar o vender valores.',
           'La información procede de fuentes de terceros (entre otras, SEC EDGAR, Yahoo Finance y sistemas de información regulada europeos) que pueden contener errores, retrasos u omisiones. DataInvestments no garantiza su exactitud, integridad ni actualidad.',
         ],
       },
@@ -208,7 +208,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
         heading: '1. Sin asesoramiento financiero',
         paragraphs: [
           'DataInvestments es una herramienta de consulta y visualización de datos financieros con fines informativos y educativos. Nada en este sitio web constituye asesoramiento financiero, asesoramiento de inversión, recomendación de compra, venta o mantenimiento de valores, ni una oferta de inversión.',
-          'Los veredictos de valoración ("subvalorada", "justa", "sobrevalorada"), los márgenes de seguridad y los valores intrínsecos mostrados son estimaciones generadas automáticamente por modelos matemáticos con hipótesis subjetivas y configurables. No son opiniones de analistas y no deben interpretarse como una llamada a la acción.',
+          'Los veredictos de valoración ("infravalorada", "justa", "sobrevalorada"), los márgenes de seguridad y los valores intrínsecos mostrados son estimaciones generadas automáticamente por modelos matemáticos con hipótesis subjetivas y configurables. No son opiniones de analistas y no deben interpretarse como una llamada a la acción.',
         ],
       },
       {
@@ -223,7 +223,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
         heading: '3. Riesgo de pérdida de capital',
         paragraphs: [
           'Invertir en valores implica asumir riesgos, entre ellos la posibilidad de pérdida total o parcial del capital invertido. Los rendimientos pasados no son garantía de resultados futuros.',
-          'Las condiciones de mercado, los resultados empresariales y las valoraciones pueden variar de forma rápida e imprevisible. Una valoración estimada como "baja" o "subvalorada" no implica que el precio no pueda seguir bajando.',
+          'Las condiciones de mercado, los resultados empresariales y las valoraciones pueden variar de forma rápida e imprevisible. Una valoración estimada como "baja" o "infravalorada" no implica que el precio no pueda seguir bajando.',
         ],
       },
       {

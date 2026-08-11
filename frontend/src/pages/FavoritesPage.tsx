@@ -26,7 +26,7 @@ interface Alarm {
 type TabId = 'favorites' | 'alarms';
 
 const VERDICT_LABELS: Record<string, string> = {
-  buy: 'Subvalorada',
+  buy: 'Infravalorada',
   hold: 'Justa',
   sell: 'Sobrevalorada',
   na: 'Sin datos',
