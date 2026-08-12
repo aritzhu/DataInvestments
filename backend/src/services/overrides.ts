@@ -16,7 +16,8 @@ const BALANCE_FIELDS = new Set([
 // Fields that live on FinancialData (annual rows, quarter=0).
 const FINANCIAL_FIELDS = new Set([
   'revenue', 'netIncome', 'ebitda', 'ebit', 'freeCashFlow',
-  'operatingCashFlow', 'capex', 'totalEquity',
+  'operatingCashFlow', 'capex', 'totalEquity', 'dividendsPaid',
+  'shareRepurchases',
 ]);
 
 export async function getActiveOverrides(companyId: string) {
@@ -53,9 +54,17 @@ export async function applyCompanyOverrides(ticker: string, companyId: string): 
       orderBy: { date: 'desc' },
     });
     if (stock) {
-      await prisma.stockMetric.update({ where: { id: stock.id }, data: stockUpdates });
-      applied += Object.keys(stockUpdates).length;
-      console.log(`[Override] ${ticker}: StockMetric ${Object.keys(stockUpdates).join(', ')}`);
+      const data: Record<string, number> = { ...stockUpdates };
+      // Keep market cap consistent with overridden shares/price so valuation
+      // engines (sharesOf implied-shares guard) don't diverge from the fix.
+      if ('sharesOutstanding' in data && stock.currentPrice > 0) {
+        data.marketCap = stock.currentPrice * data.sharesOutstanding;
+      } else if ('currentPrice' in data && data.currentPrice > 0 && (stock.sharesOutstanding ?? 0) > 0) {
+        data.marketCap = data.currentPrice * (stock.sharesOutstanding ?? 0);
+      }
+      await prisma.stockMetric.update({ where: { id: stock.id }, data });
+      applied += Object.keys(data).length;
+      console.log(`[Override] ${ticker}: StockMetric ${Object.keys(data).join(', ')}`);
     }
   }
 
@@ -72,9 +81,12 @@ export async function applyCompanyOverrides(ticker: string, companyId: string): 
   }
 
   if (Object.keys(financialUpdates).length > 0) {
+    // Financial fields are period totals (annual/quarter rows). Apply them to
+    // the latest annual (quarter=0) row so period-based valuations (TTM fallback,
+    // DDM, ratios) pick them up regardless of the freshest quarterly row.
     const fd = await prisma.financialData.findFirst({
-      where: { companyId },
-      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+      where: { companyId, quarter: 0 },
+      orderBy: { year: 'desc' },
     });
     if (fd) {
       await prisma.financialData.update({ where: { id: fd.id }, data: financialUpdates });

@@ -80,6 +80,11 @@ jobs:
             $DC run --rm backend \
               node dist/infrastructure/prisma/seed.js
 
+            # Seed XBRL tag mappings (idempotent, deterministic)
+            echo "Seeding XBRL tag mappings..."
+            $DC run --rm backend \
+              node dist/scripts/seedXbrlTagMappings.js
+
             # Start remaining services without restarting db
             $DC rm -fsv frontend backend 2>/dev/null || true
             $DC up -d --no-deps backend frontend sync-worker

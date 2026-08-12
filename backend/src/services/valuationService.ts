@@ -84,21 +84,21 @@ function annualFallback(financials: Financial[], balanceSheets: Balance[]): TTMD
   const bs = latest(balanceSheets);
   if (!f) return null;
   return {
-    revenue: f.revenue,
-    netIncome: f.netIncome,
+    revenue: f.revenue ?? 0,
+    netIncome: f.netIncome ?? 0,
     ebitda: f.ebitda,
     ebit: f.ebit,
     operatingCashFlow: f.operatingCashFlow,
     freeCashFlow: f.freeCashFlow,
-    capex: f.capex,
-    depreciation: f.depreciation,
-    sgaExpense: f.sgaExpense,
-    interestExpense: f.interestExpense,
-    taxExpense: f.taxExpense,
-    costOfRevenue: f.costOfRevenue,
+    capex: f.capex ?? 0,
+    depreciation: f.depreciation ?? 0,
+    sgaExpense: f.sgaExpense ?? 0,
+    interestExpense: f.interestExpense ?? 0,
+    taxExpense: f.taxExpense ?? 0,
+    costOfRevenue: f.costOfRevenue ?? 0,
     grossProfit: f.grossProfit ?? 0,
-    operatingExpenses: f.operatingExpenses,
-    rdExpense: f.rdExpense,
+    operatingExpenses: f.operatingExpenses ?? 0,
+    rdExpense: f.rdExpense ?? 0,
     dividendsPaid: f.dividendsPaid,
     shareRepurchases: f.shareRepurchases,
     balanceSheet: bs,
@@ -133,7 +133,7 @@ function trailing12Months(financials: Financial[], balanceSheets: Balance[]): TT
   const last4: Financial[] = [];
   for (let i = 0; i < 4; i++) {
     const rec = byKey.get(`${year}-${quarter}`);
-    if (!rec || rec.revenue === 0) {
+    if (!rec || !rec.revenue) {
       return annualFallback(financials, balanceSheets);
     }
     last4.push(rec);
@@ -242,7 +242,7 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
     fcf = ttmFCF;
   } else {
     fcfValues = input.financials
-      .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null))
+      .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null && x.capex != null ? x.operatingCashFlow - x.capex : null))
       .filter((v): v is number => v != null && v !== 0);
     if (fcfValues.length === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
     fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;

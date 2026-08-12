@@ -46,6 +46,27 @@ export function clearConceptMappingsCache(): void {
   cachedConceptMappings = null;
 }
 
+// ===== XBRL TAG MAPPINGS (configurable priority table) =====
+
+let cachedTagMappings: Map<string, { tag: string; priority: number }[]> | null = null;
+
+export async function loadXbrlTagMappings(): Promise<Map<string, { tag: string; priority: number }[]>> {
+  if (cachedTagMappings) return cachedTagMappings;
+  const rows = await prisma.xbrlTagMapping.findMany({ where: { active: true }, orderBy: [{ priority: 'asc' }, { tag: 'asc' }] });
+  const map = new Map<string, { tag: string; priority: number }[]>();
+  for (const r of rows) {
+    const arr = map.get(r.fieldName) ?? [];
+    arr.push({ tag: r.tag, priority: r.priority });
+    map.set(r.fieldName, arr);
+  }
+  cachedTagMappings = map;
+  return map;
+}
+
+export function clearTagMappingsCache(): void {
+  cachedTagMappings = null;
+}
+
 // ===== LEI LOOKUP (GLEIF) =====
 
 interface GLEIFLeiRecord {
@@ -73,6 +94,20 @@ function normalizeLegalName(name: string): string {
 export async function resolveLEI(companyName: string): Promise<string | null> {
   const candidates = await resolveLEICandidates(companyName);
   return candidates[0] || null;
+}
+
+// Returns the stored LEI for a ticker (seeded from the filings.xbrl.org index),
+// used as an authoritative override over the noisy GLEIF search.
+export async function resolveEsefLei(ticker: string): Promise<string | null> {
+  try {
+    const company = await prisma.company.findUnique({
+      where: { ticker: ticker.toUpperCase() },
+      select: { lei: true },
+    });
+    return company?.lei || null;
+  } catch {
+    return null;
+  }
 }
 
 async function resolveLEICandidates(companyName: string): Promise<string[]> {
@@ -155,6 +190,9 @@ interface XBRLJsonFiling {
 const IFRS_MAP: Record<string, string> = {
   'ifrs-full:Revenue': 'revenue',
   'ifrs-full:RevenueFromContractsWithCustomers': 'revenue',
+  'ifrs-full:RevenueAndOperatingIncome': 'revenue',
+  'ifrs-full:RevenueFromSaleOfGoods': 'revenueSaleOfGoods',
+  'ifrs-full:RevenueFromRenderingOfServices': 'revenueRenderingOfServices',
   'ifrs-full:CostOfSales': 'costOfRevenue',
   'ifrs-full:GrossProfit': 'grossProfit',
   'ifrs-full:OperatingExpenses': 'operatingExpenses',
@@ -205,12 +243,12 @@ const IFRS_MAP: Record<string, string> = {
   'ifrs-full:UnsecuredBankLoansReceived': 'longTermDebt',
   'ifrs-full:RetainedEarnings': 'retainedEarnings',
   'ifrs-full:IssuedCapital': 'issuedCapital',
-  'ifrs-full:RevenueFromInterest': 'revenue',
-  'ifrs-full:InsuranceRevenue': 'revenue',
-  'ifrs-full:PremiumRevenue': 'revenue',
-  'ifrs-full:NetInvestmentIncome': 'revenue',
-  'ifrs-full:IncomeArisingFromInsuranceContracts': 'revenue',
-  'ifrs-full:InsuranceRevenueOtherAmounts': 'revenue',
+  'ifrs-full:RevenueFromInterest': 'revenueFinancial',
+  'ifrs-full:InsuranceRevenue': 'revenueFinancial',
+  'ifrs-full:PremiumRevenue': 'revenueFinancial',
+  'ifrs-full:NetInvestmentIncome': 'revenueFinancial',
+  'ifrs-full:IncomeArisingFromInsuranceContracts': 'revenueFinancial',
+  'ifrs-full:InsuranceRevenueOtherAmounts': 'revenueFinancial',
   'ifrs-full:InterestExpenseClassifiedAsOperatingActivities': 'interestExpense',
   'ifrs-full:InsuranceFinanceExpense': 'interestExpense',
   'ifrs-full:FinanceIncomeCost': 'interestExpense',
@@ -324,14 +362,59 @@ function getYearFromPeriod(period: string): number | null {
   return match ? parseInt(match[1], 10) : null;
 }
 
-function getFiscalYear(period: string): number | null {
-  if (period.includes('/')) {
-    const start = period.split('/')[0];
-    const match = start.match(/(\d{4})/);
-    return match ? parseInt(match[1], 10) : null;
+function assignPeriodFiscalYears(
+  facts: Record<string, XBRLJsonFact>,
+  filingYear: number,
+): Map<string, number> {
+  const durations: { period: string; end: number }[] = [];
+  const instants: { period: string; date: number }[] = [];
+
+  for (const fact of Object.values(facts)) {
+    const period = fact.dimensions?.period;
+    if (!period) continue;
+    if (period.includes('/')) {
+      if (!isAnnualPeriod(period)) continue;
+      const end = Date.parse(period.split('/')[1]);
+      if (!Number.isFinite(end)) continue;
+      durations.push({ period, end });
+    } else {
+      const date = Date.parse(period);
+      if (!Number.isFinite(date)) continue;
+      const year = new Date(date).getUTCFullYear();
+      if (year < filingYear - 2 || year > filingYear + 1) continue;
+      instants.push({ period, date });
+    }
   }
-  const match = period.match(/(\d{4})/);
-  return match ? parseInt(match[1], 10) : null;
+
+  const map = new Map<string, number>();
+
+  durations.sort((a, b) => b.end - a.end);
+  let durationYear = filingYear;
+  let lastDurationEnd = -Infinity;
+  for (const d of durations) {
+    if (lastDurationEnd - d.end <= 3 * 24 * 60 * 60 * 1000) {
+      map.set(d.period, durationYear);
+    } else {
+      durationYear -= 1;
+      map.set(d.period, durationYear);
+    }
+    lastDurationEnd = d.end;
+  }
+
+  instants.sort((a, b) => b.date - a.date);
+  let instantYear = filingYear;
+  let lastInstantDate = -Infinity;
+  for (const ins of instants) {
+    if (lastInstantDate - ins.date <= 3 * 24 * 60 * 60 * 1000) {
+      map.set(ins.period, instantYear);
+    } else {
+      instantYear -= 1;
+      map.set(ins.period, instantYear);
+    }
+    lastInstantDate = ins.date;
+  }
+
+  return map;
 }
 
 function isAnnualPeriod(period: string): boolean {
@@ -362,8 +445,21 @@ function cleanCompanyName(name: string): string {
 
 function getYearFromJsonUrl(url: string): number | null {
   const filename = url.split('/').pop() || '';
-  const match = filename.match(/(\d{4})-\d{2}-\d{2}/);
-  return match ? parseInt(match[1], 10) : null;
+  const dashed = filename.match(/(\d{4})-\d{2}-\d{2}/);
+  if (dashed) {
+    const y = parseInt(dashed[1], 10);
+    if (y >= 1990 && y <= 2100) return y;
+  }
+  const dateToken = filename
+    .split(/[^0-9]+/)
+    .filter((t) => t.length === 8)
+    .find((t) => {
+      const y = parseInt(t.slice(0, 4), 10);
+      const m = parseInt(t.slice(4, 6), 10);
+      const d = parseInt(t.slice(6, 8), 10);
+      return y >= 1990 && y <= 2100 && m >= 1 && m <= 12 && d >= 1 && d <= 31;
+    });
+  return dateToken ? parseInt(dateToken.slice(0, 4), 10) : null;
 }
 
 export type EuropeanResult = {
@@ -371,7 +467,12 @@ export type EuropeanResult = {
   availableTags: string[];
 };
 
-export async function fetchEuropeanFinancials(ticker: string, countryCode: string, companyName?: string): Promise<EuropeanResult> {
+export async function fetchEuropeanFinancials(
+  ticker: string,
+  countryCode: string,
+  companyName?: string,
+  sector?: string | null,
+): Promise<EuropeanResult> {
   if (countryCode === 'DE' || countryCode === 'IE') {
     console.log(`[European] ${ticker} (${countryCode}): skipping ESEF — country has no filings on filings.xbrl.org`);
     return { data: [], availableTags: [] };
@@ -382,7 +483,11 @@ export async function fetchEuropeanFinancials(ticker: string, countryCode: strin
 
   const customMap = await loadCustomEuropeanTags();
 
-  const leiCandidates = await resolveLEICandidates(searchName);
+  const leiOverride = await resolveEsefLei(ticker);
+  const leiCandidates = leiOverride ? [leiOverride] : await resolveLEICandidates(searchName);
+  if (leiOverride) {
+    console.log(`[European] Using Company.lei override for ${ticker}: ${leiOverride}`);
+  }
   if (leiCandidates.length === 0) {
     console.log(`[European] No LEI found for ${searchName} (${ticker})`);
     return { data: [], availableTags: [] };
@@ -434,7 +539,7 @@ export async function fetchEuropeanFinancials(ticker: string, countryCode: strin
           if (fact.dimensions?.concept) allTags.add(fact.dimensions.concept);
         }
 
-        const mapped = await mapJsonFactsToFiscalData(facts, year, customMap);
+        const mapped = await mapJsonFactsToFiscalData(facts, year, customMap, sector);
         if ((mapped.revenue != null && mapped.revenue > 0) || (mapped.totalAssets != null && mapped.totalAssets > 0)) {
           results.push(mapped);
         }
@@ -466,7 +571,9 @@ async function mapJsonFactsToFiscalData(
   facts: Record<string, XBRLJsonFact>,
   year: number,
   customMap: Map<string, string[]> = new Map(),
+  sector?: string | null,
 ): Promise<EuropeanFinancialData> {
+  const financial = !!sector && /bank|financ|insur|seguro|banco/i.test(sector);
   const mergedLookup: Record<string, string> = { ...IFRS_MAP, ...IFRS_ALIASES };
 
   for (const [fullTag, fieldName] of Object.entries(IFRS_MAP)) {
@@ -491,19 +598,36 @@ async function mapJsonFactsToFiscalData(
     if (!mergedLookup[concept]) mergedLookup[concept] = fieldName;
   }
 
+  const tagMappings = await loadXbrlTagMappings();
+  for (const [fieldName, entries] of tagMappings) {
+    for (const e of entries) {
+      if (!mergedLookup[e.tag]) mergedLookup[e.tag] = fieldName;
+      const normalized = normalizeConcept(e.tag);
+      if (!mergedLookup[normalized]) mergedLookup[normalized] = fieldName;
+    }
+  }
+
   const fields: Record<string, number | null> = {};
+  const fieldsPriority: Record<string, number> = {};
   let capexAccumulator = 0;
   let capexFound = false;
+
+  const tagPriority = new Map<string, number>();
+  for (const entries of tagMappings.values()) {
+    for (const e of entries) {
+      tagPriority.set(e.tag, e.priority);
+      tagPriority.set(normalizeConcept(e.tag), e.priority);
+    }
+  }
+
+  const periodYears = assignPeriodFiscalYears(facts, year);
 
   for (const fact of Object.values(facts)) {
     const concept = fact.dimensions?.concept;
     const period = fact.dimensions?.period;
     if (!concept || !period) continue;
 
-    if (!isAnnualPeriod(period)) continue;
-
-    const factYear = getFiscalYear(period);
-    if (factYear !== year) continue;
+    if (periodYears.get(period) !== year) continue;
 
     const val = parseNum(fact.value as string);
 
@@ -515,9 +639,16 @@ async function mapJsonFactsToFiscalData(
           capexFound = true;
         }
       } else if (val != null) {
+        const prio = tagPriority.get(concept) ?? tagPriority.get(normalizeConcept(concept)) ?? 100;
         const existing = fields[fieldName];
-        if (existing == null || Math.abs(val) > Math.abs(existing)) {
+        const existingPrio = fieldsPriority[fieldName] ?? 100;
+        if (
+          existing == null ||
+          prio < existingPrio ||
+          (prio === existingPrio && Math.abs(val) > Math.abs(existing))
+        ) {
           fields[fieldName] = val;
+          fieldsPriority[fieldName] = prio;
         }
       }
     } else if (CAPEX_PATTERN.test(concept)) {
@@ -533,16 +664,31 @@ async function mapJsonFactsToFiscalData(
   const otherExp = fields.otherExpenseByNature ?? null;
   const otherInc = fields.otherIncome ?? null;
 
-  const costOfRevenue = fields.costOfRevenue ?? rawMaterials;
+  // Revenue by nature: total concept first; for non-financial companies fall back
+  // to the IFRS "sales of goods + rendering of services" split, and for financial
+  // companies to interest/insurance/premium concepts. Mixing the two classes
+  // (e.g. Repsol picking RevenueFromInterest=341M over SaleOfGoods=56.7B) was the
+  // source of the broken revenue values.
+  const saleRev = fields.revenueSaleOfGoods ?? null;
+  const servicesRev = fields.revenueRenderingOfServices ?? null;
+  const revenue = fields.revenue ?? (
+    financial
+      ? (fields.revenueFinancial ?? null)
+      : (saleRev != null || servicesRev != null ? (saleRev ?? 0) + (servicesRev ?? 0) : null)
+  );
+
+  const costOfRevenue = financial ? null : (fields.costOfRevenue ?? rawMaterials);
   const operatingExpenses = fields.operatingExpenses ?? (
     employeeExp != null && otherExp != null
       ? employeeExp + otherExp - (otherInc ?? 0)
       : null
   );
-  const grossProfit = fields.grossProfit ?? (
-    fields.revenue != null && costOfRevenue != null
-      ? fields.revenue - costOfRevenue
-      : null
+  const grossProfit = financial ? null : (
+    fields.grossProfit ?? (
+      revenue != null && costOfRevenue != null
+        ? revenue - costOfRevenue
+        : null
+    )
   );
 // Compute depreciation as fallback for nature-based IFRS filings (no explicit depreciation tag)
   const hasWorkingCapitalChange = 'workingCapitalChange' in fields && fields.workingCapitalChange != null;
@@ -580,7 +726,7 @@ async function mapJsonFactsToFiscalData(
 
   const result: EuropeanFinancialData = {
     year,
-    revenue: fields.revenue ?? null,
+    revenue,
     costOfRevenue,
     grossProfit,
     operatingExpenses,

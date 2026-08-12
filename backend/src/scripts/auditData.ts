@@ -75,13 +75,13 @@ async function main() {
     if (!fd) {
       issues.push('NO_FINANCIALS');
     } else {
-      if (fd.revenue === 0 && fd.netIncome === 0 && fd.ebitda == null && fd.operatingCashFlow == null) {
+      if ((fd.revenue ?? 0) === 0 && (fd.netIncome ?? 0) === 0 && fd.ebitda == null && fd.operatingCashFlow == null) {
         issues.push('zero-filled row');
       }
-      if (fd.revenue > 0 && fd.revenue < 10_000_000) {
+      if ((fd.revenue ?? 0) > 0 && (fd.revenue ?? 0) < 10_000_000) {
         issues.push('revenue scale suspicious');
       }
-      if (fd.revenue === 0) {
+      if ((fd.revenue ?? 0) === 0) {
         issues.push('revenue=0');
       }
       const cfg = MODEL_INPUTS[model];

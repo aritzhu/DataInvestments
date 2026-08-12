@@ -15,6 +15,7 @@ import favoritesRoutes from './routes/favorites';
 import alarmsRoutes, { checkAllAlarms } from './routes/alarms';
 import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
+import statementsRoutes from './routes/statements';
 import portfolioRoutes from './routes/portfolio';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
@@ -234,7 +235,7 @@ async function getCompanyMetrics(ids: string[]): Promise<Map<string, Record<stri
     if (!st || !fin) continue;
     const m: Record<string, number | null> = {
       pe: st.peRatio ?? null,
-      netMargin: fin.revenue > 0 ? fin.netIncome / fin.revenue : null,
+      netMargin: fin.revenue != null && fin.revenue > 0 ? (fin.netIncome ?? 0) / fin.revenue : null,
       fcfYield: st.marketCap && st.marketCap > 0 && fin.freeCashFlow != null ? fin.freeCashFlow / st.marketCap : null,
       ndEbitda: null,
     };
@@ -514,6 +515,7 @@ app.use('/api/favorites', favoritesRoutes);
 app.use('/api/alarms', alarmsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/field-config', fieldConfigRoutes);
+app.use('/api/admin/statements', statementsRoutes);
 app.use('/api/portfolios', portfolioRoutes);
 
 // ── Site Settings ─────────────────────────────────────────────────────────

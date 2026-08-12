@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag, ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag, ArrowUp, ArrowDown, Trash2, FileSpreadsheet } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { apiFetch } from '../../utils/api';
 import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
+import { StatementsEditor } from './StatementsEditor';
 import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
 import '../../styles/admin.css';
 
@@ -88,6 +89,7 @@ export function AdminPanel() {
   const [faviconUploadError, setFaviconUploadError] = useState('');
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
+  const [showStatements, setShowStatements] = useState(false);
 
   const getAuth = () => {
     const t = localStorage.getItem('token');
@@ -512,6 +514,13 @@ export function AdminPanel() {
               <p className="admin-header-subtitle">Gestiona empresas y sincroniza datos financieros</p>
             </div>
           </div>
+          <button
+            onClick={() => setShowStatements((v) => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', background: showStatements ? 'var(--pink-deep)' : 'var(--pink)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+          >
+            <FileSpreadsheet size={16} />
+            {showStatements ? 'Cerrar estados' : 'Editar estados'}
+          </button>
         </div>
       </div>
 
@@ -552,6 +561,20 @@ export function AdminPanel() {
             </span>
           </div>
         </div>
+
+        {/* Statements Editor */}
+        {showStatements && (
+          <div className="admin-form-section" style={{ border: '2px solid rgba(20, 184, 166, 0.15)', borderRadius: '1rem', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>📊</span>
+              <h2 className="admin-form-title" style={{ marginBottom: 0, color: 'var(--teal)' }}>Estados Financieros Manuales</h2>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '-0.5rem', marginBottom: '1rem' }}>
+              Entra los datos del informe anual a mano. Las filas guardadas se marcan como MANUAL y la sincronización automática no las sobrescribe.
+            </p>
+            <StatementsEditor />
+          </div>
+        )}
 
         {/* Hero Settings */}
         <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--pink-pale) 0%, var(--pink-pale) 100%)' }}>

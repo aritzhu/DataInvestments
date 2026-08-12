@@ -26,6 +26,11 @@
     "seed:overrides": "tsx src/scripts/seedOverrides.ts",
     "apply:overrides": "tsx src/scripts/applyOverrides.ts",
     "audit:data": "tsx src/scripts/auditData.ts",
+    "audit:eu": "tsx src/scripts/auditEuropean.ts",
+    "discover:esef": "tsx src/scripts/discoverEsef.ts",
+    "seed:lei": "tsx src/scripts/seedLeiMappings.ts",
+    "seed:xbrl-tags": "tsx src/scripts/seedXbrlTagMappings.ts",
+    "validate:quality": "tsx src/scripts/validateQuality.ts",
     "fix:eu": "tsx src/scripts/fixEuropeanData.ts",
     "fix:us": "tsx src/scripts/fixUsData.ts"
   },

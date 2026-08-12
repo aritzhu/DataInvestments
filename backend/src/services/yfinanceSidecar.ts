@@ -84,18 +84,18 @@ export function parseYFinanceAnnualDate(dateStr: string): { year: number; quarte
 
 export function mapIncomeRecord(record: YFinanceRecord) {
   return {
-    revenue: pickNum(record, 'Total Revenue', 'Operating Revenue', 'totalRevenue') ?? 0,
-    costOfRevenue: pickNum(record, 'Cost Of Revenue', 'costOfRevenue') ?? 0,
+    revenue: pickNum(record, 'Total Revenue', 'Operating Revenue', 'totalRevenue'),
+    costOfRevenue: pickNum(record, 'Cost Of Revenue', 'costOfRevenue'),
     grossProfit: pickNum(record, 'Gross Profit', 'grossProfit'),
     operatingExpenses: pickNum(record, 'Operating Expense', 'Total Operating Expenses As Reported', 'totalOperatingExpenses', 'TotalOperatingExpenses'),
-    sgaExpense: pickNum(record, 'Selling General And Administration', 'SellingGeneralAdministrative') ?? 0,
-    rdExpense: pickNum(record, 'Research And Development', 'researchDevelopment') ?? 0,
-    interestExpense: pickNum(record, 'Interest Expense', 'Interest Expense Non Operating', 'interestExpense') ?? 0,
-    taxExpense: pickNum(record, 'Tax Provision', 'incomeTaxExpense') ?? 0,
-    netIncome: pickNum(record, 'Net Income Common Stockholders', 'Net Income', 'Net Income Including Noncontrolling Interests', 'netIncome') ?? 0,
+    sgaExpense: pickNum(record, 'Selling General And Administration', 'SellingGeneralAdministrative'),
+    rdExpense: pickNum(record, 'Research And Development', 'researchDevelopment'),
+    interestExpense: pickNum(record, 'Interest Expense', 'Interest Expense Non Operating', 'interestExpense'),
+    taxExpense: pickNum(record, 'Tax Provision', 'incomeTaxExpense'),
+    netIncome: pickNum(record, 'Net Income Common Stockholders', 'Net Income', 'Net Income Including Noncontrolling Interests', 'netIncome'),
     ebitda: pickNum(record, 'EBITDA', 'Normalized EBITDA'),
     ebit: pickNum(record, 'EBIT', 'Operating Income', 'Pretax Income', 'ebit', 'operatingIncome'),
-    depreciation: pickNum(record, 'Depreciation And Amortization In Income Statement', 'Depreciation Amortization And Accretion Net', 'Depreciation') ?? 0,
+    depreciation: pickNum(record, 'Depreciation And Amortization In Income Statement', 'Depreciation Amortization And Accretion Net', 'Depreciation'),
   };
 }
 
@@ -108,7 +108,7 @@ export function mapCashflowRecord(record: YFinanceRecord) {
     operatingCashFlow: ocf,
     investingCashFlow: pickNum(record, 'Cash Flow From Continuing Investing Activities', 'Investing Cash Flow', 'investingCashflow'),
     financingCashFlow: pickNum(record, 'Cash Flow From Continuing Financing Activities', 'Financing Cash Flow', 'financingCashflow'),
-    capex: capex != null ? Math.abs(capex) : 0,
+    capex: capex != null ? Math.abs(capex) : null,
     freeCashFlow: fcf ?? (ocf != null && capex != null ? ocf - Math.abs(capex) : null),
     dividendsPaid: pickNum(record, 'Cash Dividends Paid', 'Dividends Paid', 'dividendsPaid'),
     shareRepurchases: pickNum(record, 'Repurchase Of Capital Stock', 'Common Stock Repurchased', 'repurchaseOfCapitalStock'),

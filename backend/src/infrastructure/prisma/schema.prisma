@@ -16,6 +16,7 @@ model Company {
   industry    String?
   description String?
   cik         String?
+  lei         String?
   ceo         String?
   employees   Int?
   country     String?
@@ -44,22 +45,22 @@ model FinancialData {
   year     Int
   quarter  Int?
 
-  revenue       Float
-  costOfRevenue Float
+  revenue       Float?
+  costOfRevenue Float?
   grossProfit   Float?
 
-  operatingExpenses Float
-  sgaExpense        Float
-  rdExpense         Float
+  operatingExpenses Float?
+  sgaExpense        Float?
+  rdExpense         Float?
 
-  interestExpense Float
-  taxExpense      Float
+  interestExpense Float?
+  taxExpense      Float?
 
   ebitda Float?
   ebit   Float?
 
-  capex        Float
-  depreciation Float
+  capex        Float?
+  depreciation Float?
 
   operatingCashFlow  Float?
   investingCashFlow  Float?
@@ -72,7 +73,10 @@ model FinancialData {
   totalLiabilities Float?
   totalEquity     Float?
 
-  netIncome Float
+  netIncome Float?
+
+  source String @default("auto")
+  tier   String?
 
   createdAt DateTime @default(now())
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -109,6 +113,9 @@ model BalanceSheet {
   totalStockholdersEquity Float?
   retainedEarnings        Float?
   treasuryStock           Float?
+
+  source String @default("auto")
+  tier   String?
 
   createdAt DateTime @default(now())
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -309,6 +316,23 @@ model ConceptMapping {
   source      String
   confirmedBy String?
   createdAt   DateTime @default(now())
+}
+
+// Configurable XBRL tag -> field mapping with priority and optional scope
+// (sector / ticker). First matching tag in priority order wins during import.
+model XbrlTagMapping {
+  id        String   @id @default(uuid())
+  fieldName String
+  source    String   @default("esef")
+  tag       String
+  priority  Int      @default(100)
+  sector    String?
+  ticker    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fieldName, source])
 }
 
 model SiteSetting {

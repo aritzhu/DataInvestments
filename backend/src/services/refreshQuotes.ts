@@ -26,7 +26,7 @@ async function fetchWithRetry<T>(fetchFn: () => Promise<T>, isOk: (v: T) => bool
   return last as T;
 }
 
-async function recomputeIntrinsic(companyId: string, ticker: string, sector: string | null, industry: string | null) {
+export async function recomputeIntrinsic(companyId: string, ticker: string, sector: string | null, industry: string | null) {
   const [financials, balanceSheets, stockMetrics] = await Promise.all([
     prisma.financialData.findMany({ where: { companyId }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
     prisma.balanceSheet.findMany({ where: { companyId }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),

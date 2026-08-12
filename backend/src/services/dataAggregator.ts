@@ -18,6 +18,8 @@ const SHARES_OVERRIDES: Record<string, number> = {
   'VOW3.DE': 2950000000,
 };
 
+const ABSURD_SHARES_MAX = 25_000_000_000; // no listed company exceeds this; x1000 scale errors do
+
 export function resolveShares(
   ticker: string,
   infoShares: number | null | undefined,
@@ -28,10 +30,254 @@ export function resolveShares(
 ): number {
   const t = ticker.toUpperCase();
   if (SHARES_OVERRIDES[t] != null && SHARES_OVERRIDES[t] > 0) return SHARES_OVERRIDES[t];
-  if (infoShares != null && infoShares > 0) return infoShares;
-  if (quoteShares > 0) return quoteShares;
-  if (quoteMcap > 0 && quotePrice > 0) return Math.round(quoteMcap / quotePrice);
-  return fallbackShares ?? 0;
+
+  const candidates: number[] = [];
+  if (infoShares != null && infoShares > 0) candidates.push(infoShares);
+  if (quoteShares > 0) candidates.push(quoteShares);
+  if (quoteMcap > 0 && quotePrice > 0) candidates.push(Math.round(quoteMcap / quotePrice));
+  if (fallbackShares != null && fallbackShares > 0) candidates.push(fallbackShares);
+  if (candidates.length === 0) return 0;
+
+  // Prefer candidates consistent with the quoted market cap (shares*price ~ mcap)
+  const consistent =
+    quoteMcap > 0 && quotePrice > 0
+      ? candidates.filter((s) => {
+          const implied = s * quotePrice;
+          return implied >= quoteMcap * 0.5 && implied <= quoteMcap * 2;
+        })
+      : candidates;
+  const pool = consistent.length > 0 ? consistent : candidates;
+
+  // Absolute scale guard: >25B is almost certainly a x1000 unit error.
+  const sane = pool.filter((s) => s <= ABSURD_SHARES_MAX);
+  const chosen = (sane.length > 0 ? sane : pool).sort((a, b) => a - b)[0];
+  return chosen;
+}
+
+// Imports ESEF XBRL financials as tier1 (audited report) for a European ticker.
+async function importEuropeanEsef(
+  ticker: string,
+  countryCode: string,
+  companyName: string | undefined,
+  sectorHint: string | null,
+  industryHint: string | null,
+  esefData: EuropeanFinancialData[],
+  yahooQuote: YahooQuote | null,
+  yfInfo: YFinanceInfo | null,
+  result: SyncResult,
+): Promise<boolean> {
+  if (esefData.length === 0) {
+    console.log(`[European] No XBRL data found for ${ticker}`);
+    return false;
+  }
+
+  let company = await prisma.company.findUnique({
+    where: { ticker: ticker.toUpperCase() },
+  });
+
+  if (!company) {
+    company = await prisma.company.create({
+      data: {
+        ticker: ticker.toUpperCase(),
+        name: companyName || ticker.toUpperCase(),
+        country: countryCode,
+        exchange: yahooQuote?.exchange || null,
+        currency: inferCurrency(ticker),
+        sector: sectorHint,
+        industry: industryHint,
+      },
+    });
+    console.log(`[European] Created company ${ticker} (id: ${company.id})`);
+  } else if (!company.sector) {
+    const sectorData = sectorHint
+      ? { sector: sectorHint, industry: industryHint }
+      : TICKER_SECTORS[ticker.toUpperCase()]
+        ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
+        : null;
+    if (sectorData) {
+      await prisma.company.update({
+        where: { id: company.id },
+        data: sectorData,
+      });
+      console.log(`[European] Updated ${ticker} sector → ${sectorData.sector}`);
+    }
+  }
+
+  for (const ed of esefData) {
+    const existing = await prisma.financialData.findUnique({
+      where: { companyId_year_quarter: { companyId: company.id, year: ed.year, quarter: 0 } },
+    });
+
+    const costRev = ed.costOfRevenue ?? null;
+    const ebitda = ed.ebitda ?? (ed.ebit != null && ed.depreciation != null ? ed.ebit + ed.depreciation : null);
+    const ocf = ed.operatingCashFlow ?? null;
+    const fcf = ocf != null && ed.capex != null ? ocf - Math.abs(ed.capex) : null;
+
+    const data = {
+      companyId: company.id,
+      year: ed.year,
+      quarter: 0,
+      source: 'esef-xbrl',
+      tier: '1',
+      revenue: ed.revenue ?? null,
+      costOfRevenue: ed.costOfRevenue ?? null,
+      grossProfit: ed.grossProfit ?? null,
+      operatingExpenses: ed.operatingExpenses ?? null,
+      sgaExpense: ed.sgaExpense ?? null,
+      rdExpense: ed.rdExpense ?? null,
+      interestExpense: ed.interestExpense ?? null,
+      taxExpense: ed.taxExpense ?? null,
+      netIncome: ed.netIncome ?? null,
+      ebitda,
+      ebit: ed.ebit ?? null,
+      capex: ed.capex ?? null,
+      depreciation: ed.depreciation ?? null,
+      operatingCashFlow: ocf,
+      investingCashFlow: ed.investingCashFlow ?? null,
+      financingCashFlow: ed.financingCashFlow ?? null,
+      freeCashFlow: fcf,
+      dividendsPaid: ed.dividendsPaid ?? null,
+      shareRepurchases: ed.shareRepurchases ?? null,
+      totalAssets: ed.totalAssets ?? null,
+      totalLiabilities: ed.totalLiabilities ?? null,
+      totalEquity: ed.totalEquity ?? null,
+    };
+
+    const euWarnings = validateFinancialData(data);
+    logValidationWarnings(ticker, euWarnings, 'European');
+
+    if (existing) {
+      if (existing.source !== 'manual') {
+        await prisma.financialData.update({ where: { id: existing.id }, data });
+      }
+    } else {
+      await prisma.financialData.create({ data });
+    }
+    result.financialRecords++;
+
+    // BalanceSheet
+    if (ed.totalAssets != null || ed.totalLiabilities != null) {
+      const bsExisting = await prisma.balanceSheet.findUnique({
+        where: { companyId_year_quarter: { companyId: company.id, year: ed.year, quarter: 0 } },
+      });
+
+      const totalLiabs = ed.totalLiabilities ?? (ed.currentLiabilities != null && ed.nonCurrentLiabilities != null ? ed.currentLiabilities + ed.nonCurrentLiabilities : null);
+
+      const bsData = {
+        companyId: company.id,
+        year: ed.year,
+        quarter: 0,
+        source: 'esef-xbrl',
+        tier: '1',
+        cashAndCashEquivalents: ed.cash ?? null,
+        shortTermInvestments: null,
+        accountsReceivable: ed.receivables ?? null,
+        inventory: ed.inventory ?? null,
+        totalCurrentAssets: ed.currentAssets ?? null,
+        propertyPlantEquipment: ed.ppe ?? null,
+        goodwill: ed.goodwill ?? null,
+        intangibleAssets: ed.intangibleAssets ?? null,
+        totalNonCurrentAssets: ed.nonCurrentAssets ?? null,
+        totalAssets: ed.totalAssets ?? null,
+        accountsPayable: ed.accountsPayable ?? null,
+        shortTermDebt: ed.shortTermDebt ?? null,
+        totalCurrentLiabilities: ed.currentLiabilities ?? null,
+        longTermDebt: ed.longTermDebt ?? null,
+        totalNonCurrentLiabilities: ed.nonCurrentLiabilities ?? null,
+        totalLiabilities: totalLiabs,
+        totalStockholdersEquity: ed.totalEquity ?? null,
+        retainedEarnings: ed.retainedEarnings ?? null,
+        treasuryStock: null,
+      };
+
+      const euBsWarnings = validateBalanceSheet(bsData);
+      logValidationWarnings(ticker, euBsWarnings, 'European');
+
+      if (bsExisting) {
+        if (bsExisting.source !== 'manual') {
+          await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+        }
+      } else {
+        await prisma.balanceSheet.create({ data: bsData });
+      }
+      result.balanceSheets++;
+    }
+  }
+
+  // StockMetric from Yahoo Quote
+  if (yahooQuote && yahooQuote.currentPrice > 0) {
+    const stockExisting = await prisma.stockMetric.findFirst({
+      where: { companyId: company.id },
+      orderBy: { date: 'desc' },
+    });
+
+    const firstRecord = esefData[0];
+    const latestRevenue = firstRecord?.revenue ?? 0;
+    const latestNetIncome = firstRecord?.netIncome ?? 0;
+    const latestEquity = firstRecord?.totalEquity ?? null;
+    const latestAssets = firstRecord?.totalAssets ?? null;
+    const latestLiabilities = firstRecord?.totalLiabilities ?? null;
+    const stockSharesOutstanding = resolveShares(
+      ticker,
+      yfInfo?.info?.sharesOutstanding,
+      yahooQuote.sharesOutstanding,
+      yahooQuote.marketCap,
+      yahooQuote.currentPrice,
+      esefData.find((d) => d.sharesOutstanding != null && d.sharesOutstanding > 0)?.sharesOutstanding ?? null,
+    );
+
+    const priceIsGbPence = (yahooQuote.currency ?? '').toUpperCase() === 'GBP';
+    const stockPrice = yahooQuote.currentPrice > 0 && priceIsGbPence
+      ? yahooQuote.currentPrice / 100
+      : yahooQuote.currentPrice;
+
+    const mcap = stockSharesOutstanding > 0 && stockPrice > 0
+      ? stockPrice * stockSharesOutstanding
+      : yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null;
+
+    const stockData = {
+      companyId: company.id,
+      date: new Date(),
+      currentPrice: stockPrice,
+      peRatio: latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null,
+      pbRatio: latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null,
+      psRatio: latestRevenue > 0 && mcap ? mcap / latestRevenue : null,
+      dividendYield: null,
+      marketCap: mcap,
+      enterpriseValue: mcap != null
+        ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0)
+        : null,
+      sharesOutstanding: stockSharesOutstanding,
+      beta: null,
+      forwardPE: null,
+      targetMeanPrice: null,
+      targetHighPrice: null,
+      targetLowPrice: null,
+      recommendationKey: null,
+      recommendationMean: null,
+      numberOfAnalystOpinions: null,
+      payoutRatio: null,
+      dividendRate: null,
+      roe: latestNetIncome > 0 && latestEquity && latestEquity > 0 ? latestNetIncome / latestEquity : null,
+      roa: latestNetIncome > 0 && latestAssets && latestAssets > 0 ? latestNetIncome / latestAssets : null,
+      roic: null,
+      currentRatio: firstRecord?.currentAssets != null && firstRecord?.currentLiabilities != null && firstRecord.currentLiabilities > 0 ? firstRecord.currentAssets / firstRecord.currentLiabilities : null,
+      debtToEquity: latestLiabilities && latestEquity && latestEquity > 0 ? latestLiabilities / latestEquity : null,
+      altmanZ: null,
+      piotroskiScore: null,
+    };
+
+    if (stockExisting) {
+      await prisma.stockMetric.update({ where: { id: stockExisting.id }, data: stockData });
+    } else {
+      await prisma.stockMetric.create({ data: stockData });
+    }
+    console.log(`[European] ${ticker}: StockMetric saved (sharesOutstanding=${stockData.sharesOutstanding}, mcap=${stockData.marketCap})`);
+  }
+
+  result.europeanSync = true;
+  console.log(`[European] Completed for ${ticker}: ${result.financialRecords} financial records, ${result.balanceSheets} balance sheets, stockMetric=${yahooQuote ? 'yes' : 'no'}`);
+  return true;
 }
 
 import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
@@ -75,9 +321,9 @@ import {
   extractTreasuryStock,
 } from './sec';
 
-import { fetchYahooQuote, fetchYahooProfile } from './yahoo';
+import { fetchYahooQuote, fetchYahooProfile, type YahooQuote } from './yahoo';
 import { fetchFinnhubMetrics, fetchFinnhubProfile } from './finnhub';
-import { fetchEuropeanFinancials } from './europeanData';
+import { fetchEuropeanFinancials, type EuropeanFinancialData } from './europeanData';
 import {
   fetchYFinanceQuarterly,
   fetchYFinanceAnnual,
@@ -88,6 +334,7 @@ import {
   mapCashflowRecord,
   mapBalanceRecord,
   type YFinanceRecord,
+  type YFinanceInfo,
 } from './yfinanceSidecar';
 import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
@@ -292,19 +539,20 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   const allYears = revenue.map((r) => r.year).sort((a, b) => b - a).slice(0, years);
 
   for (const year of allYears) {
-    const rev = revenueMap.get(year) || 0;
-    if (rev === 0) continue;
+    const rev = revenueMap.get(year) ?? null;
+    if (rev == null || rev === 0) continue;
 
     // Compute derived fields
-    const costRev = costOfRevenueMap.get(year) || 0;
-    const opExp = operatingExpensesMap.get(year) || 0;
-    const gp = grossProfitMap.get(year) || (rev > 0 && costRev > 0 ? rev - costRev : null);
-    const oi = operatingIncomeMap.get(year) || (gp != null && opExp > 0 ? gp - opExp : null);
-    const dep = depreciationMap.get(year) || 0;
+    const costRev = costOfRevenueMap.get(year) ?? null;
+    const opExp = operatingExpensesMap.get(year) ?? null;
+    const gp = grossProfitMap.get(year) ?? (rev != null && costRev != null ? rev - costRev : null);
+    const oi = operatingIncomeMap.get(year) ?? (gp != null && opExp != null ? gp - opExp : null);
+    const dep = depreciationMap.get(year) ?? null;
     const ebit = oi;
-    const ebitda = oi != null ? oi + dep : null;
-    const ocf = operatingCashFlowMap.get(year) || null;
-    const fcf = ocf != null ? ocf - (capexMap.get(year) || 0) : null;
+    const ebitda = oi != null && dep != null ? oi + dep : null;
+    const ocf = operatingCashFlowMap.get(year) ?? null;
+    const capexVal = capexMap.get(year) ?? null;
+    const fcf = ocf != null && capexVal != null ? ocf - capexVal : null;
 
     const existing = await prisma.financialData.findUnique({
       where: { companyId_year_quarter: { companyId: company.id, year, quarter: 0 } },
@@ -314,18 +562,20 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
       companyId: company.id,
       year,
       quarter: 0,
+      source: 'sec-xbrl',
+      tier: '1',
       revenue: rev,
       costOfRevenue: costRev,
       grossProfit: gp,
       operatingExpenses: opExp,
-      sgaExpense: sgaMap.get(year) || 0,
-      rdExpense: rdMap.get(year) || 0,
-      interestExpense: interestMap.get(year) || 0,
-      taxExpense: taxMap.get(year) || 0,
-      netIncome: netIncomeMap.get(year) || 0,
+      sgaExpense: sgaMap.get(year) ?? null,
+      rdExpense: rdMap.get(year) ?? null,
+      interestExpense: interestMap.get(year) ?? null,
+      taxExpense: taxMap.get(year) ?? null,
+      netIncome: netIncomeMap.get(year) ?? null,
       ebitda,
       ebit,
-      capex: capexMap.get(year) || 0,
+      capex: capexVal,
       depreciation: dep,
       operatingCashFlow: ocf,
       investingCashFlow: investingCashFlowMap.get(year) || null,
@@ -342,7 +592,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     logValidationWarnings(ticker, secWarnings, 'SEC');
 
     if (existing) {
-      await prisma.financialData.update({ where: { id: existing.id }, data });
+      if (existing.source !== 'manual') {
+        await prisma.financialData.update({ where: { id: existing.id }, data });
+      }
     } else {
       await prisma.financialData.create({ data });
     }
@@ -362,6 +614,8 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
       companyId: company.id,
       year,
       quarter: 0,
+      source: 'sec-xbrl',
+      tier: '1',
       cashAndCashEquivalents: cashMap.get(year) || null,
       shortTermInvestments: shortTermInvestmentsMap.get(year) || null,
       accountsReceivable: receivablesMap.get(year) || null,
@@ -387,7 +641,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     logValidationWarnings(ticker, secBsWarnings, 'SEC');
 
     if (bsExisting) {
-      await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+      if (bsExisting.source !== 'manual') {
+        await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+      }
     } else {
       await prisma.balanceSheet.create({ data: bsData });
     }
@@ -536,6 +792,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             ((r['Operating Cash Flow'] as number) ?? 0) !== 0);
         const yfHasData = (yfData?.income ?? []).some(incomeIsReal) || (yfAnnual?.income ?? []).some(incomeIsReal);
 
+        // --- ESEF XBRL first (tier1 = audited report); yfinance fills gaps (tier2) ---
+        const sectorHint = stoxxEntry?.sector || null;
+        const industryHint = stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null;
+        const esefResult = await fetchEuropeanFinancials(ticker, countryCode, companyName, sectorHint);
+        europeanAvailableTags = esefResult.availableTags;
+        const esefSynced = esefResult.data.length > 0
+          ? await importEuropeanEsef(ticker, countryCode, companyName, sectorHint, industryHint, esefResult.data, yahooQuote, yfInfo, result)
+          : false;
+        console.log(`[European] ${ticker}: ESEF tier1=${esefSynced} (${esefResult.data.length} years), availableTags=${europeanAvailableTags?.length ?? 0}`);
+
         if (yfHasData) {
           console.log(`[yFinance] ${ticker}: quarterly income=${yfData?.income.length ?? 0} balance=${yfData?.balance.length ?? 0} cashflow=${yfData?.cashflow.length ?? 0}; annual income=${yfAnnual?.income.length ?? 0} balance=${yfAnnual?.balance.length ?? 0}`);
 
@@ -597,10 +863,12 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               companyId: company.id,
               year,
               quarter,
+              source: 'yfinance',
+              tier: '2',
               revenue: mapped.revenue,
               costOfRevenue: mapped.costOfRevenue,
               grossProfit: mapped.grossProfit,
-              operatingExpenses: mapped.operatingExpenses ?? 0,
+              operatingExpenses: mapped.operatingExpenses ?? null,
               sgaExpense: mapped.sgaExpense,
               rdExpense: mapped.rdExpense,
               interestExpense: mapped.interestExpense,
@@ -608,7 +876,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               netIncome: mapped.netIncome,
               ebitda: mapped.ebitda,
               ebit: mapped.ebit,
-              capex: cfMapped?.capex ?? 0,
+              capex: cfMapped?.capex ?? null,
               depreciation: mapped.depreciation,
               operatingCashFlow: cfMapped?.operatingCashFlow ?? null,
               investingCashFlow: cfMapped?.investingCashFlow ?? null,
@@ -627,7 +895,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const yfWarnings = validateFinancialData(finData);
             logValidationWarnings(ticker, yfWarnings, 'yFinance');
             if (existing) {
-              await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+              if (existing.source !== 'manual' && existing.tier !== '1') {
+                await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+              }
             } else {
               await prisma.financialData.create({ data: finData });
             }
@@ -650,11 +920,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const bsExisting = await prisma.balanceSheet.findUnique({
               where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
             });
-            const bsData = { companyId: company.id, year, quarter, ...bsMapped };
+            const bsData = { companyId: company.id, year, quarter, source: 'yfinance', tier: '2', ...bsMapped };
             const yfBsWarnings = validateBalanceSheet(bsData);
             logValidationWarnings(ticker, yfBsWarnings, 'yFinance');
             if (bsExisting) {
-              await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+              if (bsExisting.source !== 'manual' && bsExisting.tier !== '1') {
+                await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+              }
             } else {
               await prisma.balanceSheet.create({ data: bsData });
             }
@@ -683,10 +955,12 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 companyId: company.id,
                 year,
                 quarter,
+                source: 'yfinance',
+                tier: '2',
                 revenue: mapped.revenue,
                 costOfRevenue: mapped.costOfRevenue,
                 grossProfit: mapped.grossProfit,
-                operatingExpenses: mapped.operatingExpenses ?? 0,
+                operatingExpenses: mapped.operatingExpenses ?? null,
                 sgaExpense: mapped.sgaExpense,
                 rdExpense: mapped.rdExpense,
                 interestExpense: mapped.interestExpense,
@@ -694,7 +968,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 netIncome: mapped.netIncome,
                 ebitda: mapped.ebitda,
                 ebit: mapped.ebit,
-                capex: cfMapped?.capex ?? 0,
+                capex: cfMapped?.capex ?? null,
                 depreciation: mapped.depreciation,
                 operatingCashFlow: cfMapped?.operatingCashFlow ?? null,
                 investingCashFlow: cfMapped?.investingCashFlow ?? null,
@@ -713,7 +987,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               const yfWarnings = validateFinancialData(finData);
               logValidationWarnings(ticker, yfWarnings, 'yFinance-annual');
               if (existing) {
-                await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+                if (existing.source !== 'manual' && existing.tier !== '1') {
+                  await prisma.financialData.update({ where: { id: existing.id }, data: finData });
+                }
               } else {
                 await prisma.financialData.create({ data: finData });
               }
@@ -728,11 +1004,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               const bsExisting = await prisma.balanceSheet.findUnique({
                 where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
               });
-              const bsData = { companyId: company.id, year, quarter, ...bsMapped };
+              const bsData = { companyId: company.id, year, quarter, source: 'yfinance', tier: '2', ...bsMapped };
               const yfBsWarnings = validateBalanceSheet(bsData);
               logValidationWarnings(ticker, yfBsWarnings, 'yFinance-annual');
               if (bsExisting) {
-                await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+                if (bsExisting.source !== 'manual' && bsExisting.tier !== '1') {
+                  await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+                }
               } else {
                 await prisma.balanceSheet.create({ data: bsData });
               }
@@ -796,9 +1074,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           } else {
             console.log(`[yFinance] ${ticker}: no real income/balance data from yfinance`);
           }
-        } else {
-        // --- Fallback: XBRL/ESEF data ---
-        const europeanResult = await fetchEuropeanFinancials(ticker, countryCode, companyName);
+        } else if (!esefSynced) {
+        // ESEF was already attempted in the tier1 pre-step above.
+        const europeanResult = esefResult;
         const europeanData = europeanResult;
         europeanAvailableTags = europeanResult.availableTags;
 
@@ -853,19 +1131,19 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               companyId: company.id,
               year: ed.year,
               quarter: 0,
-              revenue: ed.revenue ?? 0,
-              costOfRevenue: ed.costOfRevenue ?? 0,
+              revenue: ed.revenue ?? null,
+              costOfRevenue: ed.costOfRevenue ?? null,
               grossProfit: ed.grossProfit ?? null,
-              operatingExpenses: ed.operatingExpenses ?? 0,
-              sgaExpense: ed.sgaExpense ?? 0,
-              rdExpense: ed.rdExpense ?? 0,
-              interestExpense: ed.interestExpense ?? 0,
-              taxExpense: ed.taxExpense ?? 0,
-              netIncome: ed.netIncome ?? 0,
+              operatingExpenses: ed.operatingExpenses ?? null,
+              sgaExpense: ed.sgaExpense ?? null,
+              rdExpense: ed.rdExpense ?? null,
+              interestExpense: ed.interestExpense ?? null,
+              taxExpense: ed.taxExpense ?? null,
+              netIncome: ed.netIncome ?? null,
               ebitda,
               ebit: ed.ebit ?? null,
-              capex: ed.capex ?? 0,
-              depreciation: ed.depreciation ?? 0,
+              capex: ed.capex ?? null,
+              depreciation: ed.depreciation ?? null,
               operatingCashFlow: ocf,
               investingCashFlow: ed.investingCashFlow ?? null,
               financingCashFlow: ed.financingCashFlow ?? null,
@@ -881,7 +1159,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             logValidationWarnings(ticker, euWarnings, 'European');
 
             if (existing) {
-              await prisma.financialData.update({ where: { id: existing.id }, data });
+              if (existing.source !== 'manual') {
+                await prisma.financialData.update({ where: { id: existing.id }, data });
+              }
             } else {
               await prisma.financialData.create({ data });
             }
@@ -924,7 +1204,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               logValidationWarnings(ticker, euBsWarnings, 'European');
 
               if (bsExisting) {
-                await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+                if (bsExisting.source !== 'manual') {
+                  await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+                }
               } else {
                 await prisma.balanceSheet.create({ data: bsData });
               }
@@ -1075,7 +1357,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             where: { companyId: companyForFinhub.id },
             orderBy: { year: 'desc' },
           });
-          if (latestFinancial && !latestFinancial.freeCashFlow) {
+          if (latestFinancial && !latestFinancial.freeCashFlow && latestFinancial.source !== 'manual') {
             await prisma.financialData.update({
               where: { id: latestFinancial.id },
               data: { freeCashFlow: finnhubMetrics.freeCashFlowTTM },
