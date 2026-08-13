@@ -207,6 +207,7 @@ model User {
   name         String
   passwordHash String
   role         String   @default("user")
+  theme        String   @default("dark")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

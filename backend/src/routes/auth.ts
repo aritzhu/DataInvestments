@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../infrastructure/prisma/client';
-import { generateToken, verifyToken } from '../middleware/jwt';
+import { generateToken, verifyToken, requireAuth, type AuthRequest } from '../middleware/jwt';
 
 const router: ExpressRouter = Router();
 
@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
     });
   } catch (error) {
     console.error('[Auth] Register error:', error);
@@ -63,7 +63,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
     });
   } catch (error) {
     console.error('[Auth] Login error:', error);
@@ -87,7 +87,7 @@ router.get('/me', async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, name: true, role: true },
+      select: { id: true, email: true, name: true, role: true, theme: true },
     });
 
     if (!user) {
@@ -98,6 +98,132 @@ router.get('/me', async (req, res) => {
     res.json(user);
   } catch {
     res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+router.put('/profile', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { name, email } = req.body;
+    if (typeof name !== 'string' && typeof email !== 'string') {
+      res.status(400).json({ error: 'Provide name or email to update' });
+      return;
+    }
+
+    const data: { name?: string; email?: string } = {};
+    if (typeof name === 'string') {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        res.status(400).json({ error: 'Name cannot be empty' });
+        return;
+      }
+      data.name = trimmed;
+    }
+
+    if (typeof email === 'string') {
+      const trimmed = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        res.status(400).json({ error: 'Invalid email format' });
+        return;
+      }
+      const existing = await prisma.user.findUnique({ where: { email: trimmed } });
+      if (existing && existing.id !== req.user!.id) {
+        res.status(409).json({ error: 'Email already registered' });
+        return;
+      }
+      data.email = trimmed;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data,
+      select: { id: true, email: true, name: true, role: true, theme: true },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('[Auth] Profile update error:', error);
+    res.status(500).json({ error: 'Error updating profile' });
+  }
+});
+
+router.put('/password', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+      res.status(400).json({ error: 'Current and new password are required' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      res.status(401).json({ error: 'User not found' });
+      return;
+    }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(400).json({ error: 'Current password is incorrect' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Auth] Password change error:', error);
+    res.status(500).json({ error: 'Error changing password' });
+  }
+});
+
+router.put('/theme', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { theme } = req.body;
+    if (theme !== 'dark' && theme !== 'light') {
+      res.status(400).json({ error: 'Theme must be "dark" or "light"' });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { theme },
+      select: { id: true, email: true, name: true, role: true, theme: true },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('[Auth] Theme update error:', error);
+    res.status(500).json({ error: 'Error updating theme' });
+  }
+});
+
+router.delete('/account', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      res.status(401).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.role === 'admin') {
+      const adminCount = await prisma.user.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) {
+        res.status(400).json({ error: 'Cannot delete the only admin account' });
+        return;
+      }
+    }
+
+    await prisma.user.delete({ where: { id: user.id } });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Auth] Account delete error:', error);
+    res.status(500).json({ error: 'Error deleting account' });
   }
 });
 

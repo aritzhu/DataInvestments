@@ -26,6 +26,10 @@ const SEED: Array<{ ticker: string; field: string; value: number; source: string
   // BMW.DE: yfinance balance excludes most of the financial-services arm debt.
   // Consolidated LT debt ≈ 112B → net debt ≈ 93B (cash ≈ 19B).
   { ticker: 'BMW.DE', field: 'longTermDebt', value: 112_000_000_000, source: 'seed:manual' },
+  // DTE.DE: yfinance balance omits most lease/other financial liabilities.
+  // Official net debt FY2025 = 132.518B € (telekom.com). LT debt set so that
+  // netDebt = LT(137.891B) + ST(0) - cash(5.373B) = 132.518B.
+  { ticker: 'DTE.DE', field: 'longTermDebt', value: 137_891_000_000, source: 'seed:manual' },
   // Yahoo returns no sharesOutstanding/marketCap for these tickers (quote meta
   // and yfinance info both empty), so resolveShares yields 0 and marketCap is
   // lost. Values from issuer filings:

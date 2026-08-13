@@ -9,6 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { FavoritesPage } from './pages/FavoritesPage';
+import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { PortfolioDetailPage } from './pages/PortfolioDetailPage';
 import { LegalPage } from './pages/LegalPage';
@@ -34,6 +35,7 @@ function App() {
                       <Route path="/cashflow/:ticker" element={<CompanyPage />} />
                       <Route path="/valuation/:ticker" element={<CompanyPage />} />
                       <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+                      <Route path="/settings" element={<ProtectedRoute><AccountSettingsPage /></ProtectedRoute>} />
                       <Route path="/portfolios" element={<ProtectedRoute><PortfoliosPage /></ProtectedRoute>} />
                       <Route path="/portfolios/:id" element={<ProtectedRoute><PortfolioDetailPage /></ProtectedRoute>} />
                       <Route path="/legal" element={<Navigate to="/legal/terminos" replace />} />

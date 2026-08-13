@@ -39,7 +39,7 @@
 [data-theme="light"] .hero--has-bg .hero-pattern {
   background-image:
     linear-gradient(var(--overlay-soft), var(--overlay)),
-    radial-gradient(circle 32rem at 14% 12%, var(--gold-glow) 0%, var(--gold-soft) 45%, transparent 75%),
+    radial-gradient(circle 32rem at 14% 12%, var(--amber-mid) 0%, var(--amber-tint) 45%, transparent 75%),
     radial-gradient(circle at 20% 80%, var(--gold-soft)),
     radial-gradient(circle at 80% 20%, var(--blue-pale));
 }
@@ -60,7 +60,7 @@
 
 [data-theme="light"] .hero-pattern {
   background-image:
-    radial-gradient(circle 32rem at 14% 12%, var(--gold-glow) 0%, var(--gold-soft) 45%, transparent 75%),
+    radial-gradient(circle 32rem at 14% 12%, var(--amber-mid) 0%, var(--amber-tint) 45%, transparent 75%),
     radial-gradient(circle at 20% 80%, var(--gold-soft)),
     radial-gradient(circle at 80% 20%, var(--blue-pale));
 }
@@ -644,9 +644,10 @@
 
 .valuation-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
   background: var(--surface-1);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -670,10 +671,25 @@
   box-shadow: 0 4px 16px var(--red-pale);
 }
 
+.valuation-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.valuation-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .valuation-card-left {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
 }
 
 .valuation-avatar {
@@ -717,17 +733,23 @@
 .valuation-name {
   font-size: 0.7rem;
   color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .valuation-metrics {
-  display: flex;
-  gap: 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.75rem;
 }
 
 .valuation-metric {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .valuation-metric-label {
@@ -774,8 +796,10 @@
 .valuation-card-notes {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
-  margin-top: 0.6rem;
+  border-top: 1px solid var(--border-light);
+  padding-top: 0.6rem;
 }
 
 .valuation-note {
@@ -786,11 +810,50 @@
 .valuation-note--warn {
   color: var(--amber);
   font-weight: 600;
+  position: relative;
+  cursor: help;
+}
+
+.valuation-note--warn::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.valuation-note--warn:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 @media (max-width: 640px) {
   .valuation-metrics {
-    display: none;
+    gap: 0.5rem;
+  }
+
+  .valuation-metric-label {
+    font-size: 0.55rem;
+  }
+
+  .valuation-metric-value {
+    font-size: 0.75rem;
   }
 }
 
@@ -1982,140 +2045,6 @@
   }
 }
 
-/* --- Favorites section --- */
-.favorites-section {
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: var(--red-soft);
-  border: 1px solid var(--red-mid);
-  border-radius: var(--radius-lg);
-}
-
-.favorites-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.favorites-icon {
-  color: var(--red);
-}
-
-.favorites-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.favorites-badge {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: white;
-  background: var(--red);
-  padding: 0.15rem 0.5rem;
-  border-radius: 9999px;
-  line-height: 1.2;
-}
-
-.favorites-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0.75rem;
-}
-
-.favorites-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: var(--surface-1);
-  border: 1px solid var(--red-tint);
-  border-radius: 0.75rem;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.favorites-card:hover {
-  border-color: var(--red);
-  box-shadow: 0 2px 8px var(--red-pale);
-  transform: translateY(-1px);
-}
-
-.favorites-card-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.favorites-card-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--red), var(--red-deep));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.75rem;
-  flex-shrink: 0;
-}
-
-.favorites-card-avatar--img {
-  object-fit: contain;
-  background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  box-sizing: border-box;
-}
-
-.favorites-card-avatar--hidden {
-  display: none;
-}
-
-.favorites-card-ticker {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.favorites-card-name {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-}
-
-.favorites-card-sector {
-  font-size: 0.65rem;
-  color: var(--text-tertiary);
-}
-
-.favorites-card-heart {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9999px;
-  border: none;
-  background: transparent;
-  color: var(--red);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.favorites-card-heart:hover {
-  background: var(--red-pale);
-  transform: scale(1.1);
-}
-
 /* --- Company card description --- */
 .company-card-desc {
   font-size: 0.875rem;
@@ -2237,4 +2166,41 @@
   font-size: 0.8125rem;
   color: var(--text-secondary);
   margin: 0;
+}
+
+.pagination-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pagination-size-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.5rem 2.1rem 0.5rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-1) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a766d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.pagination-size-select:hover {
+  background-color: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.pagination-size-select:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
 }

@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { setTheme } from '../utils/theme';
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: 'admin' | 'user';
+  theme: 'dark' | 'light';
 }
 
 export interface Favorite {
@@ -44,6 +46,10 @@ interface AuthContextType {
   addFavorite: (companyId: string) => Promise<void>;
   removeFavorite: (companyId: string) => Promise<void>;
   isFavorite: (companyId: string) => boolean;
+  updateProfile: (name: string, email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateTheme: (theme: 'dark' | 'light') => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -73,7 +79,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .then((data) => {
         setUser(data);
-        if (data) loadFavorites();
+        if (data) {
+          loadFavorites();
+        }
         else setLoading(false);
       })
       .catch(() => {
@@ -157,8 +165,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isFavorite = (companyId: string) => favorites.some((f) => f.companyId === companyId);
 
+  const updateProfile = async (name: string, email: string) => {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ name, email }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al actualizar el perfil');
+    }
+    const updated = await res.json();
+    setUser(updated);
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const res = await fetch('/api/auth/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al cambiar la contraseña');
+    }
+  };
+
+  const updateTheme = async (theme: 'dark' | 'light') => {
+    setTheme(theme);
+    if (!user) return;
+    try {
+      const res = await fetch('/api/auth/theme', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ theme }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUser(updated);
+      }
+    } catch {
+      // tema aplicado localmente de todas formas
+    }
+  };
+
+  const deleteAccount = async () => {
+    const res = await fetch('/api/auth/account', { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al eliminar la cuenta');
+    }
+    localStorage.removeItem('token');
+    setUser(null);
+    setFavorites([]);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, favorites, loading, login, register, logout, addFavorite, removeFavorite, isFavorite }}>
+    <AuthContext.Provider value={{ user, favorites, loading, login, register, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

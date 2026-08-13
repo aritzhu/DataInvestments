@@ -413,6 +413,15 @@
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.navbar-user-name:hover {
+  color: var(--gold);
+  background: var(--surface-2);
 }
 
 .navbar-logout-btn {

@@ -73,7 +73,8 @@ const METHOD_NAMES: Record<string, string> = {
   net_net: 'Net-Net',
 };
 
-const PAGE_SIZE = 24;
+const DEFAULT_PAGE_SIZE = 24;
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 100];
 
 function currencySymbol(currency: string | null | undefined): string {
   if (currency === 'EUR') return '€';
@@ -114,6 +115,10 @@ export function Landing() {
   const [page, setPage] = useState<number>(() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
     return Number.isFinite(p) && p > 0 ? p : 1;
+  });
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const raw = parseInt(searchParams.get('pageSize') || '', 10);
+    return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 200) : DEFAULT_PAGE_SIZE;
   });
   const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>({});
   const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(null);
@@ -159,7 +164,7 @@ export function Landing() {
     let cancelled = false;
     const params = new URLSearchParams();
     params.set('page', String(page));
-    params.set('pageSize', String(PAGE_SIZE));
+    params.set('pageSize', String(pageSize));
     if (searchTerm) params.set('search', searchTerm);
     if (selectedSector) params.set('sector', selectedSector);
     if (selectedCountry) params.set('country', selectedCountry);
@@ -188,7 +193,7 @@ export function Landing() {
     return () => {
       cancelled = true;
     };
-  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
+  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -241,8 +246,9 @@ export function Landing() {
     if (sortOrder !== 'asc') params.sort = sortOrder;
     if (showFavoritesOnly) params.fav = '1';
     if (page > 1) params.page = String(page);
+    if (pageSize !== DEFAULT_PAGE_SIZE) params.pageSize = String(pageSize);
     setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page]);
+  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page, pageSize]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -251,7 +257,7 @@ export function Landing() {
       return;
     }
     setPage(1);
-  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly]);
+  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, pageSize]);
 
   useEffect(() => {
     if (companies.length > 0 && searchParams.toString()) {
@@ -286,9 +292,9 @@ export function Landing() {
 
   const paginatedCompanies = companies;
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const pageStart = (page - 1) * PAGE_SIZE + 1;
-  const pageEnd = Math.min(page * PAGE_SIZE, total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageStart = (page - 1) * pageSize + 1;
+  const pageEnd = Math.min(page * pageSize, total);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -387,16 +393,21 @@ export function Landing() {
                     {undervalued.map((c: any, i: number) => (
                       <SectionReveal key={c.ticker} delay={40 + i * 60}>
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green">
-                          <div className="valuation-card-left">
-                            {(c.logoUrl || companyLogoUrl(c.website)) ? (
-                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
-                            ) : null}
-                            <div className={`valuation-avatar valuation-avatar--green ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
-                              {c.ticker.slice(0, 2)}
+                          <div className="valuation-card-head">
+                            <div className="valuation-card-left">
+                              {(c.logoUrl || companyLogoUrl(c.website)) ? (
+                                <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                              ) : null}
+                              <div className={`valuation-avatar valuation-avatar--green ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
+                                {c.ticker.slice(0, 2)}
+                              </div>
+                              <div>
+                                <div className="valuation-ticker">{c.ticker}</div>
+                                <div className="valuation-name">{c.name}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="valuation-ticker">{c.ticker}</div>
-                              <div className="valuation-name">{c.name}</div>
+                            <div className="valuation-card-head-right">
+                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                           </div>
                           <div className="valuation-metrics">
@@ -407,7 +418,6 @@ export function Landing() {
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
                               <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.intrinsicValue?.toFixed(2)}</span>
-                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--green">
                               <span className="valuation-metric-label">Margen de seguridad</span>
@@ -416,7 +426,7 @@ export function Landing() {
                           </div>
                           <div className="valuation-card-notes">
                             {c.marginOfSafety > 0.5 && (
-                              <span className="valuation-note valuation-note--warn">⚠ Estimación con alta incertidumbre</span>
+                              <span className="valuation-note valuation-note--warn" data-tooltip="Estimación con alta incertidumbre">⚠</span>
                             )}
                             {c.asOf && (
                               <span className="valuation-note">Datos a fecha {c.asOf}</span>
@@ -443,16 +453,21 @@ export function Landing() {
                     {overvalued.map((c: any, i: number) => (
                       <SectionReveal key={c.ticker} delay={140 + i * 60}>
                         <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red">
-                          <div className="valuation-card-left">
-                            {(c.logoUrl || companyLogoUrl(c.website)) ? (
-                              <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
-                            ) : null}
-                            <div className={`valuation-avatar valuation-avatar--red ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
-                              {c.ticker.slice(0, 2)}
+                          <div className="valuation-card-head">
+                            <div className="valuation-card-left">
+                              {(c.logoUrl || companyLogoUrl(c.website)) ? (
+                                <img src={c.logoUrl || companyLogoUrl(c.website) || ''} alt={c.ticker} className="valuation-avatar valuation-avatar--img" loading="lazy" decoding="async" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('valuation-avatar--hidden'); }} />
+                              ) : null}
+                              <div className={`valuation-avatar valuation-avatar--red ${(c.logoUrl || companyLogoUrl(c.website)) ? 'valuation-avatar--hidden' : ''}`}>
+                                {c.ticker.slice(0, 2)}
+                              </div>
+                              <div>
+                                <div className="valuation-ticker">{c.ticker}</div>
+                                <div className="valuation-name">{c.name}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="valuation-ticker">{c.ticker}</div>
-                              <div className="valuation-name">{c.name}</div>
+                            <div className="valuation-card-head-right">
+                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                           </div>
                           <div className="valuation-metrics">
@@ -463,7 +478,6 @@ export function Landing() {
                             <div className="valuation-metric">
                               <span className="valuation-metric-label">Valor intrínseco</span>
                               <span className="valuation-metric-value">{currencySymbol(c.currency)}{c.intrinsicValue?.toFixed(2)}</span>
-                              <span className="valuation-method-badge">{METHOD_NAMES[c.recommendedModel] || c.recommendedModel}</span>
                             </div>
                             <div className="valuation-metric valuation-metric--red">
                               <span className="valuation-metric-label">Sobrevaloración</span>
@@ -472,7 +486,7 @@ export function Landing() {
                           </div>
                           <div className="valuation-card-notes">
                             {Math.abs(c.marginOfSafety) > 0.5 && (
-                              <span className="valuation-note valuation-note--warn">⚠ Estimación con alta incertidumbre</span>
+                              <span className="valuation-note valuation-note--warn" data-tooltip="Estimación con alta incertidumbre">⚠</span>
                             )}
                             {c.asOf && (
                               <span className="valuation-note">Datos a fecha {c.asOf}</span>
@@ -578,53 +592,6 @@ export function Landing() {
               <p className="companies-subtitle">Selecciona una empresa para comenzar el análisis</p>
             </div>
           </SectionReveal>
-
-          {/* Favorites section */}
-          {user && favoriteCompanies.length > 0 && (
-            <div className="favorites-section">
-              <div className="favorites-header">
-                <Heart size={20} className="favorites-icon" />
-                <h3 className="favorites-title">Mis Favoritos</h3>
-                <span className="favorites-badge">{favoriteCompanies.length}</span>
-              </div>
-              <div className="favorites-grid">
-                {favoriteCompanies.map((company) => (
-                  <Link
-                    key={company.ticker}
-                    to={`/empresa/${company.ticker}`}
-                    className="favorites-card"
-                  >
-                    <div className="favorites-card-left">
-                      {(company.logoUrl || companyLogoUrl(company.website)) ? (
-                        <img
-                          src={company.logoUrl || companyLogoUrl(company.website)!}
-                          alt={company.ticker}
-                          className="favorites-card-avatar favorites-card-avatar--img"
-                          loading="lazy" decoding="async"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('favorites-card-avatar--hidden'); }}
-                        />
-                      ) : null}
-                      <div className={`favorites-card-avatar ${(company.logoUrl || companyLogoUrl(company.website)) ? 'favorites-card-avatar--hidden' : ''}`}>
-                        {company.ticker.slice(0, 2)}
-                      </div>
-                      <div>
-                        <div className="favorites-card-ticker">{company.ticker}</div>
-                        <div className="favorites-card-name">{company.name}</div>
-                        <div className="favorites-card-sector">{company.sector || company.industry || 'N/A'}</div>
-                      </div>
-                    </div>
-                    <button
-                      className="favorites-card-heart"
-                      onClick={(e) => handleToggleFavorite(e, company.id)}
-                      title="Quitar de favoritos"
-                    >
-                      <Heart size={16} fill="currentColor" />
-                    </button>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
 
           {companies.length > 0 && (
             <div className="sector-filters-wrapper">
@@ -915,6 +882,22 @@ export function Landing() {
               <p className="pagination-info">
                 Mostrando {pageStart}–{pageEnd} de {total} empresas
               </p>
+              <label className="pagination-size">
+                Ver por página
+                <select
+                  className="pagination-size-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
         </div>

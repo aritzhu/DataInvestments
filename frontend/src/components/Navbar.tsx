@@ -12,7 +12,7 @@ export function Navbar() {
   const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, updateTheme } = useAuth();
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -53,6 +53,7 @@ export function Navbar() {
   const handleToggleTheme = () => {
     const next = toggleTheme();
     setTheme(next);
+    if (user) updateTheme(next);
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -125,10 +126,10 @@ export function Navbar() {
             )}
             {user ? (
               <div className="navbar-user">
-                <span className="navbar-user-name">
+                <Link to="/settings" className="navbar-user-name" title="Configuración">
                   <User size={14} />
                   {user.name}
-                </span>
+                </Link>
                 <button onClick={handleLogout} className="navbar-logout-btn" title="Cerrar sesión">
                   <LogOut size={16} />
                 </button>
@@ -209,6 +210,12 @@ export function Navbar() {
               <Link to="/portfolios" className="navbar-mobile-link">
                 <Briefcase size={20} />
                 Portfolios
+              </Link>
+            )}
+            {user && (
+              <Link to="/settings" className="navbar-mobile-link">
+                <Settings size={20} />
+                Configuración
               </Link>
             )}
             {user?.role === 'admin' && (

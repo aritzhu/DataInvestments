@@ -245,7 +245,10 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
       .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null && x.capex != null ? x.operatingCashFlow - x.capex : null))
       .filter((v): v is number => v != null && v !== 0);
     if (fcfValues.length === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
-    fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
+    const latestRow = latest(input.financials);
+    const latestFcf = latestRow?.freeCashFlow ?? (latestRow?.operatingCashFlow != null && latestRow?.capex != null ? latestRow.operatingCashFlow - latestRow.capex : null);
+    if (latestFcf == null || latestFcf === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
+    fcf = latestFcf;
   }
   if (fcf <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
