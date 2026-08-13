@@ -1,4 +1,5 @@
 import prisma from '../infrastructure/prisma/client';
+import { SHARES_OVERRIDES } from '../data/sharesOverrides';
 
 // Fields that live on StockMetric (ratio/share/price snapshot).
 const STOCK_FIELDS = new Set([
@@ -43,6 +44,12 @@ export async function applyCompanyOverrides(ticker: string, companyId: string): 
 
   for (const o of numeric) {
     if (o.value == null) continue;
+    // Code-driven share overrides are authoritative: they fix upstream scale
+    // errors, so a stale CompanyOverride row must never clobber them.
+    if ((o.field === 'sharesOutstanding' || o.field === 'marketCap') && SHARES_OVERRIDES[ticker.toUpperCase()] != null) {
+      console.log(`[Override] ${ticker}: skipping DB override '${o.field}' (code override exists)`);
+      continue;
+    }
     if (STOCK_FIELDS.has(o.field)) stockUpdates[o.field] = o.value;
     else if (BALANCE_FIELDS.has(o.field)) balanceUpdates[o.field] = o.value;
     else if (FINANCIAL_FIELDS.has(o.field)) financialUpdates[o.field] = o.value;

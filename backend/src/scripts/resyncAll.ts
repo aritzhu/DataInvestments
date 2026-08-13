@@ -4,6 +4,7 @@ import { syncCompanyData } from '../services/dataAggregator';
 // Full re-sync of every company with the (fixed) pipeline.
 async function main() {
   const companies = await prisma.company.findMany({
+    where: { active: true },
     select: { ticker: true },
     orderBy: { ticker: 'asc' },
   });

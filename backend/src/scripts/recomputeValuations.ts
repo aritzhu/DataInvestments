@@ -3,7 +3,7 @@ import { computeAll, getRecommendedFairValue, getSectorConfigs } from '../servic
 
 async function main() {
   const companies = await prisma.company.findMany({
-    where: { stockMetrics: { some: {} } },
+    where: { active: true, stockMetrics: { some: {} } },
     select: { id: true, ticker: true, name: true, sector: true, industry: true },
     orderBy: { ticker: 'asc' },
   });
@@ -30,7 +30,7 @@ async function main() {
       }
 
       const configs = getSectorConfigs(c.sector, c.industry);
-      const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs);
+      const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs, c.sector, c.industry);
       const { fairValue: avg } = getRecommendedFairValue(results, c.sector, c.industry);
 
       const intrinsicValue = avg != null && avg > 0 ? avg : null;

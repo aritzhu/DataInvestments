@@ -6,7 +6,7 @@ import { buildComprehensiveYearReport, getImportTimeline } from '../services/adm
 import { TICKER_SECTORS } from '../data/sectors';
 import { SP500_SECTORS } from '../data/sp500';
 import { STOXX600_UNIQUE_TICKERS } from '../data/europeanTickers/stoxx600';
-import { STOXX_SECTOR_INDUSTRY, resolveCompanyMeta } from '../services/companyMeta';
+import { resolveCompanyMeta } from '../services/companyMeta';
 import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 import { getRecommendedModel } from '../services/valuationService';
@@ -370,7 +370,7 @@ router.post('/companies/fix-sectors', async (_req, res) => {
       const stoxxEntry = STOXX600_UNIQUE_TICKERS.find(t => t.ticker === upper);
 
       let sector = known?.sector || sp500 || stoxxEntry?.sector || null;
-      let industry = known?.industry || (stoxxEntry?.sector ? STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] : null) || null;
+      let industry = known?.industry || null;
 
       if (!sector) {
         const meta = await resolveCompanyMeta(upper);

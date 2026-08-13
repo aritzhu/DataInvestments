@@ -69,7 +69,7 @@ router.post('/', async (req: AuthRequest, res) => {
       if (stock && financials.length > 0) {
         const configs = getSectorConfigs(company.sector, company.industry);
         const input = { financials, balanceSheets, stock };
-        const results = computeAll(input, configs);
+        const results = computeAll(input, configs, company.sector, company.industry);
         const avg = weightedAverage(results);
         lastVerdict = getVerdict(avg, stock.currentPrice);
         lastPrice = stock.currentPrice;
@@ -205,7 +205,7 @@ export async function checkAllAlarms() {
 
       const configs = getSectorConfigs(alarm.company.sector, alarm.company.industry);
       const input = { financials, balanceSheets, stock: { ...stock, currentPrice } };
-      const results = computeAll(input, configs);
+      const results = computeAll(input, configs, alarm.company.sector, alarm.company.industry);
       const avg = weightedAverage(results);
       const verdict = getVerdict(avg, currentPrice);
 

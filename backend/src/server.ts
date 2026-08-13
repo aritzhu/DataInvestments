@@ -90,6 +90,7 @@ app.post('/api/admin/upload', requireAdmin, (req: AuthRequest, res: any) => {
 app.get('/api/companies/search', async (_req, res) => {
   try {
     const companies = await prisma.company.findMany({
+      where: { active: true },
       select: { id: true, ticker: true, name: true, sector: true, industry: true },
       orderBy: { ticker: 'asc' },
     });
@@ -105,7 +106,7 @@ app.get('/api/companies', async (req, res) => {
     const { sector, country, sort, fav, sortBy } = query;
     const search = query.search || query.q;
     const { page, pageSize, skip, take } = parsePagination(req.query, 24);
-    const where: any = {};
+    const where: any = { active: true };
 
     if (sector && sector !== 'null' && sector !== 'undefined') {
       where.sector = sector;
@@ -254,13 +255,13 @@ app.get('/api/companies/facets', async (_req, res) => {
   try {
     const [sectorRows, countryRows] = await Promise.all([
       prisma.company.findMany({
-        where: { sector: { not: null } },
+        where: { active: true, sector: { not: null } },
         select: { sector: true },
         distinct: ['sector'],
         orderBy: { sector: 'asc' },
       }),
       prisma.company.findMany({
-        where: { country: { not: null } },
+        where: { active: true, country: { not: null } },
         select: { country: true },
         distinct: ['country'],
         orderBy: { country: 'asc' },
@@ -340,6 +341,7 @@ let valuationsCache: { at: number; data: RecommendedValuation[] } | null = null;
 
 async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
   const companies = await prisma.company.findMany({
+    where: { active: true },
     select: {
       id: true,
       ticker: true,
@@ -389,6 +391,8 @@ async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
           stock,
         } as any,
         getSectorConfigs(c.sector, c.industry),
+        c.sector,
+        c.industry,
       );
       const recommended = results.find((r) => r.id === getRecommendedModel(c.sector, c.industry));
       if (!recommended || recommended.fairValue == null || recommended.fairValue <= 0) continue;

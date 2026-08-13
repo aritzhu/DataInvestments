@@ -1,4 +1,5 @@
 import { buildLogoUrl, isEuropeanTicker, resolveCompanyMeta } from './companyMeta';
+import { SHARES_OVERRIDES } from '../data/sharesOverrides';
 
 function inferCurrency(ticker: string): string {
   const t = ticker.toUpperCase();
@@ -11,14 +12,53 @@ function inferCurrency(ticker: string): string {
   return 'USD';
 }
 
-// Manual total-shares overrides for tickers where the data source reports only
-// one share class (e.g. preferred stock) or an inconsistent count, while the
-// consolidated income statement / balance sheet cover the whole company.
-const SHARES_OVERRIDES: Record<string, number> = {
-  'VOW3.DE': 2950000000,
-};
+function inferCountry(ticker: string): string | null {
+  const t = ticker.toUpperCase();
+  const bySuffix: Record<string, string> = {
+    '.DE': 'DE', '.PA': 'FR', '.MC': 'ES', '.AS': 'NL', '.MI': 'IT', '.BR': 'BE',
+    '.SW': 'CH', '.SI': 'ES', '.L': 'GB', '.HE': 'FI', '.CO': 'DK', '.OL': 'NO',
+    '.ST': 'SE', '.AT': 'AT', '.VI': 'AT', '.BZ': 'IT', '.IR': 'IE', '.PL': 'PT',
+    '.LS': 'PT', '.MU': 'IT', '.AX': 'AU', '.T': 'JP', '.HK': 'HK', '.TO': 'CA',
+    '.V': 'CA', '.SS': 'CN',
+  };
+  for (const [suffix, country] of Object.entries(bySuffix)) {
+    if (t.endsWith(suffix)) return country;
+  }
+  return null;
+}
 
 const ABSURD_SHARES_MAX = 25_000_000_000; // no listed company exceeds this; x1000 scale errors do
+
+// Enterprise value sanity: |EV| > 20x market cap is almost always a scale /
+// unit / currency mismatch (e.g. EV in thousands, liabilities used as assets,
+// or a bank with meaningless EV). Fall back to the provided backup value when
+// it passes; otherwise null the field.
+const EV_MAX_TO_MCAP = 20;
+
+// Ratio sanity caps (absolute multiples). Values beyond these are data errors.
+const RATIO_CAPS = { pe: 150, pb: 50, ps: 50 };
+
+export function sanitizeEnterpriseValue(
+  ev: number | null | undefined,
+  mcap: number | null | undefined,
+  fallbackEv: number | null | undefined = null,
+): number | null {
+  const candidate = ev ?? fallbackEv ?? null;
+  if (candidate == null || !mcap || mcap <= 0) return candidate;
+  if (Math.abs(candidate) > mcap * EV_MAX_TO_MCAP) {
+    if (fallbackEv != null && Math.abs(fallbackEv) <= mcap * EV_MAX_TO_MCAP) return fallbackEv;
+    return null;
+  }
+  return candidate;
+}
+
+// Ratio sanity: absurd multiples (1000x PE) are data errors, not real values.
+// Negative ratios are kept for loss-making companies within a sane bound.
+export function sanitizeRatio(value: number | null | undefined, maxAbs: number): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  if (Math.abs(value) > maxAbs) return null;
+  return value;
+}
 
 export function resolveShares(
   ticker: string,
@@ -35,7 +75,7 @@ export function resolveShares(
   if (infoShares != null && infoShares > 0) candidates.push(infoShares);
   if (quoteShares > 0) candidates.push(quoteShares);
   if (quoteMcap > 0 && quotePrice > 0) candidates.push(Math.round(quoteMcap / quotePrice));
-  if (fallbackShares != null && fallbackShares > 0) candidates.push(fallbackShares);
+  if (candidates.length === 0 && fallbackShares != null && fallbackShares > 0) candidates.push(fallbackShares);
   if (candidates.length === 0) return 0;
 
   // Prefer candidates consistent with the quoted market cap (shares*price ~ mcap)
@@ -80,7 +120,7 @@ async function importEuropeanEsef(
       data: {
         ticker: ticker.toUpperCase(),
         name: companyName || ticker.toUpperCase(),
-        country: countryCode,
+        country: countryCode ?? inferCountry(ticker),
         exchange: yahooQuote?.exchange || null,
         currency: inferCurrency(ticker),
         sector: sectorHint,
@@ -100,6 +140,13 @@ async function importEuropeanEsef(
         data: sectorData,
       });
       console.log(`[European] Updated ${ticker} sector → ${sectorData.sector}`);
+    }
+  }
+  if (!company.country) {
+    const inferredCountry = inferCountry(ticker);
+    if (inferredCountry) {
+      await prisma.company.update({ where: { id: company.id }, data: { country: inferredCountry } });
+      console.log(`[European] Backfilled ${ticker} country → ${inferredCountry}`);
     }
   }
 
@@ -239,14 +286,12 @@ async function importEuropeanEsef(
       companyId: company.id,
       date: new Date(),
       currentPrice: stockPrice,
-      peRatio: latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null,
-      pbRatio: latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null,
-      psRatio: latestRevenue > 0 && mcap ? mcap / latestRevenue : null,
+      peRatio: sanitizeRatio(latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null, RATIO_CAPS.pe),
+      pbRatio: sanitizeRatio(latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null, RATIO_CAPS.pb),
+      psRatio: sanitizeRatio(latestRevenue > 0 && mcap ? mcap / latestRevenue : null, RATIO_CAPS.ps),
       dividendYield: null,
       marketCap: mcap,
-      enterpriseValue: mcap != null
-        ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0)
-        : null,
+      enterpriseValue: sanitizeEnterpriseValue(mcap != null ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0) : null, mcap),
       sharesOutstanding: stockSharesOutstanding,
       beta: null,
       forwardPE: null,
@@ -679,14 +724,12 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         companyId: company.id,
         date: new Date(),
         currentPrice: yahooQuote.currentPrice,
-        peRatio: info?.trailingPE ?? (latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null),
-        pbRatio: info?.priceToBook ?? (latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null),
-        psRatio: info?.priceToSalesTrailing12Months ?? (latestRevenue > 0 && mcap ? mcap / latestRevenue : null),
+        peRatio: sanitizeRatio(info?.trailingPE ?? (latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null), RATIO_CAPS.pe),
+        pbRatio: sanitizeRatio(info?.priceToBook ?? (latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null), RATIO_CAPS.pb),
+        psRatio: sanitizeRatio(info?.priceToSalesTrailing12Months ?? (latestRevenue > 0 && mcap ? mcap / latestRevenue : null), RATIO_CAPS.ps),
         dividendYield: info?.dividendYield ?? null,
         marketCap: mcap,
-        enterpriseValue: info?.enterpriseValue ?? (mcap != null
-          ? mcap + (latestLiabilities || 0) - (cashMap.get(latestYear || 0) || 0)
-          : null),
+        enterpriseValue: sanitizeEnterpriseValue(info?.enterpriseValue, mcap, mcap != null ? mcap + (latestLiabilities || 0) - (cashMap.get(latestYear || 0) || 0) : null),
         beta: info?.beta ?? null,
         forwardPE: info?.forwardPE ?? null,
         targetMeanPrice: info?.targetMeanPrice ?? null,
@@ -752,20 +795,6 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     };
     const countryCode = (suffix ? TICKER_COUNTRY[suffix] : '') || '';
 
-    const STOXX_SECTOR_INDUSTRY: Record<string, string> = {
-      'Financial Services': 'Banks - Diversified',
-      'Technology': 'Software - Infrastructure',
-      'Industrials': 'Aerospace & Defense',
-      'Consumer Cyclical': 'Auto Manufacturers',
-      'Consumer Defensive': 'Consumer Staples',
-      'Healthcare': 'Drug Manufacturers',
-      'Energy': 'Oil & Gas Integrated',
-      'Utilities': 'Utilities - Regulated Electric',
-      'Real Estate': 'REIT - Diversified',
-      'Communication Services': 'Telecom Services',
-      'Basic Materials': 'Specialty Chemicals',
-    };
-
     if (countryCode || !result.secSync) {
       try {
         const yahooQuote = await fetchYahooQuote(ticker);
@@ -789,12 +818,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           (((r['Total Revenue'] as number) ?? 0) !== 0 ||
             ((r['Net Income'] as number) ?? 0) !== 0 ||
             ((r['EBITDA'] as number) ?? 0) !== 0 ||
-            ((r['Operating Cash Flow'] as number) ?? 0) !== 0);
+            ((r['Operating Cash Flow'] as number) ?? 0) !== 0) &&
+          !(((r['Total Revenue'] as number) ?? 0) !== 0 && ((r['Net Income'] as number) ?? 0) === 0);
         const yfHasData = (yfData?.income ?? []).some(incomeIsReal) || (yfAnnual?.income ?? []).some(incomeIsReal);
 
         // --- ESEF XBRL first (tier1 = audited report); yfinance fills gaps (tier2) ---
         const sectorHint = stoxxEntry?.sector || null;
-        const industryHint = stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null;
+        const industryHint = null;
         const esefResult = await fetchEuropeanFinancials(ticker, countryCode, companyName, sectorHint);
         europeanAvailableTags = esefResult.availableTags;
         const esefSynced = esefResult.data.length > 0
@@ -817,11 +847,11 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               data: {
                 ticker: ticker.toUpperCase(),
                 name: companyName || yfInfo?.info?.shortName || yfInfo?.info?.longName || ticker.toUpperCase(),
-                country: countryCode,
+                country: countryCode ?? inferCountry(ticker),
                 exchange: yahooQuote?.exchange || null,
                 currency: inferCurrency(ticker),
                 sector: stoxxEntry?.sector || yfSector,
-                industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || yfIndustry) : yfIndustry,
+                industry: yfIndustry,
                 website: yfWebsite,
                 logoUrl: buildLogoUrl(yfWebsite),
               },
@@ -831,7 +861,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const yfSector = yfInfo?.info?.sector || null;
             const yfIndustry = yfInfo?.info?.industry || null;
             const sectorData = stoxxEntry?.sector
-              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              ? { sector: stoxxEntry.sector, industry: yfIndustry }
               : yfSector
                 ? { sector: yfSector, industry: yfIndustry }
                 : TICKER_SECTORS[ticker.toUpperCase()]
@@ -840,6 +870,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             if (sectorData) {
               await prisma.company.update({ where: { id: company.id }, data: sectorData });
               console.log(`[yFinance] Updated ${ticker} sector → ${sectorData.sector}`);
+            }
+          }
+          if (!company.country) {
+            const inferredCountry = inferCountry(ticker);
+            if (inferredCountry) {
+              await prisma.company.update({ where: { id: company.id }, data: { country: inferredCountry } });
+              console.log(`[yFinance] Backfilled ${ticker} country → ${inferredCountry}`);
             }
           }
 
@@ -987,7 +1024,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               const yfWarnings = validateFinancialData(finData);
               logValidationWarnings(ticker, yfWarnings, 'yFinance-annual');
               if (existing) {
-                if (existing.source !== 'manual' && existing.tier !== '1') {
+                if (existing.source !== 'manual' && existing.tier === '1') {
+                  const patch: Record<string, unknown> = {};
+                  for (const [key, value] of Object.entries(finData)) {
+                    if (value != null && (existing as Record<string, unknown>)[key] == null) patch[key] = value;
+                  }
+                  if (Object.keys(patch).length > 0) {
+                    await prisma.financialData.update({ where: { id: existing.id }, data: patch });
+                    console.log(`[yFinance-annual] ${ticker} ${year}Q${quarter}: gap-filled tier1 with ${Object.keys(patch).join(', ')}`);
+                  }
+                } else if (existing.source !== 'manual' && existing.tier !== '1') {
                   await prisma.financialData.update({ where: { id: existing.id }, data: finData });
                 }
               } else {
@@ -1008,7 +1054,16 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               const yfBsWarnings = validateBalanceSheet(bsData);
               logValidationWarnings(ticker, yfBsWarnings, 'yFinance-annual');
               if (bsExisting) {
-                if (bsExisting.source !== 'manual' && bsExisting.tier !== '1') {
+                if (bsExisting.source !== 'manual' && bsExisting.tier === '1') {
+                  const patch: Record<string, unknown> = {};
+                  for (const [key, value] of Object.entries(bsData)) {
+                    if (value != null && (bsExisting as Record<string, unknown>)[key] == null) patch[key] = value;
+                  }
+                  if (Object.keys(patch).length > 0) {
+                    await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: patch });
+                    console.log(`[yFinance-annual] ${ticker} ${year}Q${quarter}: gap-filled tier1 BS with ${Object.keys(patch).join(', ')}`);
+                  }
+                } else if (bsExisting.source !== 'manual' && bsExisting.tier !== '1') {
                   await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
                 }
               } else {
@@ -1019,7 +1074,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           }
 
           // StockMetric from yfinance info (richer than Yahoo quote)
-          if (yfInfo?.info && (yfInfo.info.sharesOutstanding > 0 || yfInfo.info.marketCap > 0)) {
+          if (yfInfo?.info && (yfInfo.info.sharesOutstanding > 0 || yfInfo.info.marketCap > 0 || (yahooQuote?.currentPrice ?? 0) > 0)) {
             const stockExisting = await prisma.stockMetric.findFirst({
               where: { companyId: company.id },
               orderBy: { date: 'desc' },
@@ -1028,17 +1083,42 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
             const rawPrice = yahooQuote?.currentPrice ?? yfInfo.info.currentPrice ?? 0;
             const isGbPence = (yfInfo.info.currency ?? '').toUpperCase() === 'GBP';
             const currentPrice = rawPrice > 0 && isGbPence ? rawPrice / 100 : rawPrice;
-            const yfShares = resolveShares(ticker, yfInfo.info.sharesOutstanding, yahooQuote?.sharesOutstanding ?? 0, yahooQuote?.marketCap ?? 0, yahooQuote?.currentPrice ?? 0, 0);
+            const priceToBook = yfInfo.info.priceToBook ?? null;
+            let equityFallbackShares: number | null = null;
+            if (priceToBook != null && priceToBook > 0 && currentPrice > 0) {
+              const latestBs = await prisma.balanceSheet.findFirst({
+                where: { companyId: company.id, totalStockholdersEquity: { not: null } },
+                orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
+              });
+              const equity = latestBs?.totalStockholdersEquity ?? null;
+              if (equity != null && equity > 0) {
+                const implied = Math.round(equity / (currentPrice * priceToBook));
+                if (implied >= 1_000_000) equityFallbackShares = implied;
+              }
+            }
+            const yfShares = resolveShares(ticker, yfInfo.info.sharesOutstanding, yahooQuote?.sharesOutstanding ?? 0, yahooQuote?.marketCap ?? 0, yahooQuote?.currentPrice ?? 0, equityFallbackShares);
+            const implMcapFromPs =
+              yfInfo.info.priceToSalesTrailing12Months != null && yfInfo.info.priceToSalesTrailing12Months > 0 &&
+              yfInfo.info.totalRevenue != null && yfInfo.info.totalRevenue > 0
+                ? yfInfo.info.priceToSalesTrailing12Months * yfInfo.info.totalRevenue
+                : null;
+            if (implMcapFromPs != null && yfShares > 0 && currentPrice > 0) {
+              const mcapFromShares = currentPrice * yfShares;
+              const mcapRatio = mcapFromShares / implMcapFromPs;
+              if (mcapRatio > 5 || mcapRatio < 0.2) {
+                console.log(`[Shares] ${ticker}: suspicious (shares=${yfShares}, mcap=${Math.round(mcapFromShares)} vs implied-from-PS=${Math.round(implMcapFromPs)})`);
+              }
+            }
             const stockData = {
               companyId: company.id,
               date: new Date(),
               currentPrice,
               sharesOutstanding: yfShares,
               marketCap: yfShares > 0 && currentPrice > 0 ? currentPrice * yfShares : (yfInfo.info.marketCap ?? null),
-              enterpriseValue: yfInfo.info.enterpriseValue ?? null,
-              peRatio: yfInfo.info.trailingPE ?? null,
-              pbRatio: yfInfo.info.priceToBook ?? null,
-              psRatio: yfInfo.info.priceToSalesTrailing12Months ?? null,
+              enterpriseValue: sanitizeEnterpriseValue(yfInfo.info.enterpriseValue, yfShares > 0 && currentPrice > 0 ? currentPrice * yfShares : (yfInfo.info.marketCap ?? null)),
+              peRatio: sanitizeRatio(yfInfo.info.trailingPE ?? null, RATIO_CAPS.pe),
+              pbRatio: sanitizeRatio(yfInfo.info.priceToBook ?? null, RATIO_CAPS.pb),
+              psRatio: sanitizeRatio(yfInfo.info.priceToSalesTrailing12Months ?? null, RATIO_CAPS.ps),
               dividendYield: yfInfo.info.dividendYield ?? null,
               roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity : null,
               roa: yfInfo.info.returnOnAssets != null ? yfInfo.info.returnOnAssets : null,
@@ -1092,17 +1172,17 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               data: {
                 ticker: ticker.toUpperCase(),
                 name: companyName || ticker.toUpperCase(),
-                country: countryCode,
+                country: countryCode ?? inferCountry(ticker),
                 exchange: yahooQuote?.exchange || null,
                 currency: inferCurrency(ticker),
                 sector: stoxxEntry?.sector || null,
-                industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : null,
+                industry: null,
               },
             });
             console.log(`[European] Created company ${ticker} (id: ${company.id})`);
           } else if (!company.sector) {
             const sectorData = stoxxEntry?.sector
-              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              ? { sector: stoxxEntry.sector, industry: null }
               : TICKER_SECTORS[ticker.toUpperCase()]
                 ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
                 : null;
@@ -1112,6 +1192,13 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 data: sectorData,
               });
               console.log(`[European] Updated ${ticker} sector → ${sectorData.sector}`);
+            }
+          }
+          if (!company.country) {
+            const inferredCountry = inferCountry(ticker);
+            if (inferredCountry) {
+              await prisma.company.update({ where: { id: company.id }, data: { country: inferredCountry } });
+              console.log(`[European] Backfilled ${ticker} country → ${inferredCountry}`);
             }
           }
 
@@ -1252,14 +1339,12 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               companyId: company.id,
               date: new Date(),
               currentPrice: stockPrice,
-              peRatio: latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null,
-              pbRatio: latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null,
-              psRatio: latestRevenue > 0 && mcap ? mcap / latestRevenue : null,
+              peRatio: sanitizeRatio(latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null, RATIO_CAPS.pe),
+              pbRatio: sanitizeRatio(latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null, RATIO_CAPS.pb),
+              psRatio: sanitizeRatio(latestRevenue > 0 && mcap ? mcap / latestRevenue : null, RATIO_CAPS.ps),
               dividendYield: null,
               marketCap: mcap,
-              enterpriseValue: mcap != null
-                ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0)
-                : null,
+              enterpriseValue: sanitizeEnterpriseValue(mcap != null ? mcap + (latestLiabilities || 0) - (firstRecord?.cash || 0) : null, mcap),
               sharesOutstanding: stockSharesOutstanding,
               beta: null,
               forwardPE: null,
@@ -1296,7 +1381,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
           const existingCompany = await prisma.company.findUnique({ where: { ticker: ticker.toUpperCase() } });
           if (existingCompany && !existingCompany.sector) {
             const sectorData = stoxxEntry?.sector
-              ? { sector: stoxxEntry.sector, industry: STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null }
+              ? { sector: stoxxEntry.sector, industry: null }
               : TICKER_SECTORS[ticker.toUpperCase()]
                 ? { sector: TICKER_SECTORS[ticker.toUpperCase()].sector, industry: TICKER_SECTORS[ticker.toUpperCase()].industry }
                 : null;
@@ -1463,7 +1548,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         });
         if (allFinancials.length > 0) {
           const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
-          const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs);
+          const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs, companyForVal.sector, companyForVal.industry);
           const fairValue = getRecommendedFairValue(results, companyForVal.sector, companyForVal.industry).fairValue;
           if (fairValue != null && fairValue > 0) {
             const marginOfSafety = stockForValuation.currentPrice > 0
@@ -1612,20 +1697,6 @@ export async function addCompanyFromTicker(ticker: string) {
   };
   const countryCode = (suffix ? TICKER_COUNTRY[suffix] : '') || '';
 
-  const STOXX_SECTOR_INDUSTRY: Record<string, string> = {
-    'Financial Services': 'Banks - Diversified',
-    'Technology': 'Software - Infrastructure',
-    'Industrials': 'Aerospace & Defense',
-    'Consumer Cyclical': 'Auto Manufacturers',
-    'Consumer Defensive': 'Consumer Staples',
-    'Healthcare': 'Drug Manufacturers',
-    'Energy': 'Oil & Gas Integrated',
-    'Utilities': 'Utilities - Regulated Electric',
-    'Real Estate': 'REIT - Diversified',
-    'Communication Services': 'Telecom Services',
-    'Basic Materials': 'Specialty Chemicals',
-  };
-
   if (countryCode) {
     try {
       const yahooQuote = await fetchYahooQuote(ticker);
@@ -1644,7 +1715,7 @@ export async function addCompanyFromTicker(ticker: string) {
                 exchange: yahooQuote?.exchange || null,
           currency: inferCurrency(upperTicker),
           sector: stoxxEntry?.sector || info.sector || null,
-          industry: stoxxEntry?.sector ? (STOXX_SECTOR_INDUSTRY[stoxxEntry.sector] || null) : info.industry || null,
+          industry: info.industry || null,
           website,
           logoUrl: buildLogoUrl(website),
         },

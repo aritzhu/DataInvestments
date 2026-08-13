@@ -10,20 +10,6 @@ export function buildLogoUrl(website: string | null | undefined): string | null 
   return `https://logos.hunter.io/${domain}`;
 }
 
-export const STOXX_SECTOR_INDUSTRY: Record<string, string> = {
-  'Financial Services': 'Banks - Diversified',
-  'Technology': 'Software - Infrastructure',
-  'Industrials': 'Aerospace & Defense',
-  'Consumer Cyclical': 'Auto Manufacturers',
-  'Consumer Defensive': 'Consumer Staples',
-  'Healthcare': 'Drug Manufacturers',
-  'Energy': 'Oil & Gas Integrated',
-  'Utilities': 'Utilities - Regulated Electric',
-  'Real Estate': 'REIT - Diversified',
-  'Communication Services': 'Telecom Services',
-  'Basic Materials': 'Specialty Chemicals',
-};
-
 export const EUROPEAN_SUFFIXES = [
   'DE', 'F', 'D', 'PA', 'L', 'MC', 'AS', 'BR', 'HE', 'ST', 'CO', 'MI', 'LS', 'VI', 'SW', 'OL', 'IR', 'LU',
 ];
@@ -68,10 +54,6 @@ export async function resolveCompanyMeta(ticker: string): Promise<ResolvedCompan
 
   if (stoxxEntry?.sector && !meta.sector) {
     meta.sector = stoxxEntry.sector;
-  }
-  if (stoxxEntry?.sector && !meta.industry) {
-    const industry = STOXX_SECTOR_INDUSTRY[stoxxEntry.sector];
-    if (industry) meta.industry = industry;
   }
   if (known?.sector && !meta.sector) meta.sector = known.sector;
   if (known?.industry && !meta.industry) meta.industry = known.industry;

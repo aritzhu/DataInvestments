@@ -83,6 +83,8 @@ export function parseYFinanceAnnualDate(dateStr: string): { year: number; quarte
 }
 
 export function mapIncomeRecord(record: YFinanceRecord) {
+  const depreciation = pickNum(record, 'Depreciation And Amortization In Income Statement', 'Depreciation Amortization And Accretion Net', 'Depreciation');
+  const ebit = pickNum(record, 'EBIT', 'Operating Income', 'Pretax Income', 'ebit', 'operatingIncome');
   return {
     revenue: pickNum(record, 'Total Revenue', 'Operating Revenue', 'totalRevenue'),
     costOfRevenue: pickNum(record, 'Cost Of Revenue', 'costOfRevenue'),
@@ -93,9 +95,9 @@ export function mapIncomeRecord(record: YFinanceRecord) {
     interestExpense: pickNum(record, 'Interest Expense', 'Interest Expense Non Operating', 'interestExpense'),
     taxExpense: pickNum(record, 'Tax Provision', 'incomeTaxExpense'),
     netIncome: pickNum(record, 'Net Income Common Stockholders', 'Net Income', 'Net Income Including Noncontrolling Interests', 'netIncome'),
-    ebitda: pickNum(record, 'EBITDA', 'Normalized EBITDA'),
-    ebit: pickNum(record, 'EBIT', 'Operating Income', 'Pretax Income', 'ebit', 'operatingIncome'),
-    depreciation: pickNum(record, 'Depreciation And Amortization In Income Statement', 'Depreciation Amortization And Accretion Net', 'Depreciation'),
+    ebitda: pickNum(record, 'EBITDA', 'Normalized EBITDA') ?? (ebit != null && depreciation != null ? ebit + depreciation : null),
+    ebit,
+    depreciation,
   };
 }
 
@@ -128,9 +130,9 @@ export function mapBalanceRecord(record: YFinanceRecord) {
     totalNonCurrentAssets: pickNum(record, 'Total Non Current Assets', 'totalNonCurrentAssets') ?? null,
     totalAssets: pickNum(record, 'Total Assets', 'totalAssets') ?? null,
     accountsPayable: pickNum(record, 'Accounts Payable', 'accountsPayable') ?? null,
-    shortTermDebt: pickNum(record, 'Current Debt', 'Current Debt And Capital Lease Obligation', 'Short Term Debt', 'Other Short Term Debt') ?? null,
+    shortTermDebt: pickNum(record, 'Current Debt And Capital Lease Obligation', 'Current Debt', 'Short Term Debt', 'Other Short Term Debt') ?? null,
     totalCurrentLiabilities: pickNum(record, 'Current Liabilities', 'totalCurrentLiabilities') ?? null,
-    longTermDebt: pickNum(record, 'Long Term Debt', 'Long Term Debt And Capital Lease Obligation', 'Other Long Term Debt', 'longTermDebt') ?? null,
+    longTermDebt: pickNum(record, 'Long Term Debt And Capital Lease Obligation', 'Long Term Debt', 'Other Long Term Debt', 'longTermDebt') ?? null,
     totalNonCurrentLiabilities: pickNum(record, 'Total Non Current Liabilities Net Minority Interest', 'Total Non Current Liabilities', 'totalNonCurrentLiabilities') ?? null,
     totalLiabilities: pickNum(record, 'Total Liabilities Net Minority Interest', 'Total Liabilities Gross Minority Interest', 'Total Liabilities', 'totalLiabilities') ?? null,
     totalStockholdersEquity: pickNum(record, 'Stockholders Equity', 'Total Stockholder Equity', 'Stockholders Equity Including Portion Attributable To Noncontrolling Interests', 'totalStockholderEquity') ?? null,

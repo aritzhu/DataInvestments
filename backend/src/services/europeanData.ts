@@ -303,6 +303,17 @@ const IFRS_ALIASES: Record<string, string> = {
   'ifrs-full:CurrentTaxLiabilities': 'currentLiabilities',
   'ifrs-full:DeferredTaxLiabilities': 'nonCurrentLiabilities',
   'ifrs-full:LoansAndReceivables': 'receivables',
+  'ifrs-full:CurrentBorrowings': 'shortTermDebt',
+  'ifrs-full:BorrowingsCurrent': 'shortTermDebt',
+  'ifrs-full:CurrentPortionOfBorrowings': 'shortTermDebt',
+  'ifrs-full:CurrentBankBorrowings': 'shortTermDebt',
+  'ifrs-full:LoansReceivedShortterm': 'shortTermDebt',
+  'ifrs-full:NoncurrentBorrowings': 'longTermDebt',
+  'ifrs-full:BorrowingsNoncurrent': 'longTermDebt',
+  'ifrs-full:NoncurrentBankBorrowings': 'longTermDebt',
+  'ifrs-full:LoansReceivedLongterm': 'longTermDebt',
+  'ifrs-full:LoansReceived': 'totalDebt',
+  'ifrs-full:BankLoansAndOtherBorrowings': 'totalDebt',
 };
 
 const CAPEX_PATTERN = /Purchase.*PropertyPlant|Purchase.*IntangibleAsset|Payment.*Investment.*Property|PurchasesAndSales.*PropertyPlant/i;
@@ -609,8 +620,18 @@ async function mapJsonFactsToFiscalData(
 
   const fields: Record<string, number | null> = {};
   const fieldsPriority: Record<string, number> = {};
-  let capexAccumulator = 0;
-  let capexFound = false;
+  // Capex: select by priority instead of summing every matching fact. Filings
+  // often report the consolidated total AND its breakdown (PPE + intangibles +
+  // investment property), so the old accumulation double-counted (e.g. SAN 10.6B,
+  // REP 9.4B). Order: consolidated total > PPE total > sum of category-level
+  // purchases > sum of regex-matched non-standard tags.
+  const CAPEX_CONSOLIDATED = /AndOtherNoncurrentAssets|OtherThanGoodwill/i;
+  let capexTotal: number | null = null;
+  let capexPpeTotal: number | null = null;
+  let capexCategorySum = 0;
+  let capexCategoryFound = false;
+  let capexRegexSum = 0;
+  let capexRegexFound = false;
 
   const tagPriority = new Map<string, number>();
   for (const entries of tagMappings.values()) {
@@ -635,8 +656,15 @@ async function mapJsonFactsToFiscalData(
     if (fieldName) {
       if (fieldName === 'capex') {
         if (val != null) {
-          capexAccumulator += Math.abs(val);
-          capexFound = true;
+          const abs = Math.abs(val);
+          if (CAPEX_CONSOLIDATED.test(concept)) {
+            capexTotal = capexTotal != null ? Math.max(capexTotal, abs) : abs;
+          } else if (/ClassifiedAsInvestingActivities/i.test(concept)) {
+            capexCategorySum += abs;
+            capexCategoryFound = true;
+          } else {
+            capexPpeTotal = capexPpeTotal != null ? Math.max(capexPpeTotal, abs) : abs;
+          }
         }
       } else if (val != null) {
         const prio = tagPriority.get(concept) ?? tagPriority.get(normalizeConcept(concept)) ?? 100;
@@ -653,8 +681,8 @@ async function mapJsonFactsToFiscalData(
       }
     } else if (CAPEX_PATTERN.test(concept)) {
       if (val != null) {
-        capexAccumulator += Math.abs(val);
-        capexFound = true;
+        capexRegexSum += Math.abs(val);
+        capexRegexFound = true;
       }
     }
   }
@@ -738,7 +766,7 @@ async function mapJsonFactsToFiscalData(
     interestExpense: fields.interestExpense ?? null,
     taxExpense: fields.taxExpense ?? null,
     depreciation,
-    capex: capexFound ? capexAccumulator : null,
+    capex: capexTotal ?? capexPpeTotal ?? (capexCategoryFound ? capexCategorySum : capexRegexFound ? capexRegexSum : null),
     operatingCashFlow: fields.operatingCashFlow ?? null,
     investingCashFlow: fields.investingCashFlow ?? null,
     financingCashFlow: fields.financingCashFlow ?? null,
@@ -758,8 +786,16 @@ async function mapJsonFactsToFiscalData(
     goodwill: fields.goodwill ?? null,
     intangibleAssets: fields.intangibleAssets ?? null,
     accountsPayable: fields.accountsPayable ?? null,
-    shortTermDebt: fields.shortTermDebt ?? null,
-    longTermDebt: fields.longTermDebt ?? null,
+    shortTermDebt: fields.shortTermDebt ?? (
+      fields.totalDebt != null && fields.longTermDebt != null
+        ? fields.totalDebt - fields.longTermDebt
+        : null
+    ),
+    longTermDebt: fields.longTermDebt ?? (
+      fields.totalDebt != null
+        ? (fields.shortTermDebt != null ? fields.totalDebt - fields.shortTermDebt : fields.totalDebt)
+        : null
+    ),
     totalDebt: fields.totalDebt ?? null,
     retainedEarnings: fields.retainedEarnings ?? null,
     sharesOutstanding: (() => {

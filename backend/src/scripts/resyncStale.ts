@@ -21,6 +21,7 @@ export async function resyncStaleCompanies(options: ResyncStaleOptions = {}): Pr
 
   const candidates = await prisma.company.findMany({
     where: {
+      active: true,
       OR: [{ dataSync: null }, { dataSync: { lastSyncAt: { lt: cutoff } } }],
     },
     select: { id: true, ticker: true },

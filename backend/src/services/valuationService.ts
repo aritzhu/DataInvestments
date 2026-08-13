@@ -178,8 +178,23 @@ function trailing12Months(financials: Financial[], balanceSheets: Balance[]): TT
   };
 }
 
-function netDebt(bs: Balance | undefined): number {
-  return (bs?.shortTermDebt ?? 0) + (bs?.longTermDebt ?? 0) - (bs?.cashAndCashEquivalents ?? 0);
+export function isFinancial(sector?: string | null, industry?: string | null): boolean {
+  const text = `${sector || ''} ${industry || ''}`.toLowerCase();
+  if (text.includes('financial data') || text.includes('exchanges')) return false;
+  return /bank|financ|insur|seguro|banco|assuranc|reinsur|credit/.test(text);
+}
+
+function netDebt(bs: Balance | undefined): { value: number; fallback: boolean } {
+  if (!bs) return { value: 0, fallback: false };
+  const hasStd = bs.shortTermDebt != null;
+  const hasLtd = bs.longTermDebt != null;
+  if (!hasStd && !hasLtd) {
+    const tncl = bs.totalNonCurrentLiabilities ?? null;
+    const cash = bs.cashAndCashEquivalents ?? 0;
+    if (tncl != null) return { value: tncl - cash, fallback: true };
+    return { value: 0 - cash, fallback: false };
+  }
+  return { value: (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) - (bs.cashAndCashEquivalents ?? 0), fallback: false };
 }
 
 function consistency(arr: number[]): number {
@@ -205,7 +220,7 @@ function sharesOf(stock: Stock): number {
   return shares;
 }
 
-const SANITY_MULTIPLE = 10;
+const SANITY_MULTIPLE = 6;
 function applySanityBound(result: ValuationResult, currentPrice: number): ValuationResult {
   if (result.fairValue == null || currentPrice <= 0) return result;
   if (result.fairValue > SANITY_MULTIPLE * currentPrice || result.fairValue < 0) {
@@ -224,6 +239,7 @@ function capConfidence(conf: ValuationResult['confidence'], annualFields: string
 }
 
 const PARTIAL_DATA_WARNING = 'Datos trimestrales incompletos: este cálculo usa el último ejercicio anual en lugar de los 4 trimestres.';
+const DEBT_FALLBACK_WARNING = 'Balance incompleto: la deuda se estimó como pasivos no corrientes menos tesorería (no hay desglose de deuda).';
 
 function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }): ValuationResult {
   const f = latest(input.financials);
@@ -314,11 +330,16 @@ function computeEVEBITDA(input: ValuationInput, config: { targetMultiple: number
   }
   const ev = ttm.ebitda * config.targetMultiple;
   const nd = netDebt(bs);
-  const fairValue = (ev - nd) / shares;
+  const fairValue = (ev - nd.value) / shares;
   const currentMult = input.stock.enterpriseValue && ttm.ebitda ? input.stock.enterpriseValue / ttm.ebitda : 0;
   const baseConf: ValuationResult['confidence'] = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
-  const conf = capConfidence(baseConf, ttm.annualFields, ['ebitda']);
-  const dataWarning = ttm.annualFields.includes('ebitda') ? PARTIAL_DATA_WARNING : undefined;
+  let conf = capConfidence(baseConf, ttm.annualFields, ['ebitda']);
+  if (nd.fallback && conf !== 'na') conf = 'low';
+  const dataWarning = nd.fallback
+    ? DEBT_FALLBACK_WARNING
+    : ttm.annualFields.includes('ebitda')
+      ? PARTIAL_DATA_WARNING
+      : undefined;
   return { id: 'ev_ebitda', name: 'EV/EBITDA', fairValue, confidence: conf, ...(dataWarning ? { dataWarning } : {}) };
 }
 
@@ -333,11 +354,16 @@ function computeEVEBIT(input: ValuationInput, config: { targetMultiple: number }
   }
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
-  const fairValue = (evEbit - ndEbit) / shares;
+  const fairValue = (evEbit - ndEbit.value) / shares;
   const currentMultEbit = input.stock.enterpriseValue && ebit ? input.stock.enterpriseValue / ebit : 0;
   const baseConf: ValuationResult['confidence'] = currentMultEbit > 0 && currentMultEbit < 50 ? 'high' : currentMultEbit > 0 ? 'medium' : 'low';
-  const conf = capConfidence(baseConf, ttm.annualFields, ['ebit']);
-  const dataWarning = ttm.annualFields.includes('ebit') ? PARTIAL_DATA_WARNING : undefined;
+  let conf = capConfidence(baseConf, ttm.annualFields, ['ebit']);
+  if (ndEbit.fallback && conf !== 'na') conf = 'low';
+  const dataWarning = ndEbit.fallback
+    ? DEBT_FALLBACK_WARNING
+    : ttm.annualFields.includes('ebit')
+      ? PARTIAL_DATA_WARNING
+      : undefined;
   return { id: 'ev_ebit', name: 'EV/EBIT', fairValue, confidence: conf, ...(dataWarning ? { dataWarning } : {}) };
 }
 
@@ -439,20 +465,20 @@ const SECTOR_CONFIGS: Record<string, ValuationConfigs> = {
   banking: { dcf: { growthRate: 3, discountRate: 10, horizonYears: 10 }, per: { targetPE: 12 }, pb: { targetPB: 1.5 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 10 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 3, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
   'financial services': { dcf: { growthRate: 3, discountRate: 10, horizonYears: 10 }, per: { targetPE: 12 }, pb: { targetPB: 1.5 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 10 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 3, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
   insurance: { dcf: { growthRate: 3, discountRate: 10, horizonYears: 10 }, per: { targetPE: 12 }, pb: { targetPB: 1.5 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 10 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 3, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
-  technology: { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   'consumer electronics': { dcf: { growthRate: 6, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   semiconductors: { dcf: { growthRate: 10, discountRate: 11, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 10 }, ps: { targetPS: 12 }, evEbitda: { targetMultiple: 22 }, evEbit: { targetMultiple: 28 }, ddm: { growthRate: 5, requiredReturn: 11 }, fcfYield: { targetYield: 3 } },
   'internet content': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 6 }, ps: { targetPS: 7 }, evEbitda: { targetMultiple: 18 }, evEbit: { targetMultiple: 22 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   utilities: { dcf: { growthRate: 2, discountRate: 8, horizonYears: 10 }, per: { targetPE: 16 }, pb: { targetPB: 2 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 9 }, evEbit: { targetMultiple: 11 }, ddm: { growthRate: 3, requiredReturn: 8 }, fcfYield: { targetYield: 5 } },
   'drug manufacturers': { dcf: { growthRate: 5, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 4 }, ps: { targetPS: 5 }, evEbitda: { targetMultiple: 14 }, evEbit: { targetMultiple: 18 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   energy: { dcf: { growthRate: 2, discountRate: 12, horizonYears: 10 }, per: { targetPE: 10 }, pb: { targetPB: 1.5 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 6 }, evEbit: { targetMultiple: 8 }, ddm: { growthRate: 3, requiredReturn: 12 }, fcfYield: { targetYield: 8 } },
-  reit: { dcf: { growthRate: 3, discountRate: 8, horizonYears: 10 }, per: { targetPE: 20 }, pb: { targetPB: 1.5 }, ps: { targetPS: 5 }, evEbitda: { targetMultiple: 14 }, evEbit: { targetMultiple: 16 }, ddm: { growthRate: 3, requiredReturn: 8 }, fcfYield: { targetYield: 5 } },
-  'auto - manufacturers': { dcf: { growthRate: 5, discountRate: 11, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 8 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 2, requiredReturn: 11 }, fcfYield: { targetYield: 6 } },
-  'auto manufacturers': { dcf: { growthRate: 5, discountRate: 11, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 8 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 2, requiredReturn: 11 }, fcfYield: { targetYield: 6 } },
+  reit: { dcf: { growthRate: 3, discountRate: 8, horizonYears: 10 }, per: { targetPE: 20 }, pb: { targetPB: 1.5 }, ps: { targetPS: 5 }, evEbitda: { targetMultiple: 14 }, evEbit: { targetMultiple: 16 }, ddm: { growthRate: 3, requiredReturn: 8 }, fcfYield: { targetYield: 8 } },
+  'auto - manufacturers': { dcf: { growthRate: 5, discountRate: 11, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 6 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 2, requiredReturn: 11 }, fcfYield: { targetYield: 6 } },
+  'auto manufacturers': { dcf: { growthRate: 5, discountRate: 11, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 6 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 2, requiredReturn: 11 }, fcfYield: { targetYield: 6 } },
   'drug manufacturers - general': { dcf: { growthRate: 5, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 4 }, ps: { targetPS: 5 }, evEbitda: { targetMultiple: 14 }, evEbit: { targetMultiple: 18 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   'internet - content': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 6 }, ps: { targetPS: 7 }, evEbitda: { targetMultiple: 18 }, evEbit: { targetMultiple: 22 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   'internet content & information': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 6 }, ps: { targetPS: 7 }, evEbitda: { targetMultiple: 18 }, evEbit: { targetMultiple: 22 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
-  'internet retail': { dcf: { growthRate: 10, discountRate: 11, horizonYears: 10 }, per: { targetPE: 30 }, pb: { targetPB: 10 }, ps: { targetPS: 3 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 0, requiredReturn: 11 }, fcfYield: { targetYield: 3 } },
+  'internet retail': { dcf: { growthRate: 8, discountRate: 11, horizonYears: 10 }, per: { targetPE: 20 }, pb: { targetPB: 6 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 12 }, evEbit: { targetMultiple: 15 }, ddm: { growthRate: 0, requiredReturn: 11 }, fcfYield: { targetYield: 5 } },
+  'lodging': { dcf: { growthRate: 4, discountRate: 11, horizonYears: 10 }, per: { targetPE: 14 }, pb: { targetPB: 2 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 8 }, evEbit: { targetMultiple: 10 }, ddm: { growthRate: 2, requiredReturn: 11 }, fcfYield: { targetYield: 6 } },
   'specialty retail': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 3 }, ps: { targetPS: 1 }, evEbitda: { targetMultiple: 10 }, evEbit: { targetMultiple: 12 }, ddm: { growthRate: 3, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
   'software - infrastructure': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
   'software - application': { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
@@ -462,6 +488,8 @@ const SECTOR_CONFIGS: Record<string, ValuationConfigs> = {
   'telecom services': { dcf: { growthRate: 2, discountRate: 9, horizonYears: 10 }, per: { targetPE: 15 }, pb: { targetPB: 1.5 }, ps: { targetPS: 2 }, evEbitda: { targetMultiple: 7 }, evEbit: { targetMultiple: 9 }, ddm: { growthRate: 3, requiredReturn: 9 }, fcfYield: { targetYield: 6 } },
   'consumer defensive': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 12 }, evEbit: { targetMultiple: 15 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
   'grocery stores': { dcf: { growthRate: 4, discountRate: 10, horizonYears: 10 }, per: { targetPE: 18 }, pb: { targetPB: 3 }, ps: { targetPS: 1.5 }, evEbitda: { targetMultiple: 12 }, evEbit: { targetMultiple: 15 }, ddm: { growthRate: 4, requiredReturn: 10 }, fcfYield: { targetYield: 5 } },
+  'real estate': { dcf: { growthRate: 3, discountRate: 8, horizonYears: 10 }, per: { targetPE: 20 }, pb: { targetPB: 1.5 }, ps: { targetPS: 5 }, evEbitda: { targetMultiple: 14 }, evEbit: { targetMultiple: 16 }, ddm: { growthRate: 3, requiredReturn: 8 }, fcfYield: { targetYield: 8 } },
+  technology: { dcf: { growthRate: 8, discountRate: 10, horizonYears: 10 }, per: { targetPE: 25 }, pb: { targetPB: 8 }, ps: { targetPS: 8 }, evEbitda: { targetMultiple: 20 }, evEbit: { targetMultiple: 25 }, ddm: { growthRate: 5, requiredReturn: 10 }, fcfYield: { targetYield: 4 } },
 };
 
 export function getSectorConfigs(sector: string | null | undefined, industry?: string | null): ValuationConfigs {
@@ -485,12 +513,12 @@ const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   'auto manufacturers': 'ev_ebitda',
   reit: 'fcf_yield',
   'real estate': 'fcf_yield',
-  technology: 'dcf',
   semiconductors: 'dcf',
   'internet content': 'ps',
   'internet - content': 'ps',
   'internet content & information': 'ps',
-  'internet retail': 'ps',
+  'internet retail': 'ev_ebitda',
+  lodging: 'ev_ebitda',
   'consumer electronics': 'ps',
   'drug manufacturers': 'dcf',
   'specialty retail': 'per',
@@ -499,6 +527,7 @@ const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   'telecoms': 'ev_ebitda',
   software: 'dcf',
   'consumer defensive': 'per',
+  technology: 'dcf',
   default: 'dcf',
 };
 
@@ -516,15 +545,16 @@ export function getRecommendedFairValue(results: ValuationResult[], sector: stri
   return { model, fairValue };
 }
 
-export function computeAll(input: ValuationInput, configs: ValuationConfigs): ValuationResult[] {
+export function computeAll(input: ValuationInput, configs: ValuationConfigs, sector?: string | null, industry?: string | null): ValuationResult[] {
   const currentPrice = input.stock?.currentPrice ?? 0;
+  const financial = isFinancial(sector, industry);
   const results = [
     computeDCF(input, configs.dcf),
     computePER(input, configs.per),
     computePB(input, configs.pb),
-    computePS(input, configs.ps),
-    computeEVEBITDA(input, configs.evEbitda),
-    computeEVEBIT(input, configs.evEbit),
+    financial ? { id: 'ps', name: 'P/S', fairValue: null, confidence: 'na' as const, confidenceReason: 'P/S no aplica a banca/seguros' } : computePS(input, configs.ps),
+    financial ? { id: 'ev_ebitda', name: 'EV/EBITDA', fairValue: null, confidence: 'na' as const, confidenceReason: 'EV/EBITDA no aplica a banca/seguros' } : computeEVEBITDA(input, configs.evEbitda),
+    financial ? { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na' as const, confidenceReason: 'EV/EBIT no aplica a banca/seguros' } : computeEVEBIT(input, configs.evEbit),
     computeDDM(input, configs.ddm),
     computeGrahamNumber(input),
     computeFCFYield(input, configs.fcfYield),

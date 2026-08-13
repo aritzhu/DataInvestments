@@ -1,7 +1,7 @@
 import prisma from '../infrastructure/prisma/client';
 import { fetchYahooQuote } from './yahoo';
 import { fetchYFinanceInfo } from './yfinanceSidecar';
-import { resolveShares } from './dataAggregator';
+import { resolveShares, sanitizeEnterpriseValue, sanitizeRatio } from './dataAggregator';
 import { computeAll, getRecommendedFairValue, getSectorConfigs } from './valuationService';
 import { applyCompanyOverrides } from './overrides';
 
@@ -37,7 +37,7 @@ export async function recomputeIntrinsic(companyId: string, ticker: string, sect
   if (!stock || financials.length === 0) return;
 
   const configs = getSectorConfigs(sector, industry);
-  const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs);
+  const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs, sector, industry);
   const { fairValue } = getRecommendedFairValue(results, sector, industry);
 
   const intrinsicValue = fairValue != null && fairValue > 0 ? fairValue : null;
@@ -58,6 +58,7 @@ export async function recomputeIntrinsic(companyId: string, ticker: string, sect
 // (no full financial re-sync), then recomputes stored valuations.
 export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: number }> {
   const companies = await prisma.company.findMany({
+    where: { active: true },
     select: { id: true, ticker: true, sector: true, industry: true },
     orderBy: { ticker: 'asc' },
   });
@@ -91,11 +92,11 @@ export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: 
         currentPrice,
         sharesOutstanding: shares,
         marketCap: mcap,
-        peRatio: info?.trailingPE ?? existing?.peRatio ?? null,
-        pbRatio: info?.priceToBook ?? existing?.pbRatio ?? null,
-        psRatio: info?.priceToSalesTrailing12Months ?? existing?.psRatio ?? null,
+        peRatio: sanitizeRatio(info?.trailingPE ?? existing?.peRatio ?? null, 150),
+        pbRatio: sanitizeRatio(info?.priceToBook ?? existing?.pbRatio ?? null, 50),
+        psRatio: sanitizeRatio(info?.priceToSalesTrailing12Months ?? existing?.psRatio ?? null, 50),
         dividendYield: info?.dividendYield ?? existing?.dividendYield ?? null,
-        enterpriseValue: info?.enterpriseValue ?? existing?.enterpriseValue ?? null,
+        enterpriseValue: sanitizeEnterpriseValue(info?.enterpriseValue, mcap, existing?.enterpriseValue ?? null),
         beta: info?.beta ?? existing?.beta ?? null,
         forwardPE: info?.forwardPE ?? existing?.forwardPE ?? null,
         targetMeanPrice: info?.targetMeanPrice ?? existing?.targetMeanPrice ?? null,
