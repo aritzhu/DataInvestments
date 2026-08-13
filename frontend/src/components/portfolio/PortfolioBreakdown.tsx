@@ -1,4 +1,6 @@
 import type { PortfolioValuation } from '../../types/portfolio';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 interface Props {
   valuation: PortfolioValuation;
@@ -54,6 +56,10 @@ export function PortfolioBreakdown({ valuation }: Props) {
   const { stats, summary } = valuation;
   return (
     <div className="pf-bd-grid">
+      <div className="pf-bd-header">
+        <h3 className="pf-bd-heading">Desglose de la cartera</h3>
+        <InfoButton content={INFO['portfolio.breakdown']} />
+      </div>
       <section className="pf-bd-card">
         <h3 className="pf-bd-title">Sectores</h3>
         <BarList

@@ -9,6 +9,8 @@ import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VE
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X } from 'lucide-react';
 import { DisclaimerBanner } from '../DisclaimerBanner';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 import '../../styles/stockvalue.css';
 
 const getAuth = () => {
@@ -187,7 +189,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
             <span className="val-hero-amount">
               {recommendedFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${recommendedFair.toFixed(2)}` : '—'}
             </span>
-            <span className="val-hero-label">Valor justo</span>
+            <span className="val-hero-label"><span className="info-label-row">Valor justo <InfoButton content={INFO['valuation.hero']} /></span></span>
             <span className="val-hero-method"><AbbrTip abbr={METHOD_NAMES[recommendedModel] || recommendedModel} /></span>
           </div>
 
@@ -315,7 +317,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 </div>
                 {active.fairValue && stock.currentPrice > 0 && (
                   <div className="val-margin">
-                    <span className="val-margin-label">Margen de seguridad</span>
+                    <span className="val-margin-label"><span className="info-label-row">Margen de seguridad <InfoButton content={INFO['valuation.marginOfSafety']} /></span></span>
                     <span className={`val-margin-value ${(active.fairValue - stock.currentPrice) / stock.currentPrice > 0 ? 'positive' : 'negative'}`}>
                       {formatPct((active.fairValue - stock.currentPrice) / stock.currentPrice)}
                     </span>
@@ -350,19 +352,19 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar DCF</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Crecimiento anual</label>
+                    <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
                     <input type="range" min={0} max={15} step={0.5} value={configs.dcf.growthRate}
                       onChange={(e) => updateConfig('dcf', 'growthRate', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.growthRate}%</span>
                   </div>
                   <div className="val-config-item">
-                    <label className="val-config-label">Tasa de descuento</label>
+                    <label className="val-config-label"><span className="info-label-row">Tasa de descuento <InfoButton content={INFO['valuation.discountRate']} /></span></label>
                     <input type="range" min={5} max={20} step={0.5} value={configs.dcf.discountRate}
                       onChange={(e) => updateConfig('dcf', 'discountRate', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.discountRate}%</span>
                   </div>
                   <div className="val-config-item">
-                    <label className="val-config-label">Horizonte (años)</label>
+                    <label className="val-config-label"><span className="info-label-row">Horizonte (años) <InfoButton content={INFO['valuation.horizon']} /></span></label>
                     <input type="range" min={3} max={20} step={1} value={configs.dcf.horizonYears}
                       onChange={(e) => updateConfig('dcf', 'horizonYears', parseInt(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.horizonYears}</span>
@@ -375,7 +377,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar PER</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Target P/E</label>
+                    <label className="val-config-label"><span className="info-label-row">Target P/E <InfoButton content={INFO['valuation.targetPE']} /></span></label>
                     <input type="range" min={5} max={50} step={1} value={configs.per.targetPE}
                       onChange={(e) => updateConfig('per', 'targetPE', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.per.targetPE}x</span>
@@ -388,7 +390,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar P/B</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Target P/B</label>
+                    <label className="val-config-label"><span className="info-label-row">Target P/B <InfoButton content={INFO['valuation.targetPB']} /></span></label>
                     <input type="range" min={0.5} max={10} step={0.5} value={configs.pb.targetPB}
                       onChange={(e) => updateConfig('pb', 'targetPB', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.pb.targetPB}x</span>
@@ -401,7 +403,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar P/S</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Target P/S</label>
+                    <label className="val-config-label"><span className="info-label-row">Target P/S <InfoButton content={INFO['valuation.targetPS']} /></span></label>
                     <input type="range" min={0.5} max={20} step={0.5} value={configs.ps.targetPS}
                       onChange={(e) => updateConfig('ps', 'targetPS', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.ps.targetPS}x</span>
@@ -414,7 +416,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar EV/EBITDA</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Múltiplo objetivo</label>
+                    <label className="val-config-label"><span className="info-label-row">Múltiplo objetivo <InfoButton content={INFO['valuation.targetMultiple']} /></span></label>
                     <input type="range" min={5} max={30} step={0.5} value={configs.evEbitda.targetMultiple}
                       onChange={(e) => updateConfig('evEbitda', 'targetMultiple', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.evEbitda.targetMultiple}x</span>
@@ -427,7 +429,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar EV/EBIT</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Múltiplo objetivo</label>
+                    <label className="val-config-label"><span className="info-label-row">Múltiplo objetivo <InfoButton content={INFO['valuation.targetMultiple']} /></span></label>
                     <input type="range" min={5} max={40} step={0.5} value={configs.evEbit.targetMultiple}
                       onChange={(e) => updateConfig('evEbit', 'targetMultiple', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.evEbit.targetMultiple}x</span>
@@ -440,13 +442,13 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar DDM</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">Crecimiento de dividendos</label>
+                    <label className="val-config-label"><span className="info-label-row">Crecimiento de dividendos <InfoButton content={INFO['valuation.ddmGrowth']} /></span></label>
                     <input type="range" min={0} max={10} step={0.5} value={configs.ddm.growthRate}
                       onChange={(e) => updateConfig('ddm', 'growthRate', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.ddm.growthRate}%</span>
                   </div>
                   <div className="val-config-item">
-                    <label className="val-config-label">Retorno requerido</label>
+                    <label className="val-config-label"><span className="info-label-row">Retorno requerido <InfoButton content={INFO['valuation.ddmReturn']} /></span></label>
                     <input type="range" min={5} max={20} step={0.5} value={configs.ddm.requiredReturn}
                       onChange={(e) => updateConfig('ddm', 'requiredReturn', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.ddm.requiredReturn}%</span>
@@ -459,7 +461,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h4 className="val-config-title">Configurar FCF Yield</h4>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label">FCF Yield objetivo</label>
+                    <label className="val-config-label"><span className="info-label-row">FCF Yield objetivo <InfoButton content={INFO['valuation.fcfYieldTarget']} /></span></label>
                     <input type="range" min={2} max={15} step={0.5} value={configs.fcfYield.targetYield}
                       onChange={(e) => updateConfig('fcfYield', 'targetYield', parseFloat(e.target.value))} className="val-config-slider" />
                     <span className="val-config-value">{configs.fcfYield.targetYield}%</span>
@@ -473,6 +475,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               <div className="val-negative-warning">
                 <span className="val-negative-warning-icon">⚠️</span>
                 <span>{active.negativeInputWarning}</span>
+                <InfoButton content={INFO['valuation.uncertainty']} />
               </div>
             )}
             {/* Warning for partial quarterly data */}
@@ -480,6 +483,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               <div className="val-negative-warning">
                 <span className="val-negative-warning-icon">⚠️</span>
                 <span>{active.dataWarning}</span>
+                <InfoButton content={INFO['valuation.uncertainty']} />
               </div>
             )}
             {/* Confidence */}
@@ -505,7 +509,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
       {/* Quality & Strength */}
       <SectionReveal delay={320}>
         <div className="val-quality">
-          <h4 className="val-quality-title">Calidad y solidez financiera</h4>
+          <h4 className="val-quality-title"><span className="info-label-row">Calidad y solidez financiera <InfoButton content={INFO['valuation.quality']} /></span></h4>
           <div className="val-quality-grid">
             <div className="val-q-card">
               <span className="val-q-label"><AbbrTip abbr="ROE" /></span>

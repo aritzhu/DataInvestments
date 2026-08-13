@@ -51,6 +51,12 @@
   margin-bottom: 1.5rem;
 }
 
+.fav-tabs > .info-btn-root {
+  margin-left: auto;
+  align-self: center;
+  margin-right: 0.5rem;
+}
+
 .fav-tab {
   display: flex;
   align-items: center;

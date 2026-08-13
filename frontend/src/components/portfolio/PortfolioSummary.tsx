@@ -1,4 +1,6 @@
 import type { PortfolioValuation } from '../../types/portfolio';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 interface Props {
   valuation: PortfolioValuation;
@@ -27,35 +29,35 @@ export function PortfolioSummary({ valuation }: Props) {
   return (
     <div className="pf-summary-grid">
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Invertido</p>
+        <p className="pf-summary-label"><span className="info-label-row">Invertido <InfoButton content={INFO['portfolio.invested']} /></span></p>
         <p className="pf-summary-value">{fmt(summary.totalInvested)}</p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Valor Actual</p>
+        <p className="pf-summary-label"><span className="info-label-row">Valor Actual <InfoButton content={INFO['portfolio.value']} /></span></p>
         <p className="pf-summary-value">{fmt(summary.totalValue)}</p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">P&L Total</p>
+        <p className="pf-summary-label"><span className="info-label-row">P&L Total <InfoButton content={INFO['portfolio.pl']} /></span></p>
         <p className={`pf-summary-value ${isPositive ? 'pf-summary-value--positive' : 'pf-summary-value--negative'}`}>
           {fmt(summary.totalPL)}
         </p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Rentabilidad</p>
+        <p className="pf-summary-label"><span className="info-label-row">Rentabilidad <InfoButton content={INFO['portfolio.profit']} /></span></p>
         <p className={`pf-summary-value ${isPositive ? 'pf-summary-value--positive' : 'pf-summary-value--negative'}`}>
           {fmtPct(summary.totalPLPercent)}
         </p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Infravaloradas</p>
+        <p className="pf-summary-label"><span className="info-label-row">Infravaloradas <InfoButton content={INFO['portfolio.undervalued']} /></span></p>
         <p className="pf-summary-value pf-summary-value--positive">{summary.undervaluedCount} / {summary.holdingCount}</p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Valor Intrínseco</p>
+        <p className="pf-summary-label"><span className="info-label-row">Valor Intrínseco <InfoButton content={INFO['portfolio.fairValue']} /></span></p>
         <p className="pf-summary-value">{fmt(summary.fairValueTotal)}</p>
       </div>
       <div className="pf-summary-card">
-        <p className="pf-summary-label">Gap vs Cotización</p>
+        <p className="pf-summary-label"><span className="info-label-row">Gap vs Cotización <InfoButton content={INFO['portfolio.gap']} /></span></p>
         <p className={`pf-summary-value ${isUndervaluedPortfolio ? 'pf-summary-value--positive' : 'pf-summary-value--negative'}`}>
           {fmtPct(gap)}
         </p>

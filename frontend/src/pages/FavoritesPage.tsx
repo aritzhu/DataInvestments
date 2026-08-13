@@ -4,6 +4,8 @@ import { Heart, Clock, Bell, Trash2, CheckCircle, Circle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER } from '../utils/valuation';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
+import { InfoButton } from '../components/ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import '../styles/favorites.css';
 
 interface Alarm {
@@ -90,7 +92,7 @@ export function FavoritesPage() {
           <Clock size={16} className="fav-header-clock" />
         </div>
         <div>
-          <h1 className="fav-title">Favoritos y Alarmas</h1>
+          <h1 className="fav-title"><span className="info-label-row">Favoritos y Alarmas <InfoButton content={INFO['favorites.header']} /></span></h1>
           <p className="fav-subtitle">Gestiona tus empresas favoritas y sus alarmas de valoración</p>
         </div>
       </div>
@@ -112,6 +114,7 @@ export function FavoritesPage() {
           Alarmas
           <span className="fav-tab-count">{alarms.length}</span>
         </button>
+        <InfoButton content={INFO['favorites.card']} align="right" />
       </div>
 
       {activeTab === 'favorites' && (

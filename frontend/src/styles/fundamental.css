@@ -24,6 +24,15 @@
   flex-wrap: wrap;
 }
 
+.fund-freshness-row > .fund-intro {
+  flex: 1 1 auto;
+}
+
+.fund-freshness-row > .info-btn-root {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .fund-freshness-chip {
   display: inline-flex;
   align-items: center;

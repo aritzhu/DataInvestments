@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { PortfolioHistory, PortfolioValuationHolding } from '../../types/portfolio';
 import { ChartRangeChips, ChartTooltip, fmtDate, fmtMoney } from './chartShared';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 interface Props {
   history: PortfolioHistory;
@@ -57,7 +59,7 @@ export function SectorValuationChart({ history, holdings, excluded, months, onRa
   return (
     <div className="pf-chart-card">
       <div className="pf-chart-header">
-        <h3 className="pf-chart-title">Valoración por sector</h3>
+        <h3 className="pf-chart-title"><span className="info-label-row">Valoración por sector <InfoButton content={INFO['portfolio.sectorValuation']} /></span></h3>
         <ChartRangeChips months={months} onRangeChange={onRangeChange} />
       </div>
       {sectors.length > 0 && (

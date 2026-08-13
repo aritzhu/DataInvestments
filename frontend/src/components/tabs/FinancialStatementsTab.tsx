@@ -6,6 +6,8 @@ import { SectionReveal } from '../ui/SectionReveal';
 import { SkeletonTable } from '../ui/Skeleton';
 import { FinancialSankey } from '../FinancialSankey';
 import { formatNum, pctOf, safeDiv } from '../../utils/format';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 import '../../styles/statements.css';
 import '../../styles/cashflow.css';
 import '../../styles/revenue.css';
@@ -85,7 +87,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
       {stock && (
         <SectionReveal delay={0}>
           <div className="fs-verdict-card">
-            <div className="fs-verdict-title">¿Estás pagando un precio justo por estos beneficios?</div>
+            <div className="fs-verdict-title"><span className="info-label-row">¿Estás pagando un precio justo por estos beneficios? <InfoButton content={INFO['statements.fairPrice']} /></span></div>
             <div className="fs-verdict-grid">
               {(() => {
                 const eps = stock.sharesOutstanding ? f.netIncome / stock.sharesOutstanding : null;

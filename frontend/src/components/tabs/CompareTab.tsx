@@ -3,6 +3,8 @@ import { BarChart3, TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 import { SectionReveal } from '../ui/SectionReveal';
 import { SkeletonTable } from '../ui/Skeleton';
 import { MarketComparisonChart, type MarketData } from '../ui/MarketComparisonChart';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 import type { CompanyProfile } from '../CompanyPage';
 import '../../styles/compare.css';
 
@@ -134,7 +136,10 @@ export function CompareTab({ company, financial, stock }: Props) {
       {/* Header */}
       <SectionReveal delay={0}>
         <div className="cmp-header">
-          <h3 className="cmp-title">Comparacion con el Mercado</h3>
+          <div className="section-title-wrap">
+            <h3 className="cmp-title">Comparacion con el Mercado</h3>
+            <InfoButton content={INFO['compare.header']} />
+          </div>
           <p className="cmp-subtitle">
             Como se compara <strong>{company.ticker}</strong> con su sector ({company.sector || 'N/A'}) y el S&P 500{financial?.year ? ` · Período de la empresa: ejercicio ${financial.year}` : ''}
           </p>

@@ -9,6 +9,8 @@ import { ScrollIndicator } from './hero/ScrollIndicator';
 import { DisclaimerBanner } from './DisclaimerBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
+import { InfoButton } from './ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import '../styles/landing.css';
 
 interface CompanyFromAPI {
@@ -385,7 +387,10 @@ export function Landing() {
                   <SectionReveal delay={0}>
                     <div className="valuation-header valuation-header--green">
                       <TrendingUp size={22} className="valuation-icon valuation-icon--green" />
-                      <h2 className="valuation-title">{heroSettings.undervalued_title || 'Empresas potencialmente infravaloradas'}</h2>
+                      <div className="section-title-wrap">
+                        <h2 className="valuation-title">{heroSettings.undervalued_title || 'Empresas potencialmente infravaloradas'}</h2>
+                        <InfoButton content={INFO['landing.undervalued']} />
+                      </div>
                       <p className="valuation-subtitle">{heroSettings.undervalued_subtitle || 'Empresas con margen de seguridad positivo según estimaciones de modelo. Análisis informativo, no una recomendación de compra.'}</p>
                     </div>
                   </SectionReveal>
@@ -445,7 +450,10 @@ export function Landing() {
                   <SectionReveal delay={100}>
                     <div className="valuation-header valuation-header--red">
                       <TrendingDown size={22} className="valuation-icon valuation-icon--red" />
-                      <h2 className="valuation-title">{heroSettings.overvalued_title || 'Empresas potencialmente sobrevaloradas'}</h2>
+                      <div className="section-title-wrap">
+                        <h2 className="valuation-title">{heroSettings.overvalued_title || 'Empresas potencialmente sobrevaloradas'}</h2>
+                        <InfoButton content={INFO['landing.overvalued']} />
+                      </div>
                       <p className="valuation-subtitle">{heroSettings.overvalued_subtitle || 'Empresas que el mercado sobreestima según estimaciones de modelo. Análisis informativo, no una recomendación de venta.'}</p>
                     </div>
                   </SectionReveal>
@@ -508,7 +516,10 @@ export function Landing() {
         <section id="books" className="books-section">
           <div className="books-inner">
             <div className="books-header">
-              <h2 className="books-title">Lecturas recomendadas</h2>
+              <div className="section-title-wrap">
+                <h2 className="books-title">Lecturas recomendadas</h2>
+                <InfoButton content={INFO['landing.books']} />
+              </div>
               <p className="books-subtitle">Libros para entender el valor real de las empresas y el value investing</p>
             </div>
             <BookCarousel books={books} />
@@ -522,7 +533,10 @@ export function Landing() {
           <SectionReveal delay={0}>
             <div className="features-header">
               <span className="features-kicker">Herramientas de análisis</span>
-              <h2 className="features-title">¿Qué puedes analizar?</h2>
+              <div className="section-title-wrap">
+                <h2 className="features-title">¿Qué puedes analizar?</h2>
+                <InfoButton content={INFO['landing.features']} />
+              </div>
               <p className="features-subtitle">Herramientas diseñadas para inversores que buscan entender los números</p>
             </div>
           </SectionReveal>
@@ -588,7 +602,10 @@ export function Landing() {
         <div className="companies-inner">
           <SectionReveal delay={0}>
             <div className="companies-header">
-              <h2 className="companies-title">Empresas Disponibles</h2>
+              <div className="section-title-wrap">
+                <h2 className="companies-title">Empresas Disponibles</h2>
+                <InfoButton content={INFO['landing.listMetrics']} />
+              </div>
               <p className="companies-subtitle">Selecciona una empresa para comenzar el análisis</p>
             </div>
           </SectionReveal>
@@ -650,6 +667,7 @@ export function Landing() {
               </div>
               <div className="screener-row">
                 <span className="screener-title">Screening</span>
+                <InfoButton content={INFO['landing.listMetrics']} align="right" />
                 <input
                   type="number"
                   placeholder="Margen neto mín. %"
@@ -884,6 +902,7 @@ export function Landing() {
               </p>
               <label className="pagination-size">
                 Ver por página
+                <InfoButton content={INFO['landing.pageSize']} />
                 <select
                   className="pagination-size-select"
                   value={pageSize}

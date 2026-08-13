@@ -8,6 +8,8 @@ import { fmtCurrencyShort, formatPct } from '../../utils/format';
 import { computeGrowth, computeSolvency, computeShareholderReturns, computeEfficiency } from '../../utils/fundamental';
 import { getMetricConfidence, parseWarningFields, type MetricConfidence } from '../../utils/metricConfidence';
 import { FUND_SECTION_INFO, type FundSectionInfo } from '../../utils/fundamentalEducation';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 import '../../styles/fundamental.css';
 
 interface Props {
@@ -159,9 +161,12 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
 
   return (
     <div className="fund-page">
-      <p className="fund-intro">
-        Análisis fundamental de <strong>{company.name}</strong> ({company.ticker}) basado en sus estados financieros ({growth.availableYears} ejercicios disponibles). Las métricas usan los últimos 12 meses salvo que se indique lo contrario.
-      </p>
+      <div className="fund-freshness-row">
+        <p className="fund-intro">
+          Análisis fundamental de <strong>{company.name}</strong> ({company.ticker}) basado en sus estados financieros ({growth.availableYears} ejercicios disponibles). Las métricas usan los últimos 12 meses salvo que se indique lo contrario.
+        </p>
+        <InfoButton content={INFO['fundamental.header']} align="right" />
+      </div>
 
       <div className="fund-freshness-row">
         <span className={`fund-freshness-chip fund-freshness-chip--${freshnessTone}`}>
@@ -185,7 +190,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--green"><TrendingUp size={18} /></span>
-            <h3 className="fund-section-title">Crecimiento</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Crecimiento <InfoButton content={INFO['fundamental.growth']} /></span></h3>
           </header>
           <div className="fund-grid">
             <Metric label="Rev YoY" value={cagr(growth.revenueYoY)} positive={(growth.revenueYoY ?? 0) > 0} negative={(growth.revenueYoY ?? 0) < 0} />
@@ -211,7 +216,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--blue"><ShieldCheck size={18} /></span>
-            <h3 className="fund-section-title">Solvencia</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Solvencia <InfoButton content={INFO['fundamental.solvency']} /></span></h3>
           </header>
           <div className="fund-grid">
             <Metric label="Deuda neta" value={fmtCurrencyShort(solvency.netDebt, currency)} negative={(solvency.netDebt ?? 0) > 0} positive={(solvency.netDebt ?? 0) < 0} confidence={conf('netDebt')} />
@@ -231,7 +236,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--amber"><HandCoins size={18} /></span>
-            <h3 className="fund-section-title">Retorno al accionista</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Retorno al accionista <InfoButton content={INFO['fundamental.returns']} /></span></h3>
           </header>
           <div className="fund-grid">
             <Metric label="Payout" value={formatPct(shareholder.payoutRatio)} negative={shareholder.payoutRatio != null && shareholder.payoutRatio > 0.9} positive={shareholder.payoutRatio != null && shareholder.payoutRatio > 0 && shareholder.payoutRatio <= 0.6} confidence={conf('payoutRatio')} />
@@ -249,7 +254,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--purple"><Gauge size={18} /></span>
-            <h3 className="fund-section-title">Eficiencia y análisis DuPont</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Eficiencia y análisis DuPont <InfoButton content={INFO['fundamental.efficiency']} /></span></h3>
           </header>
           <div className="fund-dupont">
             <div className="fund-dupont-equation">
@@ -283,7 +288,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--indigo"><Users size={18} /></span>
-            <h3 className="fund-section-title">Comparación con el sector</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Comparación con el sector <InfoButton content={INFO['fundamental.peers']} /></span></h3>
           </header>
           <CompareTab company={company} financial={financial} stock={stock} />
           <FundGuide info={FUND_SECTION_INFO.peers} />
@@ -295,7 +300,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--slate"><Target size={18} /></span>
-            <h3 className="fund-section-title">Perspectiva y riesgo</h3>
+            <h3 className="fund-section-title"><span className="info-label-row">Perspectiva y riesgo <InfoButton content={INFO['fundamental.forward']} /></span></h3>
           </header>
           {hasForward ? (
             <>

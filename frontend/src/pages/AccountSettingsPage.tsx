@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { User, Shield, Sun, Moon, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme } from '../utils/theme';
+import { InfoButton } from '../components/ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import '../styles/settings.css';
 
 export function AccountSettingsPage() {
@@ -97,7 +99,7 @@ export function AccountSettingsPage() {
         <section className="set-card">
           <div className="set-card-header">
             <User size={18} className="set-card-icon" />
-            <h2 className="set-card-title">Perfil</h2>
+            <h2 className="set-card-title"><span className="info-label-row">Perfil <InfoButton content={INFO['settings.profile']} /></span></h2>
           </div>
           <form className="set-form" onSubmit={handleProfile}>
             {profileError && <div className="auth-error">{profileError}</div>}
@@ -136,7 +138,7 @@ export function AccountSettingsPage() {
         <section className="set-card">
           <div className="set-card-header">
             <Shield size={18} className="set-card-icon" />
-            <h2 className="set-card-title">Seguridad</h2>
+            <h2 className="set-card-title"><span className="info-label-row">Seguridad <InfoButton content={INFO['settings.security']} /></span></h2>
           </div>
           <form className="set-form" onSubmit={handlePassword}>
             {pwError && <div className="auth-error">{pwError}</div>}
@@ -192,7 +194,7 @@ export function AccountSettingsPage() {
         <section className="set-card">
           <div className="set-card-header">
             <Sun size={18} className="set-card-icon" />
-            <h2 className="set-card-title">Preferencias</h2>
+            <h2 className="set-card-title"><span className="info-label-row">Preferencias <InfoButton content={INFO['settings.preferences']} /></span></h2>
           </div>
           <div className="set-form">
             <p className="set-note">Elige el tema de la aplicación. Se guarda en tu cuenta.</p>
@@ -224,7 +226,7 @@ export function AccountSettingsPage() {
         <section className="set-card set-card--danger">
           <div className="set-card-header">
             <Trash2 size={18} className="set-card-icon set-card-icon--danger" />
-            <h2 className="set-card-title">Zona de peligro</h2>
+            <h2 className="set-card-title"><span className="info-label-row">Zona de peligro <InfoButton content={INFO['settings.dangerZone']} variant="danger" /></span></h2>
           </div>
           {!confirmDelete ? (
             <button

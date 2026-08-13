@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { PortfolioHistory, PortfolioValuationHolding } from '../../types/portfolio';
 import { ChartRangeChips, PALETTE, fmtDate, fmtMoney } from './chartShared';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 interface Props {
   history: PortfolioHistory;
@@ -87,7 +89,7 @@ export function PortfolioPriceChart({ history, holdings, excluded, months, onRan
   return (
     <div className="pf-chart-card">
       <div className="pf-chart-header">
-        <h3 className="pf-chart-title">Evolución de precios</h3>
+        <h3 className="pf-chart-title"><span className="info-label-row">Evolución de precios <InfoButton content={INFO['portfolio.priceChart']} /></span></h3>
         <div className="pf-chart-actions">
           <button className={`pf-chart-range ${relative ? 'pf-chart-range--active' : ''}`} onClick={() => setRelative((v) => !v)}>
             {relative ? 'Relativo %' : 'Precio real'}

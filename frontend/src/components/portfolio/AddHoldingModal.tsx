@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Search } from 'lucide-react';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 const getAuth = () => {
   const token = localStorage.getItem('token');
@@ -67,7 +69,7 @@ export function AddHoldingModal({ onSave, onClose, initial }: Props) {
     <div className="pf-modal-overlay" onClick={onClose}>
       <div className="pf-modal" onClick={(e) => e.stopPropagation()}>
         <div className="pf-modal-header">
-          <h2>{initial ? 'Editar Posición' : 'Añadir Posición'}</h2>
+          <h2><span className="info-label-row">{initial ? 'Editar Posición' : 'Añadir Posición'} <InfoButton content={INFO['portfolio.addHolding']} /></span></h2>
           <button onClick={onClose} className="pf-modal-close">
             <X size={20} />
           </button>
@@ -113,7 +115,7 @@ export function AddHoldingModal({ onSave, onClose, initial }: Props) {
 
             <div className="pf-input-row">
               <div className="pf-form-group">
-                <label>Cantidad</label>
+                <label><span className="info-label-row">Cantidad <InfoButton content={INFO['portfolio.holdingQty']} /></span></label>
                 <input
                   type="number"
                   value={quantity}
@@ -126,7 +128,7 @@ export function AddHoldingModal({ onSave, onClose, initial }: Props) {
                 />
               </div>
               <div className="pf-form-group">
-                <label>Precio medio de compra</label>
+                <label><span className="info-label-row">Precio medio de compra <InfoButton content={INFO['portfolio.holdingAvg']} /></span></label>
                 <input
                   type="number"
                   value={averageCost}

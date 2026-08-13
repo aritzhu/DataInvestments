@@ -12,6 +12,8 @@ import { PortfolioBreakdown } from '../components/portfolio/PortfolioBreakdown';
 import { PortfolioTargetChart } from '../components/portfolio/PortfolioTargetChart';
 import { PortfolioPriceChart } from '../components/portfolio/PortfolioPriceChart';
 import { SectorValuationChart } from '../components/portfolio/SectorValuationChart';
+import { InfoButton } from '../components/ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import '../styles/portfolio.css';
 
 function computeSummary(holdings: PortfolioValuationHolding[]) {
@@ -162,7 +164,7 @@ export function PortfolioDetailPage() {
             <Briefcase size={20} />
           </div>
           <div>
-            <h1 className="pf-detail-title">{portfolio.name}</h1>
+            <h1 className="pf-detail-title"><span className="info-label-row">{portfolio.name} <InfoButton content={INFO['portfolio.intro']} /></span></h1>
             {portfolio.description && (
               <p className="pf-detail-desc">{portfolio.description}</p>
             )}
@@ -233,7 +235,7 @@ export function PortfolioDetailPage() {
 
       <div className="pf-holdings-header" style={{ marginTop: '1.5rem' }}>
         <h2 className="pf-holdings-title">
-          Posiciones {valuation && `(${valuation.holdings.length})`}
+          <span className="info-label-row">Posiciones {valuation && `(${valuation.holdings.length})`} <InfoButton content={INFO['portfolio.positions']} /></span>
         </h2>
         <button onClick={() => setShowAddHolding(true)} className="pf-btn-primary">
           <Plus size={14} />

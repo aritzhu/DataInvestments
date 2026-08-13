@@ -757,6 +757,22 @@
   gap: 1rem;
 }
 
+.pf-bd-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.25rem;
+}
+
+.pf-bd-heading {
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
 .pf-bd-card,
 .pf-chart-card {
   background: var(--surface-1);

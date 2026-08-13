@@ -6,6 +6,8 @@ import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
 import { formatPct, safeDiv } from '../utils/format';
 import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, type ValuationInput } from '../utils/valuation';
+import { InfoButton } from './ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
@@ -643,7 +645,7 @@ export function CompanyPage() {
       <div className="cp-quick">
         {avgFair != null && stock && (
           <div className="cp-quick-item cp-quick-verdict">
-            <span className="cp-quick-label">Valoración</span>
+            <span className="cp-quick-label"><span className="info-label-row">Valoración <InfoButton content={INFO['valuation.hero']} /></span></span>
             <span className="cp-quick-value">
               <span className="cp-quick-verdict-dot" style={{ background: VERDICT_COLORS[verdict] }} />
               <span className="cp-quick-verdict-label" style={{ color: VERDICT_COLORS[verdict] }}>{verdictLabel}</span>
@@ -660,31 +662,31 @@ export function CompanyPage() {
         )}
         {marketCap != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">Market Cap</span>
+            <span className="cp-quick-label"><span className="info-label-row">Market Cap <InfoButton content={INFO['company.marketCap']} /></span></span>
             <span className="cp-quick-value"><AnimatedNumber value={marketCap} /></span>
           </div>
         )}
         {ev != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">EV</span>
+            <span className="cp-quick-label"><span className="info-label-row">EV <InfoButton content={INFO['company.ev']} /></span></span>
             <span className="cp-quick-value"><AnimatedNumber value={ev} /></span>
           </div>
         )}
         {currentFinancial && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">Beneficio Neto</span>
+            <span className="cp-quick-label"><span className="info-label-row">Beneficio Neto <InfoButton content={INFO['company.netIncome']} /></span></span>
             <span className="cp-quick-value"><AnimatedNumber value={currentFinancial.netIncome} /></span>
           </div>
         )}
         {currentFinancial && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">Free Cash Flow</span>
+            <span className="cp-quick-label"><span className="info-label-row">Free Cash Flow <InfoButton content={INFO['company.fcf']} /></span></span>
             <span className="cp-quick-value"><AnimatedNumber value={currentFinancial.freeCashFlow ?? 0} /></span>
           </div>
         )}
         {currentFinancial && (
           <div className="cp-quick-item cp-quick-item--margins">
-            <span className="cp-quick-label">Márgenes</span>
+            <span className="cp-quick-label"><span className="info-label-row">Márgenes <InfoButton content={INFO['company.margins']} /></span></span>
             <span className="cp-quick-value">
               {grossMargin != null && <>Bruto {formatPct(grossMargin)}</>}
               {netMargin != null && <> · Neto {formatPct(netMargin)}</>}
@@ -694,25 +696,25 @@ export function CompanyPage() {
         )}
         {stock?.peRatio != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">P/E</span>
+            <span className="cp-quick-label"><span className="info-label-row">P/E <InfoButton content={INFO['company.pe']} /></span></span>
             <span className="cp-quick-value">{stock.peRatio.toFixed(1)}</span>
           </div>
         )}
         {stock?.pbRatio != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">P/B</span>
+            <span className="cp-quick-label"><span className="info-label-row">P/B <InfoButton content={INFO['company.pb']} /></span></span>
             <span className="cp-quick-value">{stock.pbRatio.toFixed(1)}</span>
           </div>
         )}
         {stock?.roe != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">ROE</span>
+            <span className="cp-quick-label"><span className="info-label-row">ROE <InfoButton content={INFO['company.roe']} /></span></span>
             <span className="cp-quick-value">{formatPct(stock.roe)}</span>
           </div>
         )}
         {stock?.roa != null && (
           <div className="cp-quick-item">
-            <span className="cp-quick-label">ROA</span>
+            <span className="cp-quick-label"><span className="info-label-row">ROA <InfoButton content={INFO['company.roa']} /></span></span>
             <span className="cp-quick-value">{formatPct(stock.roa)}</span>
           </div>
         )}

@@ -12,6 +12,8 @@ import {
 } from 'recharts';
 import type { PortfolioHistory } from '../../types/portfolio';
 import { ChartTooltip, ChartRangeChips, PALETTE, fmtDate, fmtMoney } from './chartShared';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 
 interface Props {
   history: PortfolioHistory;
@@ -40,7 +42,7 @@ export function PortfolioTargetChart({ history, months, onRangeChange, allocatio
   return (
     <div className="pf-chart-card">
       <div className="pf-chart-header">
-        <h3 className="pf-chart-title">Convergencia hacia el valor objetivo</h3>
+        <h3 className="pf-chart-title"><span className="info-label-row">Convergencia hacia el valor objetivo <InfoButton content={INFO['portfolio.convergence']} /></span></h3>
         <ChartRangeChips months={months} onRangeChange={onRangeChange} />
       </div>
       <div className="pf-chart-body">

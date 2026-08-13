@@ -5,6 +5,8 @@ import type { Portfolio } from '../types/portfolio';
 import { PortfolioCard } from '../components/portfolio/PortfolioCard';
 import { PortfolioForm } from '../components/portfolio/PortfolioForm';
 import { PortfolioEmptyState } from '../components/portfolio/PortfolioEmptyState';
+import { InfoButton } from '../components/ui/InfoButton';
+import { INFO } from '../utils/infoContent';
 import '../styles/portfolio.css';
 
 export function PortfoliosPage() {
@@ -36,7 +38,7 @@ export function PortfoliosPage() {
             <Briefcase size={22} />
           </div>
           <div>
-            <h1 className="pf-title">Portfolios</h1>
+            <h1 className="pf-title"><span className="info-label-row">Portfolios <InfoButton content={INFO['portfolio.intro']} /></span></h1>
             <p className="pf-subtitle">Gestiona tus carteras de inversión</p>
           </div>
         </div>

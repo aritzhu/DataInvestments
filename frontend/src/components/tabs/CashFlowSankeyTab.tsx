@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback } from 'react';
 import type { CompanyProfile } from '../CompanyPage';
 import { formatNum, formatPct } from '../../utils/format';
+import { InfoButton } from '../ui/InfoButton';
+import { INFO } from '../../utils/infoContent';
 import '../../styles/cashflow.css';
 
 interface Props {
@@ -368,7 +370,7 @@ export function CashFlowSankeyTab({ financial, balanceSheet, stock, selectedYear
       {/* Cash Flow Verdict */}
       {financial && stock && (
         <div className="cs-sankey-card">
-          <div className="cs-sankey-title">¿Estás pagando un precio justo por estos flujos de caja?</div>
+          <div className="cs-sankey-title"><span className="info-label-row">¿Estás pagando un precio justo por estos flujos de caja? <InfoButton content={INFO['cashflow.fcfVerdict']} /></span></div>
           <div className="cs-sankey-subtitle">Múltiplos de flujo de caja para determinar si el precio es razonable</div>
           {(() => {
             const fcf = financial.freeCashFlow ?? 0;
@@ -434,7 +436,7 @@ export function CashFlowSankeyTab({ financial, balanceSheet, stock, selectedYear
       {/* Balance Sheet Section */}
       {balanceData && (
         <div className="cs-balance-card">
-          <div className="cs-balance-title">Activos y endeudamiento</div>
+          <div className="cs-balance-title"><span className="info-label-row">Activos y endeudamiento <InfoButton content={INFO['cashflow.balance']} /></span></div>
           <div className="cs-bar-group">
             <BalanceBar
               label="Activos totales"
@@ -493,7 +495,7 @@ export function CashFlowSankeyTab({ financial, balanceSheet, stock, selectedYear
 
       {!balanceSheet && financial && (
         <div className="cs-balance-card">
-          <div className="cs-balance-title">Activos y endeudamiento</div>
+          <div className="cs-balance-title"><span className="info-label-row">Activos y endeudamiento <InfoButton content={INFO['cashflow.balance']} /></span></div>
           <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
             Sin datos de balance disponibles para este año.
           </div>
