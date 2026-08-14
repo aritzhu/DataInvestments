@@ -4,8 +4,6 @@ services:
     container_name: datainvestments-db
     restart: unless-stopped
     read_only: true
-    security_opt:
-      - no-new-privileges:true
     tmpfs:
       - /tmp
       - /run
