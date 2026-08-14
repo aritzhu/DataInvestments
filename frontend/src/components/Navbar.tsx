@@ -40,8 +40,13 @@ export function Navbar() {
 
   useEffect(() => {
     if (siteFaviconUrl) {
-      const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-      if (link) link.href = siteFaviconUrl;
+      let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = siteFaviconUrl;
     }
   }, [siteFaviconUrl]);
 
@@ -72,10 +77,7 @@ export function Navbar() {
             {siteLogoUrl ? (
               <img src={siteLogoUrl} alt="DataInvestments" className="navbar-logo-img" />
             ) : (
-              <>
-                <img src="/logo.svg" alt="DataInvestments" className="navbar-logo-img" />
-                <span className="navbar-logo-text">DataInvestments</span>
-              </>
+              <span className="navbar-logo-text">DataInvestments</span>
             )}
           </Link>
 

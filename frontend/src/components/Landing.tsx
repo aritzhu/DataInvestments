@@ -943,7 +943,9 @@ export function Landing() {
       <footer className="footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <img src={heroSettings.site_logo_url || '/logo.svg'} alt="DataInvestments" className="footer-brand-logo" />
+            {heroSettings.site_logo_url && (
+              <img src={heroSettings.site_logo_url} alt="DataInvestments" className="footer-brand-logo" />
+            )}
             {!heroSettings.site_logo_url && (
               <span className="footer-brand-text">DataInvestments</span>
             )}
