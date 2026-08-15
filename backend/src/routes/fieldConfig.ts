@@ -2,42 +2,29 @@ import { Router, type Router as ExpressRouter } from 'express';
 import { requireAdmin } from '../middleware/auth';
 import prisma from '../infrastructure/prisma/client';
 import {
-  FIELD_MAPPING_CATALOG,
   FIELD_CATEGORIES,
+  getFieldByName,
   type FieldCategory,
 } from '../data/fieldMappingCatalog';
+import { buildFieldTagsMap } from '../data/fieldTagHelper';
 import { batchResyncCompanies } from '../services/dataAggregator';
 
 const router: ExpressRouter = Router();
 
 router.use(requireAdmin);
 
-type SourceKey = 'sec' | 'european' | 'yahoo';
-
 // GET /api/admin/field-config — full catalog with DB overrides
 router.get('/field-config', async (_req, res) => {
   try {
-    const dbConfigs = await prisma.fieldConfig.findMany();
-    const configMap = new Map<string, { customTags: string[]; active: boolean }>();
-    for (const c of dbConfigs) {
-      configMap.set(`${c.fieldName}:${c.source}`, { customTags: c.customTags, active: c.active });
-    }
+    const tagsMap = await buildFieldTagsMap();
 
-    const catalog = FIELD_MAPPING_CATALOG.map((entry) => {
-      const sources = {} as Record<SourceKey, { baseTags: string[]; customTags: string[]; active: boolean }>;
-      for (const src of ['sec', 'european', 'yahoo'] as SourceKey[]) {
-        const dbConfig = configMap.get(`${entry.fieldName}:${src}`);
-        sources[src] = {
-          baseTags: entry.sources[src] || [],
-          customTags: dbConfig?.customTags || [],
-          active: dbConfig?.active ?? true,
-        };
-      }
+    const catalog = [...tagsMap.entries()].map(([fieldName, sources]) => {
+      const entry = getFieldByName(fieldName);
       return {
-        fieldName: entry.fieldName,
-        label: entry.label,
-        category: entry.category,
-        description: entry.description,
+        fieldName,
+        label: entry?.label ?? fieldName,
+        category: entry?.category ?? ('other' as FieldCategory),
+        description: entry?.description ?? '',
         sources,
       };
     });

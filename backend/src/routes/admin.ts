@@ -11,6 +11,8 @@ import { EUROPEAN_INDICES } from '../data/europeanTickers';
 import { requireAdmin } from '../middleware/auth';
 import { getRecommendedModel } from '../services/valuationService';
 import { parsePagination, paginate } from '../utils/pagination';
+import { getFieldByName, type FieldCategory } from '../data/fieldMappingCatalog';
+import { buildFieldTagsMap, SOURCE_KEYS, type SourceKey } from '../data/fieldTagHelper';
 
 const router: ExpressRouter = Router();
 
@@ -252,6 +254,142 @@ router.get('/companies/:ticker/import-timeline', async (req, res) => {
   } catch (error) {
     console.error('[Import Timeline] Error:', error);
     res.status(500).json({ error: 'Error fetching import timeline' });
+  }
+});
+
+// GET /api/admin/companies/:ticker/raw — extracted values + candidate tags per field
+interface RawFieldDef {
+  column: string;
+  label: string;
+  catalogField: string | null;
+}
+
+const FINANCIAL_RAW_FIELDS: RawFieldDef[] = [
+  { column: 'revenue', label: 'Ingresos', catalogField: 'revenue' },
+  { column: 'costOfRevenue', label: 'Coste de Ventas', catalogField: 'costOfRevenue' },
+  { column: 'grossProfit', label: 'Beneficio Bruto', catalogField: 'grossProfit' },
+  { column: 'operatingExpenses', label: 'Gastos Operativos', catalogField: 'operatingExpenses' },
+  { column: 'sgaExpense', label: 'Gastos SG&A', catalogField: 'sgaExpense' },
+  { column: 'rdExpense', label: 'I+D', catalogField: 'rdExpense' },
+  { column: 'interestExpense', label: 'Gastos Financieros', catalogField: 'interestExpense' },
+  { column: 'taxExpense', label: 'Impuestos', catalogField: 'taxExpense' },
+  { column: 'netIncome', label: 'Beneficio Neto', catalogField: 'netIncome' },
+  { column: 'ebit', label: 'EBIT', catalogField: 'ebit' },
+  { column: 'ebitda', label: 'EBITDA', catalogField: 'ebitda' },
+  { column: 'capex', label: 'CapEx', catalogField: 'capex' },
+  { column: 'depreciation', label: 'Depreciación', catalogField: 'depreciation' },
+  { column: 'operatingCashFlow', label: 'Flujo Operativo', catalogField: 'operatingCashFlow' },
+  { column: 'investingCashFlow', label: 'Flujo Inversión', catalogField: 'investingCashFlow' },
+  { column: 'financingCashFlow', label: 'Flujo Financiación', catalogField: 'financingCashFlow' },
+  { column: 'freeCashFlow', label: 'Flujo Libre (FCF)', catalogField: null },
+  { column: 'dividendsPaid', label: 'Dividendos Pagados', catalogField: 'dividendsPaid' },
+  { column: 'shareRepurchases', label: 'Recompra de Acciones', catalogField: 'shareRepurchases' },
+  { column: 'totalAssets', label: 'Activo Total', catalogField: 'totalAssets' },
+  { column: 'totalLiabilities', label: 'Pasivo Total', catalogField: 'totalLiabilities' },
+  { column: 'totalEquity', label: 'Fondos Propios', catalogField: 'totalEquity' },
+];
+
+const BALANCE_RAW_FIELDS: RawFieldDef[] = [
+  { column: 'cashAndCashEquivalents', label: 'Efectivo', catalogField: 'cash' },
+  { column: 'shortTermInvestments', label: 'Inv. Corto Plazo', catalogField: 'shortTermInvestments' },
+  { column: 'accountsReceivable', label: 'Cuentas a Cobrar', catalogField: 'receivables' },
+  { column: 'inventory', label: 'Inventario', catalogField: 'inventory' },
+  { column: 'totalCurrentAssets', label: 'Activo Corriente', catalogField: 'currentAssets' },
+  { column: 'propertyPlantEquipment', label: 'PP&E', catalogField: 'ppe' },
+  { column: 'goodwill', label: 'Fondo de Comercio', catalogField: 'goodwill' },
+  { column: 'intangibleAssets', label: 'Intangibles', catalogField: 'intangibleAssets' },
+  { column: 'totalNonCurrentAssets', label: 'Activo No Corriente', catalogField: null },
+  { column: 'totalAssets', label: 'Activo Total', catalogField: 'totalAssets' },
+  { column: 'accountsPayable', label: 'Cuentas a Pagar', catalogField: 'accountsPayable' },
+  { column: 'shortTermDebt', label: 'Deuda Corto Plazo', catalogField: 'shortTermDebt' },
+  { column: 'totalCurrentLiabilities', label: 'Pasivo Corriente', catalogField: 'currentLiabilities' },
+  { column: 'longTermDebt', label: 'Deuda Largo Plazo', catalogField: 'longTermDebt' },
+  { column: 'totalNonCurrentLiabilities', label: 'Pasivo No Corriente', catalogField: null },
+  { column: 'totalLiabilities', label: 'Pasivo Total', catalogField: 'totalLiabilities' },
+  { column: 'totalStockholdersEquity', label: 'Fondos Propios', catalogField: 'totalEquity' },
+  { column: 'retainedEarnings', label: 'Beneficios Retenidos', catalogField: 'retainedEarnings' },
+  { column: 'treasuryStock', label: 'Acciones Propias', catalogField: 'treasuryStock' },
+];
+
+router.get('/companies/:ticker/raw', async (req, res) => {
+  try {
+    const ticker = req.params.ticker.toUpperCase();
+
+    const company = await prisma.company.findUnique({ where: { ticker } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    const [financials, balanceSheets, tagsMap] = await Promise.all([
+      prisma.financialData.findMany({
+        where: { companyId: company.id },
+        orderBy: [{ year: 'desc' }, { quarter: 'asc' }],
+      }),
+      prisma.balanceSheet.findMany({
+        where: { companyId: company.id },
+        orderBy: [{ year: 'desc' }, { quarter: 'asc' }],
+      }),
+      buildFieldTagsMap(),
+    ]);
+
+    const buildBlock = (row: Record<string, unknown>, defs: RawFieldDef[]) => {
+      const rows = defs.map((def) => {
+        const entry = def.catalogField ? getFieldByName(def.catalogField) : undefined;
+        const sources = def.catalogField ? tagsMap.get(def.catalogField) : undefined;
+        const tags: Record<SourceKey, string[]> = { sec: [], european: [], yahoo: [] };
+        if (sources) {
+          for (const src of SOURCE_KEYS) {
+            if (sources[src].active) {
+              tags[src] = [
+                ...sources[src].baseTags,
+                ...sources[src].customTags.filter((t) => !sources[src].baseTags.includes(t)),
+              ];
+            }
+          }
+        }
+        return {
+          field: def.column,
+          label: def.label,
+          category: entry?.category ?? ('other' as FieldCategory),
+          value: (row[def.column] as number | null) ?? null,
+          tags,
+          winningTag:
+            def.catalogField && (row.rawTags as Record<string, string> | null | undefined)
+              ? (row.rawTags as Record<string, string>)[def.catalogField] ?? null
+              : null,
+        };
+      });
+      return { source: row.source as string, tier: (row.tier as string) ?? null, rows };
+    };
+
+    const byKey = new Map<string, {
+      year: number;
+      quarter: number | null;
+      financial: ReturnType<typeof buildBlock> | null;
+      balance: ReturnType<typeof buildBlock> | null;
+    }>();
+    for (const f of financials) {
+      const key = `${f.year}:${f.quarter ?? 'A'}`;
+      const existing = byKey.get(key) ?? { year: f.year, quarter: f.quarter, financial: null, balance: null };
+      existing.financial = buildBlock(f, FINANCIAL_RAW_FIELDS);
+      byKey.set(key, existing);
+    }
+    for (const b of balanceSheets) {
+      const key = `${b.year}:${b.quarter ?? 'A'}`;
+      const existing = byKey.get(key) ?? { year: b.year, quarter: b.quarter, financial: null, balance: null };
+      existing.balance = buildBlock(b, BALANCE_RAW_FIELDS);
+      byKey.set(key, existing);
+    }
+
+    const years = [...byKey.values()].sort(
+      (a, b) => b.year - a.year || (b.quarter ?? 0) - (a.quarter ?? 0),
+    );
+
+    res.json({ ticker, name: company.name, years });
+  } catch (error) {
+    console.error('[Raw Data] Error:', error);
+    res.status(500).json({ error: 'Error fetching raw data' });
   }
 });
 

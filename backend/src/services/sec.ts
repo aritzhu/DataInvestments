@@ -124,9 +124,15 @@ export function extractAnnualValues(facts: SECCompanyFacts, concept: string, nam
   return [];
 }
 
-// Try multiple XBRL tags and return the one with the most recent data
-function extractBestTag(facts: SECCompanyFacts, tags: string[]): { year: number; value: number }[] {
+export interface ExtractedValues extends Array<{ year: number; value: number }> {
+  tag: string | null;
+}
+
+// Try multiple XBRL tags and return the one with the most recent data.
+// The returned array also carries `.tag` with the winning XBRL concept.
+function extractBestTag(facts: SECCompanyFacts, tags: string[]): ExtractedValues {
   let best: { year: number; value: number }[] = [];
+  let bestTag: string | null = null;
   let bestMaxYear = 0;
   for (const tag of tags) {
     const values = extractAnnualValues(facts, tag);
@@ -134,11 +140,14 @@ function extractBestTag(facts: SECCompanyFacts, tags: string[]): { year: number;
       const maxYear = Math.max(...values.map((v) => v.year));
       if (maxYear > bestMaxYear) {
         best = values;
+        bestTag = tag;
         bestMaxYear = maxYear;
       }
     }
   }
-  return best;
+  const result = best as ExtractedValues;
+  result.tag = bestTag;
+  return result;
 }
 
 // Common revenue tags to try
@@ -150,43 +159,43 @@ const REVENUE_TAGS = [
   'OperatingRevenue',
 ];
 
-export function extractRevenue(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractRevenue(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, REVENUE_TAGS);
 }
 
-export function extractNetIncome(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractNetIncome(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['NetIncomeLoss', 'ProfitLoss']);
 }
 
-export function extractTotalAssets(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractTotalAssets(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['Assets', 'AssetsCurrent']);
 }
 
-export function extractCostOfRevenue(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractCostOfRevenue(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold', 'CostOfSales']);
 }
 
-export function extractOperatingExpenses(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractOperatingExpenses(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense']);
 }
 
-export function extractSGA(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractSGA(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense']);
 }
 
-export function extractRD(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractRD(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['ResearchAndDevelopmentExpense']);
 }
 
-export function extractInterestExpense(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractInterestExpense(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['InterestExpense', 'InterestAndDebtExpense']);
 }
 
-export function extractTaxExpense(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractTaxExpense(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['IncomeTaxExpenseBenefit', 'ProvisionForIncomeTaxes', 'IncomeTaxExpenseContinuingOperations']);
 }
 
-export function extractCapex(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractCapex(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'PaymentsToAcquirePropertyPlantAndEquipment',
     'CapitalExpenditure',
@@ -196,7 +205,7 @@ export function extractCapex(facts: SECCompanyFacts): { year: number; value: num
   ]);
 }
 
-export function extractDepreciation(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractDepreciation(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'DepreciationAndAmortization',
     'DepreciationDepletionAndAmortization',
@@ -209,7 +218,7 @@ function toYearMap(values: { year: number; value: number }[]): Map<number, numbe
   return new Map(values.map((v) => [v.year, v.value]));
 }
 
-export function extractTotalLiabilities(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractTotalLiabilities(facts: SECCompanyFacts): ExtractedValues {
   const liabs = toYearMap(extractAnnualValues(facts, 'Liabilities'));
   const current = toYearMap(extractAnnualValues(facts, 'LiabilitiesCurrent'));
   const nonCurrent = toYearMap(extractAnnualValues(facts, 'LiabilitiesNoncurrent'));
@@ -233,10 +242,12 @@ export function extractTotalLiabilities(facts: SECCompanyFacts): { year: number;
     }
     if (value != null) result.push({ year, value });
   }
-  return result.sort((a, b) => a.year - b.year);
+  const tagged = result as ExtractedValues;
+  tagged.tag = 'Liabilities';
+  return tagged.sort((a, b) => a.year - b.year);
 }
 
-export function extractTotalEquity(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractTotalEquity(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'StockholdersEquity',
     'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest',
@@ -245,11 +256,11 @@ export function extractTotalEquity(facts: SECCompanyFacts): { year: number; valu
   ]);
 }
 
-export function extractGrossProfit(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractGrossProfit(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['GrossProfit', 'GrossProfitLoss']);
 }
 
-export function extractOperatingIncome(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractOperatingIncome(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'OperatingIncomeLoss',
     'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest',
@@ -257,7 +268,7 @@ export function extractOperatingIncome(facts: SECCompanyFacts): { year: number; 
   ]);
 }
 
-export function extractOperatingCashFlow(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractOperatingCashFlow(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'NetCashProvidedByUsedInOperatingActivities',
     'NetCashProvidedByOperatingActivities',
@@ -265,7 +276,7 @@ export function extractOperatingCashFlow(facts: SECCompanyFacts): { year: number
   ]);
 }
 
-export function extractInvestingCashFlow(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractInvestingCashFlow(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'NetCashProvidedByUsedInInvestingActivities',
     'NetCashUsedForInvestingActivites',
@@ -273,7 +284,7 @@ export function extractInvestingCashFlow(facts: SECCompanyFacts): { year: number
   ]);
 }
 
-export function extractFinancingCashFlow(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractFinancingCashFlow(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'NetCashProvidedByUsedInFinancingActivities',
     'NetCashUsedProvidedByFinancingActivities',
@@ -281,11 +292,11 @@ export function extractFinancingCashFlow(facts: SECCompanyFacts): { year: number
   ]);
 }
 
-export function extractDividendsPaid(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractDividendsPaid(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['PaymentsOfDividends', 'DividendsPaid']);
 }
 
-export function extractShareRepurchases(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractShareRepurchases(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'PaymentsForRepurchaseOfCommonStock',
     'RepurchaseOfCommonStock',
@@ -331,7 +342,7 @@ export function extractSharesOutstanding(facts: SECCompanyFacts): number | null 
   return null;
 }
 
-export function extractCash(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractCash(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, [
     'CashAndCashEquivalentsAtCarryingValue',
     'CashCashEquivalentsAndShortTermInvestments',
@@ -340,54 +351,54 @@ export function extractCash(facts: SECCompanyFacts): { year: number; value: numb
   ]);
 }
 
-export function extractReceivables(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractReceivables(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['AccountsReceivableNetCurrent', 'ReceivablesNetCurrent', 'AccountsReceivableNet']);
 }
 
-export function extractInventory(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractInventory(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['InventoryNet', 'Inventory', 'InventoryCurrent']);
 }
 
-export function extractCurrentAssets(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractCurrentAssets(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['AssetsCurrent']);
 }
 
-export function extractPPE(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractPPE(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['PropertyPlantAndEquipmentNet', 'PropertyPlantAndEquipmentGross']);
 }
 
-export function extractGoodwill(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractGoodwill(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['Goodwill', 'GoodwillImpairmentLoss']);
 }
 
-export function extractIntangibles(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractIntangibles(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['IntangibleAssetsNetExcludingGoodwill', 'IntangibleAssetsNet']);
 }
 
-export function extractAccountsPayable(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractAccountsPayable(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['AccountsPayable', 'AccountsPayableCurrent']);
 }
 
-export function extractShortTermDebt(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractShortTermDebt(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['DebtCurrent', 'LongTermDebtCurrent', 'ShortTermBorrowings']);
 }
 
-export function extractLongTermDebt(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractLongTermDebt(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['LongTermDebtNoncurrent', 'LongTermDebt']);
 }
 
-export function extractRetainedEarnings(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractRetainedEarnings(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings']);
 }
 
-export function extractCurrentLiabilities(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractCurrentLiabilities(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['LiabilitiesCurrent']);
 }
 
-export function extractShortTermInvestments(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractShortTermInvestments(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities']);
 }
 
-export function extractTreasuryStock(facts: SECCompanyFacts): { year: number; value: number }[] {
+export function extractTreasuryStock(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['TreasuryStockValue', 'TreasuryStockCommon', 'TreasuryStock']);
 }

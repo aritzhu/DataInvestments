@@ -360,6 +360,7 @@ export interface EuropeanFinancialData {
   interestIncome: number | null;
   feeIncome: number | null;
   feeExpense: number | null;
+  rawTags?: Record<string, string>;
 }
 
 function parseNum(val: string | number | undefined): number | null {
@@ -632,6 +633,11 @@ async function mapJsonFactsToFiscalData(
   let capexCategoryFound = false;
   let capexRegexSum = 0;
   let capexRegexFound = false;
+  let capexTotalConcept: string | null = null;
+  let capexPpeConcept: string | null = null;
+  let capexCategoryConcept: string | null = null;
+  let capexRegexConcept: string | null = null;
+  const fieldConcepts: Record<string, string> = {};
 
   const tagPriority = new Map<string, number>();
   for (const entries of tagMappings.values()) {
@@ -659,11 +665,14 @@ async function mapJsonFactsToFiscalData(
           const abs = Math.abs(val);
           if (CAPEX_CONSOLIDATED.test(concept)) {
             capexTotal = capexTotal != null ? Math.max(capexTotal, abs) : abs;
+            capexTotalConcept = concept;
           } else if (/ClassifiedAsInvestingActivities/i.test(concept)) {
             capexCategorySum += abs;
             capexCategoryFound = true;
+            capexCategoryConcept = concept;
           } else {
             capexPpeTotal = capexPpeTotal != null ? Math.max(capexPpeTotal, abs) : abs;
+            capexPpeConcept = concept;
           }
         }
       } else if (val != null) {
@@ -677,15 +686,21 @@ async function mapJsonFactsToFiscalData(
         ) {
           fields[fieldName] = val;
           fieldsPriority[fieldName] = prio;
+          fieldConcepts[fieldName] = concept;
         }
       }
     } else if (CAPEX_PATTERN.test(concept)) {
       if (val != null) {
         capexRegexSum += Math.abs(val);
         capexRegexFound = true;
+        capexRegexConcept = concept;
       }
     }
   }
+
+  const capexVal = capexTotal ?? capexPpeTotal ?? (capexCategoryFound ? capexCategorySum : capexRegexFound ? capexRegexSum : null);
+  const capexConcept = capexTotal != null ? capexTotalConcept : capexPpeTotal != null ? capexPpeConcept : capexCategoryFound ? capexCategoryConcept : capexRegexFound ? capexRegexConcept : null;
+  if (capexConcept) fieldConcepts.capex = capexConcept;
 
   const rawMaterials = fields.rawMaterialsUsed ?? null;
   const employeeExp = fields.employeeExpense ?? null;
@@ -766,7 +781,7 @@ async function mapJsonFactsToFiscalData(
     interestExpense: fields.interestExpense ?? null,
     taxExpense: fields.taxExpense ?? null,
     depreciation,
-    capex: capexTotal ?? capexPpeTotal ?? (capexCategoryFound ? capexCategorySum : capexRegexFound ? capexRegexSum : null),
+    capex: capexVal,
     operatingCashFlow: fields.operatingCashFlow ?? null,
     investingCashFlow: fields.investingCashFlow ?? null,
     financingCashFlow: fields.financingCashFlow ?? null,
@@ -824,6 +839,7 @@ async function mapJsonFactsToFiscalData(
     interestIncome: fields.interestIncome ?? null,
     feeIncome: fields.feeIncome ?? null,
     feeExpense: fields.feeExpense ?? null,
+    rawTags: Object.keys(fieldConcepts).length > 0 ? fieldConcepts : undefined,
   };
 
   const warnings = validateFinancialData(result);

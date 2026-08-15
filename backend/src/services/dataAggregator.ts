@@ -166,6 +166,7 @@ async function importEuropeanEsef(
       quarter: 0,
       source: 'esef-xbrl',
       tier: '1',
+      rawTags: ed.rawTags,
       revenue: ed.revenue ?? null,
       costOfRevenue: ed.costOfRevenue ?? null,
       grossProfit: ed.grossProfit ?? null,
@@ -216,6 +217,7 @@ async function importEuropeanEsef(
         quarter: 0,
         source: 'esef-xbrl',
         tier: '1',
+        rawTags: ed.rawTags,
         cashAndCashEquivalents: ed.cash ?? null,
         shortTermInvestments: null,
         accountsReceivable: ed.receivables ?? null,
@@ -581,6 +583,31 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   const shortTermInvestmentsMap = makeMap(shortTermInvestments);
   const treasuryStockMap = makeMap(treasuryStock);
 
+  const rawTags: Record<string, string> = {};
+  const collect = (field: string, arr: { tag: string | null }) => {
+    if (arr.tag) rawTags[field] = arr.tag;
+  };
+  collect('revenue', revenue);
+  collect('costOfRevenue', costOfRevenue);
+  collect('grossProfit', grossProfit);
+  collect('operatingExpenses', operatingExpenses);
+  collect('sgaExpense', sga);
+  collect('rdExpense', rd);
+  collect('interestExpense', interest);
+  collect('taxExpense', tax);
+  collect('netIncome', netIncome);
+  collect('ebit', operatingIncome);
+  collect('capex', capex);
+  collect('depreciation', depreciation);
+  collect('operatingCashFlow', operatingCashFlow);
+  collect('investingCashFlow', investingCashFlow);
+  collect('financingCashFlow', financingCashFlow);
+  collect('dividendsPaid', dividendsPaid);
+  collect('shareRepurchases', shareRepurchases);
+  collect('totalAssets', totalAssets);
+  collect('totalLiabilities', totalLiabilities);
+  collect('totalEquity', totalEquity);
+
   const allYears = revenue.map((r) => r.year).sort((a, b) => b - a).slice(0, years);
 
   for (const year of allYears) {
@@ -609,6 +636,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
       quarter: 0,
       source: 'sec-xbrl',
       tier: '1',
+      rawTags,
       revenue: rev,
       costOfRevenue: costRev,
       grossProfit: gp,
@@ -655,12 +683,35 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     const currentAssetsVal = currentAssetsMap.get(year) || null;
     const currentLiabsVal = currentLiabilitiesMap.get(year) || null;
 
+    const bsRawTags: Record<string, string> = {};
+    const collectBs = (field: string, arr: { tag: string | null }) => {
+      if (arr.tag) bsRawTags[field] = arr.tag;
+    };
+    collectBs('cash', cash);
+    collectBs('receivables', receivables);
+    collectBs('inventory', inventory);
+    collectBs('currentAssets', currentAssets);
+    collectBs('ppe', ppe);
+    collectBs('goodwill', goodwill);
+    collectBs('intangibleAssets', intangibles);
+    collectBs('accountsPayable', accountsPayable);
+    collectBs('shortTermDebt', shortTermDebt);
+    collectBs('longTermDebt', longTermDebt);
+    collectBs('retainedEarnings', retainedEarnings);
+    collectBs('currentLiabilities', currentLiabilities);
+    collectBs('shortTermInvestments', shortTermInvestments);
+    collectBs('treasuryStock', treasuryStock);
+    collectBs('totalAssets', totalAssets);
+    collectBs('totalLiabilities', totalLiabilities);
+    collectBs('totalEquity', totalEquity);
+
     const bsData = {
       companyId: company.id,
       year,
       quarter: 0,
       source: 'sec-xbrl',
       tier: '1',
+      rawTags: bsRawTags,
       cashAndCashEquivalents: cashMap.get(year) || null,
       shortTermInvestments: shortTermInvestmentsMap.get(year) || null,
       accountsReceivable: receivablesMap.get(year) || null,
@@ -1218,6 +1269,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               companyId: company.id,
               year: ed.year,
               quarter: 0,
+              rawTags: ed.rawTags,
               revenue: ed.revenue ?? null,
               costOfRevenue: ed.costOfRevenue ?? null,
               grossProfit: ed.grossProfit ?? null,
@@ -1266,6 +1318,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
                 companyId: company.id,
                 year: ed.year,
                 quarter: 0,
+                rawTags: ed.rawTags,
                 cashAndCashEquivalents: ed.cash ?? null,
                 shortTermInvestments: null,
                 accountsReceivable: ed.receivables ?? null,

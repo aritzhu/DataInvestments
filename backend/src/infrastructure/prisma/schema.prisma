@@ -79,6 +79,8 @@ model FinancialData {
   source String @default("auto")
   tier   String?
 
+  rawTags Json?
+
   createdAt DateTime @default(now())
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -117,6 +119,8 @@ model BalanceSheet {
 
   source String @default("auto")
   tier   String?
+
+  rawTags Json?
 
   createdAt DateTime @default(now())
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)

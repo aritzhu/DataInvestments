@@ -12,6 +12,7 @@ import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
 import { CashFlowSankeyTab } from './tabs/CashFlowSankeyTab';
 import { ValuationTab } from './tabs/ValuationTab';
 import { FundamentalTab } from './tabs/FundamentalTab';
+import { RawDataTab } from './tabs/RawDataTab';
 import { useAuth } from '../contexts/AuthContext';
 import { listPortfolios, addHolding, createPortfolio } from '../services/portfolioService';
 import type { Portfolio } from '../types/portfolio';
@@ -139,7 +140,7 @@ export interface CompanyProfile {
   } | null;
 }
 
-export type TabId = 'financials' | 'sankey' | 'valuation' | 'fundamental';
+export type TabId = 'financials' | 'sankey' | 'valuation' | 'fundamental' | 'raw';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'financials', label: 'Estados financieros' },
@@ -192,7 +193,11 @@ export function CompanyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestedTab = searchParams.get('tab') as TabId;
-  const [activeTab, setActiveTab] = useState<TabId>(TABS.some((t) => t.id === requestedTab) ? requestedTab : 'financials');
+  const isAdmin = user?.role === 'admin';
+  const tabs: { id: TabId; label: string }[] = isAdmin
+    ? [...TABS, { id: 'raw', label: 'Raw' }]
+    : TABS;
+  const [activeTab, setActiveTab] = useState<TabId>(tabs.some((t) => t.id === requestedTab) ? requestedTab : 'financials');
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -741,7 +746,7 @@ export function CompanyPage() {
 
       {/* Tab Bar */}
       <div className="cp-tabs" ref={tabsRef}>
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             className={`cp-tab ${activeTab === tab.id ? 'cp-tab--active' : ''}`}
@@ -794,6 +799,9 @@ export function CompanyPage() {
             stock={stock}
             dataSync={dataSync}
           />
+        )}
+        {activeTab === 'raw' && isAdmin && ticker && (
+          <RawDataTab ticker={ticker} isAdmin={isAdmin} selectedYear={selectedYear} />
         )}
       </div>
 
