@@ -5,13 +5,15 @@ interface SectionRevealProps {
   className?: string;
   delay?: number;
   threshold?: number;
+  initialVisible?: boolean;
 }
 
-export function SectionReveal({ children, className = '', delay = 0, threshold = 0.1 }: SectionRevealProps) {
+export function SectionReveal({ children, className = '', delay = 0, threshold = 0.1, initialVisible = false }: SectionRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(initialVisible);
 
   useEffect(() => {
+    if (initialVisible) return;
     const el = ref.current;
     if (!el) return;
 
@@ -27,7 +29,7 @@ export function SectionReveal({ children, className = '', delay = 0, threshold =
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [delay, threshold]);
+  }, [delay, threshold, initialVisible]);
 
   return (
     <div

@@ -11,24 +11,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
 import { InfoButton } from './ui/InfoButton';
 import { INFO } from '../utils/infoContent';
+import { Skeleton, SkeletonCard } from './ui/Skeleton';
+import { getLandingCache, setLandingCache, type CompanyFromAPI } from '../utils/companiesCache';
 import '../styles/landing.css';
-
-interface CompanyFromAPI {
-  id: string;
-  ticker: string;
-  name: string;
-  sector: string | null;
-  industry: string | null;
-  country: string | null;
-  website: string | null;
-  logoUrl: string | null;
-  metrics?: {
-    pe: number | null;
-    netMargin: number | null;
-    fcfYield: number | null;
-    ndEbitda: number | null;
-  } | null;
-}
 
 interface FavoriteCompany {
   id: string;
@@ -78,6 +63,38 @@ const METHOD_NAMES: Record<string, string> = {
 const DEFAULT_PAGE_SIZE = 24;
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 100];
 
+function buildCacheKey(args: {
+  search: string;
+  sector: string | null;
+  country: string;
+  sort: string;
+  fav: boolean;
+  userKey: string;
+  page: number;
+  pageSize: number;
+  minMargin: string;
+  maxPe: string;
+  minFcf: string;
+  maxNd: string;
+  sortBy: string;
+}): string {
+  return [
+    args.search,
+    args.sector ?? '',
+    args.country,
+    args.sort,
+    args.fav ? '1' : '0',
+    args.userKey,
+    String(args.page),
+    String(args.pageSize),
+    args.minMargin,
+    args.maxPe,
+    args.minFcf,
+    args.maxNd,
+    args.sortBy,
+  ].join('|');
+}
+
 function currencySymbol(currency: string | null | undefined): string {
   if (currency === 'EUR') return '€';
   if (currency === 'GBP') return '£';
@@ -104,33 +121,61 @@ export function Landing() {
   const companiesSectionRef = useRef<HTMLDivElement>(null);
   const pendingRestore = useRef<number | null>(null);
   const restoreDone = useRef(false);
-  const [companies, setCompanies] = useState<CompanyFromAPI[]>([]);
-  const [total, setTotal] = useState(0);
-  const [facets, setFacets] = useState<{ sectors: string[]; countries: string[] }>({ sectors: [], countries: [] });
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [selectedSector, setSelectedSector] = useState<string | null>(searchParams.get('sector') || null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sort') as 'asc' | 'desc') || 'asc');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(searchParams.get('fav') === '1');
-  const [selectedCountry, setSelectedCountry] = useState<string>(searchParams.get('country') || '');
-  const [valuationCountry, setValuationCountry] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [page, setPage] = useState<number>(() => {
+  const didInitialScroll = useRef(false);
+
+  const initialSearch = searchParams.get('search') || '';
+  const initialSector = searchParams.get('sector') || null;
+  const initialSort = (searchParams.get('sort') as 'asc' | 'desc') || 'asc';
+  const initialShowFavoritesOnly = searchParams.get('fav') === '1';
+  const initialCountry = searchParams.get('country') || '';
+  const initialPage = (() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
     return Number.isFinite(p) && p > 0 ? p : 1;
-  });
-  const [pageSize, setPageSize] = useState<number>(() => {
+  })();
+  const initialPageSize = (() => {
     const raw = parseInt(searchParams.get('pageSize') || '', 10);
     return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 200) : DEFAULT_PAGE_SIZE;
+  })();
+  const initialCacheKey = buildCacheKey({
+    search: initialSearch,
+    sector: initialSector,
+    country: initialCountry,
+    sort: initialSort,
+    fav: initialShowFavoritesOnly,
+    userKey: initialShowFavoritesOnly ? 'anon' : 'public',
+    page: initialPage,
+    pageSize: initialPageSize,
+    minMargin: '',
+    maxPe: '',
+    minFcf: '',
+    maxNd: '',
+    sortBy: '',
   });
-  const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>({});
-  const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(null);
-  const [undervalued, setUndervalued] = useState<any[]>([]);
-  const [overvalued, setOvervalued] = useState<any[]>([]);
+  const initialCache = getLandingCache(initialCacheKey);
+  const revealInstantly = initialCache != null;
+
+  const [companies, setCompanies] = useState<CompanyFromAPI[]>(() => initialCache?.companies ?? []);
+  const [total, setTotal] = useState(() => initialCache?.total ?? 0);
+  const [facets, setFacets] = useState<{ sectors: string[]; countries: string[] }>(() => initialCache?.facets ?? { sectors: [], countries: [] });
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSort);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(initialShowFavoritesOnly);
+  const [selectedCountry, setSelectedCountry] = useState<string>(initialCountry);
+  const [valuationCountry, setValuationCountry] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [page, setPage] = useState<number>(initialPage);
+  const [pageSize, setPageSize] = useState<number>(initialPageSize);
+  const [heroSettings, setHeroSettings] = useState<Record<string, string | null>>(() => initialCache?.heroSettings ?? {});
+  const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(() => initialCache?.valuationLimits ?? null);
+  const [undervalued, setUndervalued] = useState<any[]>(() => initialCache?.undervalued ?? []);
+  const [overvalued, setOvervalued] = useState<any[]>(() => initialCache?.overvalued ?? []);
   const [screenMinMargin, setScreenMinMargin] = useState('');
   const [screenMaxPe, setScreenMaxPe] = useState('');
   const [screenMinFcf, setScreenMinFcf] = useState('');
   const [screenMaxNd, setScreenMaxNd] = useState('');
   const [sortBy, setSortBy] = useState('');
+  const [isLoading, setIsLoading] = useState(() => initialCache == null);
   const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
 
   const books = useMemo<Book[] | null>(() => {
@@ -144,12 +189,34 @@ export function Landing() {
     }
   }, [heroSettings.books]);
 
+  const cacheKey = useMemo(
+    () =>
+      buildCacheKey({
+        search: searchTerm,
+        sector: selectedSector,
+        country: selectedCountry,
+        sort: sortOrder,
+        fav: showFavoritesOnly,
+        userKey: showFavoritesOnly ? (user?.id ?? 'anon') : 'public',
+        page,
+        pageSize,
+        minMargin: screenMinMargin,
+        maxPe: screenMaxPe,
+        minFcf: screenMinFcf,
+        maxNd: screenMaxNd,
+        sortBy,
+      }),
+    [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, user, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]
+  );
+
   useEffect(() => {
     fetch('/api/companies/facets')
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.sectors) && Array.isArray(data.countries)) {
-          setFacets({ sectors: data.sectors, countries: data.countries });
+          const next = { sectors: data.sectors, countries: data.countries };
+          setFacets(next);
+          setLandingCache(cacheKey, { facets: next });
         }
       })
       .catch(() => {});
@@ -157,7 +224,9 @@ export function Landing() {
       .then((res) => res.json())
       .then((data) => {
         setHeroSettings(data);
-        setValuationLimits({ u: data.undervalued_limit || '5', o: data.overvalued_limit || '5' });
+        const limits = { u: data.undervalued_limit || '5', o: data.overvalued_limit || '5' };
+        setValuationLimits(limits);
+        setLandingCache(cacheKey, { heroSettings: data, valuationLimits: limits });
       })
       .catch(() => {});
   }, []);
@@ -178,24 +247,36 @@ export function Landing() {
     if (screenMaxNd) params.set('maxNetDebtEbitda', screenMaxNd);
     if (sortBy) params.set('sortBy', sortBy);
 
+    const cached = getLandingCache(cacheKey);
+    if (cached) {
+      setCompanies(cached.companies);
+      setTotal(cached.total);
+      setIsLoading(false);
+    }
+
     const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
     fetch(`/api/companies?${params.toString()}`, { headers })
       .then((res) => res.json())
       .then((d) => {
         if (cancelled) return;
-        setCompanies(Array.isArray(d.data) ? d.data : []);
-        setTotal(typeof d.total === 'number' ? d.total : 0);
+        const nextCompanies = Array.isArray(d.data) ? d.data : [];
+        const nextTotal = typeof d.total === 'number' ? d.total : 0;
+        setCompanies(nextCompanies);
+        setTotal(nextTotal);
+        setIsLoading(false);
+        setLandingCache(cacheKey, { companies: nextCompanies, total: nextTotal });
       })
       .catch(() => {
         if (!cancelled) {
           setCompanies([]);
           setTotal(0);
+          setIsLoading(false);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
+  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy, cacheKey]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -232,11 +313,17 @@ export function Landing() {
     const countryParam = valuationCountry ? `&country=${encodeURIComponent(valuationCountry)}` : '';
     fetch(`/api/companies/undervalued?limit=${valuationLimits.u}${countryParam}`)
       .then((res) => res.json())
-      .then((d) => setUndervalued(d))
+      .then((d) => {
+        setUndervalued(d);
+        setLandingCache(cacheKey, { undervalued: d });
+      })
       .catch(() => {});
     fetch(`/api/companies/overvalued?limit=${valuationLimits.o}${countryParam}`)
       .then((res) => res.json())
-      .then((d) => setOvervalued(d))
+      .then((d) => {
+        setOvervalued(d);
+        setLandingCache(cacheKey, { overvalued: d });
+      })
       .catch(() => {});
   }, [valuationLimits, valuationCountry]);
 
@@ -262,7 +349,10 @@ export function Landing() {
   }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, pageSize]);
 
   useEffect(() => {
+    if (didInitialScroll.current) return;
+    if (pendingRestore.current != null || restoreDone.current) return;
     if (companies.length > 0 && searchParams.toString()) {
+      didInitialScroll.current = true;
       setTimeout(() => {
         companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
@@ -740,8 +830,48 @@ export function Landing() {
             </div>
           )}
 
+          {total > 0 && (
+            <div className="companies-pagination-top">
+              <p className="pagination-info">
+                Mostrando {pageStart}–{pageEnd} de {total} empresas
+              </p>
+              <label className="pagination-size">
+                Ver por página
+                <InfoButton content={INFO['landing.pageSize']} />
+                <select
+                  className="pagination-size-select"
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+
           <div className={viewMode === 'grid' ? 'companies-grid' : 'companies-list'}>
-            {companies.length === 0 ? (
+            {isLoading ? (
+              viewMode === 'grid' ? (
+                Array.from({ length: Math.min(pageSize, 12) }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))
+              ) : (
+                Array.from({ length: Math.min(pageSize, 12) }).map((_, i) => (
+                  <div key={i} className="company-list-skeleton">
+                    <Skeleton width="36px" height="36px" borderRadius="8px" />
+                    <div className="company-list-skeleton-lines">
+                      <Skeleton width="40%" height="0.85rem" />
+                      <Skeleton width="65%" height="0.7rem" />
+                    </div>
+                  </div>
+                ))
+              )
+            ) : companies.length === 0 ? (
               <SectionReveal delay={80}>
                 <div className="companies-empty">
                   <Database size={48} className="companies-empty-icon" />
@@ -763,7 +893,7 @@ export function Landing() {
               paginatedCompanies.map((company, i) => {
                 const color = colorNames[i % colorNames.length];
                 return (
-                  <SectionReveal key={company.ticker} delay={60 + i * 80}>
+                  <SectionReveal key={company.ticker} delay={60 + i * 80} initialVisible={revealInstantly}>
                     <div className="company-card">
                       <div className={`company-card-strip company-card-strip--${color}`} />
                       <div className="company-card-header">
@@ -808,7 +938,7 @@ export function Landing() {
               })
             ) : (
               paginatedCompanies.map((company, i) => (
-                <SectionReveal key={company.ticker} delay={40 + i * 40}>
+                <SectionReveal key={company.ticker} delay={40 + i * 40} initialVisible={revealInstantly}>
                   <div className="company-list-item">
                     {(company.logoUrl || companyLogoUrl(company.website)) ? (
                       <img
@@ -860,10 +990,7 @@ export function Landing() {
               <div className="pagination">
                 <button
                   className="pagination-btn"
-                  onClick={() => {
-                    setPage(page - 1);
-                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
+                  onClick={() => setPage(page - 1)}
                   disabled={page <= 1}
                 >
                   Anterior
@@ -876,10 +1003,7 @@ export function Landing() {
                       <button
                         key={p}
                         className={`pagination-btn pagination-btn--num ${p === page ? 'pagination-btn--active' : ''}`}
-                        onClick={() => {
-                          setPage(p);
-                          companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }}
+                        onClick={() => setPage(p)}
                       >
                         {p}
                       </button>
@@ -888,10 +1012,7 @@ export function Landing() {
                 </div>
                 <button
                   className="pagination-btn"
-                  onClick={() => {
-                    setPage(page + 1);
-                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
+                  onClick={() => setPage(page + 1)}
                   disabled={page >= totalPages}
                 >
                   Siguiente
@@ -909,7 +1030,6 @@ export function Landing() {
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
                     setPage(1);
-                    companiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                 >
                   {PAGE_SIZE_OPTIONS.map((s) => (
