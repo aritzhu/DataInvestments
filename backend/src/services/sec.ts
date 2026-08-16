@@ -128,24 +128,31 @@ export interface ExtractedValues extends Array<{ year: number; value: number }> 
   tag: string | null;
 }
 
-// Try multiple XBRL tags and return the one with the most recent data.
-// The returned array also carries `.tag` with the winning XBRL concept.
+// Merge values across multiple XBRL tags, one value per year. The first tag
+// in priority order that reports a given year wins it, so companies that drift
+// between tags (e.g. AAL stopping a tag after FY2021) keep every year instead
+// of dropping the years covered by older tags. The returned array carries
+// `.tag` with the concept that supplied the most recent year.
 function extractBestTag(facts: SECCompanyFacts, tags: string[]): ExtractedValues {
-  let best: { year: number; value: number }[] = [];
+  const byYear = new Map<number, number>();
   let bestTag: string | null = null;
   let bestMaxYear = 0;
   for (const tag of tags) {
-    const values = extractAnnualValues(facts, tag);
-    if (values.length > 0) {
-      const maxYear = Math.max(...values.map((v) => v.year));
-      if (maxYear > bestMaxYear) {
-        best = values;
-        bestTag = tag;
-        bestMaxYear = maxYear;
+    let tagMaxYear = 0;
+    for (const v of extractAnnualValues(facts, tag)) {
+      if (!byYear.has(v.year)) {
+        byYear.set(v.year, v.value);
+        if (v.year > tagMaxYear) tagMaxYear = v.year;
       }
     }
+    if (tagMaxYear > bestMaxYear) {
+      bestMaxYear = tagMaxYear;
+      bestTag = tag;
+    }
   }
-  const result = best as ExtractedValues;
+  const result = Array.from(byYear.entries())
+    .map(([year, value]) => ({ year, value }))
+    .sort((a, b) => a.year - b.year) as ExtractedValues;
   result.tag = bestTag;
   return result;
 }
@@ -162,6 +169,194 @@ const REVENUE_TAGS = [
 export function extractRevenue(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, REVENUE_TAGS);
 }
+
+// ===== Quarterly (10-Q) extraction =====
+// SEC quarterly income / cash-flow facts are reported year-to-date, so the
+// single-quarter value for Q2/Q3/Q4 is obtained by de-cumulating within the
+// fiscal year. Balance-sheet facts are point-in-time and read directly.
+
+export interface SecQuarterlyValues extends Array<{ year: number; quarter: number; value: number }> {
+  tag: string | null;
+}
+
+const QUARTERLY_FIELD_TAGS: Record<string, { tags: string[]; pointInTime: boolean }> = {
+  revenue: { tags: REVENUE_TAGS, pointInTime: false },
+  netIncome: { tags: ['NetIncomeLoss', 'ProfitLoss'], pointInTime: false },
+  costOfRevenue: { tags: ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold', 'CostOfSales'], pointInTime: false },
+  grossProfit: { tags: ['GrossProfit', 'GrossProfitLoss'], pointInTime: false },
+  operatingExpenses: { tags: ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense'], pointInTime: false },
+  sgaExpense: { tags: ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense'], pointInTime: false },
+  rdExpense: { tags: ['ResearchAndDevelopmentExpense'], pointInTime: false },
+  interestExpense: { tags: ['InterestExpense', 'InterestAndDebtExpense', 'InterestExpenseNonoperating'], pointInTime: false },
+  taxExpense: { tags: ['IncomeTaxExpenseBenefit', 'ProvisionForIncomeTaxes', 'IncomeTaxExpenseContinuingOperations'], pointInTime: false },
+  ebit: { tags: ['OperatingIncomeLoss', 'IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest', 'OtherOperatingIncomeExpense'], pointInTime: false },
+  depreciation: { tags: ['DepreciationAndAmortization', 'DepreciationDepletionAndAmortization', 'Depreciation', 'AdjustmentsForDepreciationAndAmortisationExpense'], pointInTime: false },
+  capex: { tags: ['PaymentsToAcquirePropertyPlantAndEquipment', 'CapitalExpenditure', 'CapitalExpenditures', 'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipment', 'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipmentIncludingRightofuseAssets', 'PaymentsToAcquireProductiveAssets'], pointInTime: false },
+  operatingCashFlow: { tags: ['NetCashProvidedByUsedInOperatingActivities', 'NetCashProvidedByOperatingActivities', 'NetCashUsedInOperatingActivities'], pointInTime: false },
+  investingCashFlow: { tags: ['NetCashProvidedByUsedInInvestingActivities', 'NetCashUsedForInvestingActivites', 'NetCashUsedInInvestingActivities'], pointInTime: false },
+  financingCashFlow: { tags: ['NetCashProvidedByUsedInFinancingActivities', 'NetCashUsedProvidedByFinancingActivities', 'NetCashUsedInFinancingActivities'], pointInTime: false },
+  dividendsPaid: { tags: ['PaymentsOfDividends', 'DividendsPaid'], pointInTime: false },
+  shareRepurchases: { tags: ['PaymentsForRepurchaseOfCommonStock', 'RepurchaseOfCommonStock', 'ShareRepurchases', 'PurchaseOfTreasuryShares', 'IncreaseDecreaseThroughTreasuryShareTransactions'], pointInTime: false },
+  totalAssets: { tags: ['Assets', 'AssetsCurrent'], pointInTime: true },
+  cash: { tags: ['CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsAndShortTermInvestments', 'Cash', 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents'], pointInTime: true },
+  receivables: { tags: ['AccountsReceivableNetCurrent', 'ReceivablesNetCurrent', 'AccountsReceivableNet'], pointInTime: true },
+  inventory: { tags: ['InventoryNet', 'Inventory', 'InventoryCurrent'], pointInTime: true },
+  currentAssets: { tags: ['AssetsCurrent'], pointInTime: true },
+  ppe: { tags: ['PropertyPlantAndEquipmentNet', 'PropertyPlantAndEquipmentGross', 'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization'], pointInTime: true },
+  goodwill: { tags: ['Goodwill', 'GoodwillImpairmentLoss'], pointInTime: true },
+  intangibles: { tags: ['IntangibleAssetsNetExcludingGoodwill', 'IntangibleAssetsNet'], pointInTime: true },
+  totalEquity: { tags: ['StockholdersEquity', 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest', 'Equity', 'EquityAttributableToParent'], pointInTime: true },
+  currentLiabilities: { tags: ['LiabilitiesCurrent'], pointInTime: true },
+  accountsPayable: { tags: ['AccountsPayable', 'AccountsPayableCurrent'], pointInTime: true },
+  shortTermDebt: { tags: ['DebtCurrent', 'LongTermDebtCurrent', 'ShortTermBorrowings'], pointInTime: true },
+  longTermDebt: { tags: ['LongTermDebtNoncurrent', 'LongTermDebt'], pointInTime: true },
+  retainedEarnings: { tags: ['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings'], pointInTime: true },
+  shortTermInvestments: { tags: ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities'], pointInTime: true },
+  treasuryStock: { tags: ['TreasuryStockValue', 'TreasuryStockCommon', 'TreasuryStock'], pointInTime: true },
+};
+
+function quarterOfEnd(end: string): number {
+  const m = new Date(end).getMonth() + 1;
+  if (m <= 3) return 1;
+  if (m <= 6) return 2;
+  if (m <= 9) return 3;
+  return 4;
+}
+
+function durationDays(start: string, end: string): number {
+  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+}
+
+function extractQuarterlyTagSeries(facts: SECCompanyFacts, concept: string, pointInTime: boolean): { year: number; quarter: number; value: number }[] {
+  for (const ns of ['us-gaap', 'ifrs-full'] as const) {
+    const nsFacts = facts.facts[ns as keyof typeof facts.facts] as
+      | Record<string, { units?: Record<string, SECFact[]> }>
+      | undefined;
+    const unitMap = nsFacts?.[concept]?.units;
+    const allValues = unitMap?.USD?.length ? unitMap.USD : unitMap?.EUR?.length ? unitMap.EUR : [];
+    if (!allValues.length) continue;
+
+    // SEC XBRL filings carry prior-year comparatives inside the same 10-Q, so
+    // facts are grouped by their actual period dates, not by the fy/fp labels.
+    const byPeriod = new Map<string, SECFact>();
+    for (const v of allValues) {
+      if (v.form !== '10-Q' && v.form !== '10-K') continue;
+      if (!v.end) continue;
+      if (!pointInTime && !v.start) continue;
+      const key = `${v.start ?? ''}|${v.end}`;
+      const existing = byPeriod.get(key);
+      if (!existing || new Date(v.filed) > new Date(existing.filed)) byPeriod.set(key, v);
+    }
+
+    if (pointInTime) {
+      const results: { year: number; quarter: number; value: number }[] = [];
+      for (const fact of byPeriod.values()) {
+        if (fact.form === '10-K') continue; // Dec-31 annual row is stored separately
+        const q = quarterOfEnd(fact.end as string);
+        if (q === 4) continue;
+        const year = new Date(fact.end as string).getFullYear();
+        results.push({ year, quarter: q, value: fact.val });
+      }
+      results.sort((a, b) => a.year - b.year || a.quarter - b.quarter);
+      return results;
+    }
+
+    // Flow statements: YTD (cumulative) facts have duration > 150 days, single
+    // quarter facts are ~90 days. Group by (year, quarter-of-period-end).
+    const byYear = new Map<number, Map<number, SECFact[]>>();
+    for (const fact of byPeriod.values()) {
+      const year = new Date(fact.end as string).getFullYear();
+      const q = quarterOfEnd(fact.end as string);
+      if (!byYear.has(year)) byYear.set(year, new Map());
+      const qm = byYear.get(year)!;
+      if (!qm.has(q)) qm.set(q, []);
+      qm.get(q)!.push(fact);
+    }
+
+    const results: { year: number; quarter: number; value: number }[] = [];
+    for (const [year, qm] of byYear) {
+      const cumFor = (q: number): SECFact | undefined => {
+        const arr = qm.get(q);
+        if (!arr?.length) return undefined;
+        return [...arr].sort(
+          (a, b) => durationDays(b.start as string, b.end as string) - durationDays(a.start as string, a.end as string),
+        )[0];
+      };
+      const singleFor = (q: number): SECFact | undefined => {
+        const arr = qm.get(q);
+        return arr?.find((f) => {
+          const d = durationDays(f.start as string, f.end as string);
+          return d >= 80 && d <= 110;
+        });
+      };
+
+      // Emit single-quarter values directly (exact from filings) and fill any
+      // missing quarter by de-cumulating YTD (cumulative) facts.
+      let singleSum: number | null = null;
+      let lastCum: number | null = null;
+      for (let q = 1; q <= 4; q++) {
+        const s = singleFor(q);
+        const c = cumFor(q);
+        if (s) {
+          results.push({ year, quarter: q, value: s.val });
+          singleSum = (singleSum ?? 0) + s.val;
+          lastCum = null;
+        } else if (c) {
+          if (lastCum != null) {
+            results.push({ year, quarter: q, value: c.val - lastCum });
+            lastCum = c.val;
+            singleSum = null;
+          } else if (singleSum != null) {
+            results.push({ year, quarter: q, value: c.val - singleSum });
+            lastCum = c.val;
+            singleSum = null;
+          } else if (q === 1) {
+            results.push({ year, quarter: q, value: c.val });
+            lastCum = c.val;
+          }
+        } else {
+          singleSum = null;
+          lastCum = null;
+        }
+      }
+    }
+
+    results.sort((a, b) => a.year - b.year || a.quarter - b.quarter);
+    if (results.length > 0) return results;
+  }
+  return [];
+}
+
+export function extractQuarterlyField(facts: SECCompanyFacts, field: string, pointInTimeOverride?: boolean): SecQuarterlyValues {
+  const cfg = QUARTERLY_FIELD_TAGS[field];
+  const empty = Object.assign([], { tag: null }) as SecQuarterlyValues;
+  if (!cfg) return empty;
+  const pointInTime = pointInTimeOverride ?? cfg.pointInTime;
+
+  const filled = new Map<string, { year: number; quarter: number; value: number; tag: string }>();
+  let maxYear = 0;
+  let maxQuarter = 0;
+  let tag: string | null = null;
+  for (const t of cfg.tags) {
+    for (const qv of extractQuarterlyTagSeries(facts, t, pointInTime)) {
+      const key = `${qv.year}-${qv.quarter}`;
+      if (filled.has(key)) continue; // first tag in priority order wins
+      filled.set(key, { ...qv, tag: t });
+      if (qv.year > maxYear || (qv.year === maxYear && qv.quarter > maxQuarter)) {
+        maxYear = qv.year;
+        maxQuarter = qv.quarter;
+        tag = t;
+      }
+    }
+  }
+
+  const result = Array.from(filled.values())
+    .map(({ year, quarter, value }) => ({ year, quarter, value }))
+    .sort((a, b) => a.year - b.year || a.quarter - b.quarter) as SecQuarterlyValues;
+  result.tag = tag;
+  return result;
+}
+
 
 export function extractNetIncome(facts: SECCompanyFacts): ExtractedValues {
   return extractBestTag(facts, ['NetIncomeLoss', 'ProfitLoss']);
@@ -188,7 +383,7 @@ export function extractRD(facts: SECCompanyFacts): ExtractedValues {
 }
 
 export function extractInterestExpense(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['InterestExpense', 'InterestAndDebtExpense']);
+  return extractBestTag(facts, ['InterestExpense', 'InterestAndDebtExpense', 'InterestExpenseNonoperating']);
 }
 
 export function extractTaxExpense(facts: SECCompanyFacts): ExtractedValues {
@@ -202,6 +397,7 @@ export function extractCapex(facts: SECCompanyFacts): ExtractedValues {
     'CapitalExpenditures',
     'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipment',
     'AdditionsOtherThanThroughBusinessCombinationsPropertyPlantAndEquipmentIncludingRightofuseAssets',
+    'PaymentsToAcquireProductiveAssets',
   ]);
 }
 
@@ -364,7 +560,11 @@ export function extractCurrentAssets(facts: SECCompanyFacts): ExtractedValues {
 }
 
 export function extractPPE(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['PropertyPlantAndEquipmentNet', 'PropertyPlantAndEquipmentGross']);
+  return extractBestTag(facts, [
+    'PropertyPlantAndEquipmentNet',
+    'PropertyPlantAndEquipmentGross',
+    'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization',
+  ]);
 }
 
 export function extractGoodwill(facts: SECCompanyFacts): ExtractedValues {

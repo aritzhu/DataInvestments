@@ -228,11 +228,16 @@ function computePeriodInfo(financials: Financial[], balanceSheets: BalanceSheet[
   const annualYears = annualFinancialYears(financials);
   const allYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
   const latest = sortByPeriodDesc(financials)[0];
+  const latestYearComplete = (() => {
+    if (latest == null) return false;
+    const quarters = new Set(financials.filter((f) => f.year === latest.year).map((f) => f.quarter));
+    return quarters.has(1) && quarters.has(2) && quarters.has(3) && quarters.has(4);
+  })();
   const showTTM = ttm != null
     && ttm.isTTM
     && latest != null
     && (latest.quarter ?? 0) > 0
-    && (annualYears[0] == null || latest.year > annualYears[0]);
+    && (annualYears[0] == null || latest.year > annualYears[0] || !latestYearComplete);
 
   const pills: Array<'ttm' | number> = [];
   if (showTTM) pills.push('ttm');

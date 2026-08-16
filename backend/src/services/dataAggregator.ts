@@ -366,6 +366,9 @@ import {
   extractCurrentLiabilities,
   extractShortTermInvestments,
   extractTreasuryStock,
+  extractQuarterlyField,
+  type SecQuarterlyValues,
+  type SECCompanyFacts,
 } from './sec';
 
 import { fetchYahooQuote, fetchYahooProfile, type YahooQuote } from './yahoo';
@@ -745,6 +748,10 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     }
     result.balanceSheets++;
   }
+
+  // Quarterly SEC data (10-Q): gives US companies quarterly rows so the TTM
+  // pill works the same way as for European companies.
+  await importSecQuarterly(company, facts, result);
 
   // Build StockMetric from Yahoo Finance + SEC computed data
   const latestYear = allYears[0];
@@ -1665,6 +1672,220 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
   }
 
   return result;
+}
+
+// ===== Quarterly (10-Q) import for US companies =====
+// Writes quarterly financialData + balanceSheet rows from SEC XBRL so the TTM
+// metric works for US companies the same way it does for European ones.
+
+const QUARTERLY_FLOW_FIELDS = [
+  'revenue',
+  'costOfRevenue',
+  'grossProfit',
+  'operatingExpenses',
+  'sgaExpense',
+  'rdExpense',
+  'interestExpense',
+  'taxExpense',
+  'netIncome',
+  'ebit',
+  'depreciation',
+  'capex',
+  'operatingCashFlow',
+  'investingCashFlow',
+  'financingCashFlow',
+  'dividendsPaid',
+  'shareRepurchases',
+] as const;
+
+const QUARTERLY_BS_FIELDS = [
+  'totalAssets',
+  'cash',
+  'receivables',
+  'inventory',
+  'currentAssets',
+  'ppe',
+  'goodwill',
+  'intangibles',
+  'totalEquity',
+  'currentLiabilities',
+  'accountsPayable',
+  'shortTermDebt',
+  'longTermDebt',
+  'retainedEarnings',
+  'shortTermInvestments',
+  'treasuryStock',
+] as const;
+
+async function importSecQuarterly(
+  company: { id: string },
+  facts: SECCompanyFacts,
+  result: SyncResult,
+): Promise<void> {
+  const flow = {} as Record<(typeof QUARTERLY_FLOW_FIELDS)[number], SecQuarterlyValues>;
+  const bs = {} as Record<(typeof QUARTERLY_BS_FIELDS)[number], SecQuarterlyValues>;
+
+  for (const f of QUARTERLY_FLOW_FIELDS) flow[f] = extractQuarterlyField(facts, f);
+  for (const f of QUARTERLY_BS_FIELDS) bs[f] = extractQuarterlyField(facts, f);
+
+  const mk = (arr: SecQuarterlyValues): Map<string, number> =>
+    new Map(arr.map((r) => [`${r.year}-${r.quarter}`, r.value]));
+  const get = (m: Map<string, number>, key: string): number | null => m.get(key) ?? null;
+
+  const flowMaps = {} as Record<(typeof QUARTERLY_FLOW_FIELDS)[number], Map<string, number>>;
+  const bsMaps = {} as Record<(typeof QUARTERLY_BS_FIELDS)[number], Map<string, number>>;
+  for (const f of QUARTERLY_FLOW_FIELDS) flowMaps[f] = mk(flow[f]);
+  for (const f of QUARTERLY_BS_FIELDS) bsMaps[f] = mk(bs[f]);
+
+  const flowKeys = new Set<string>();
+  for (const f of QUARTERLY_FLOW_FIELDS) for (const r of flow[f]) flowKeys.add(`${r.year}-${r.quarter}`);
+  const bsKeys = new Set<string>();
+  for (const f of QUARTERLY_BS_FIELDS) for (const r of bs[f]) bsKeys.add(`${r.year}-${r.quarter}`);
+  const sortKeys = (s: Set<string>): string[] =>
+    Array.from(s).sort((a, b) => {
+      const [ay, aq] = a.split('-').map(Number);
+      const [by, bq] = b.split('-').map(Number);
+      return ay - by || aq - bq;
+    });
+
+  const flowRawTags: Record<string, string> = {};
+  for (const f of QUARTERLY_FLOW_FIELDS) if (flow[f].tag) flowRawTags[f] = flow[f].tag;
+
+  let financialRecords = 0;
+  for (const key of sortKeys(flowKeys)) {
+    const [year, quarter] = key.split('-').map(Number);
+    const rev = get(flowMaps.revenue, key);
+    if (rev == null || rev === 0) continue;
+
+    const costRev = get(flowMaps.costOfRevenue, key);
+    const opExp = get(flowMaps.operatingExpenses, key);
+    const gp = get(flowMaps.grossProfit, key) ?? (rev != null && costRev != null ? rev - costRev : null);
+    const oi = get(flowMaps.ebit, key) ?? (gp != null && opExp != null ? gp - opExp : null);
+    const dep = get(flowMaps.depreciation, key);
+    const ebit = oi;
+    const ebitda = oi != null && dep != null ? oi + dep : null;
+    const ocf = get(flowMaps.operatingCashFlow, key);
+    const capexVal = get(flowMaps.capex, key);
+    const fcf = ocf != null && capexVal != null ? ocf - capexVal : null;
+
+    const totalAssetsVal = get(bsMaps.totalAssets, key);
+    const totalEquityVal = get(bsMaps.totalEquity, key);
+    const totalLiabsVal =
+      totalAssetsVal != null && totalEquityVal != null ? totalAssetsVal - totalEquityVal : null;
+
+    const existing = await prisma.financialData.findUnique({
+      where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+    });
+
+    const data = {
+      companyId: company.id,
+      year,
+      quarter,
+      source: 'sec-xbrl',
+      tier: '1',
+      rawTags: flowRawTags,
+      revenue: rev,
+      costOfRevenue: costRev,
+      grossProfit: gp,
+      operatingExpenses: opExp,
+      sgaExpense: get(flowMaps.sgaExpense, key),
+      rdExpense: get(flowMaps.rdExpense, key),
+      interestExpense: get(flowMaps.interestExpense, key),
+      taxExpense: get(flowMaps.taxExpense, key),
+      netIncome: get(flowMaps.netIncome, key),
+      ebitda,
+      ebit,
+      capex: capexVal,
+      depreciation: dep,
+      operatingCashFlow: ocf,
+      investingCashFlow: get(flowMaps.investingCashFlow, key),
+      financingCashFlow: get(flowMaps.financingCashFlow, key),
+      freeCashFlow: fcf,
+      dividendsPaid: get(flowMaps.dividendsPaid, key) != null ? Math.abs(get(flowMaps.dividendsPaid, key)!) : null,
+      shareRepurchases: get(flowMaps.shareRepurchases, key) != null ? Math.abs(get(flowMaps.shareRepurchases, key)!) : null,
+      totalAssets: totalAssetsVal,
+      totalLiabilities: totalLiabsVal,
+      totalEquity: totalEquityVal,
+    };
+
+    const secWarnings = validateFinancialData(data);
+    logValidationWarnings(company.id, secWarnings, 'SEC-Q');
+
+    if (existing) {
+      if (existing.source !== 'manual') {
+        await prisma.financialData.update({ where: { id: existing.id }, data });
+      }
+    } else {
+      await prisma.financialData.create({ data });
+    }
+    financialRecords++;
+  }
+  result.financialRecords += financialRecords;
+  if (financialRecords > 0) {
+    console.log(`[SEC] ${company.id}: imported ${financialRecords} quarterly financialData rows`);
+  }
+
+  const bsRawTags: Record<string, string> = {};
+  for (const f of QUARTERLY_BS_FIELDS) if (bs[f].tag) bsRawTags[f] = bs[f].tag;
+
+  let balanceSheets = 0;
+  for (const key of sortKeys(bsKeys)) {
+    const [year, quarter] = key.split('-').map(Number);
+    const assetsVal = get(bsMaps.totalAssets, key);
+    const eqVal = get(bsMaps.totalEquity, key);
+    const liabsVal =
+      get(bsMaps.totalAssets, key) != null && eqVal != null ? get(bsMaps.totalAssets, key)! - eqVal : null;
+    const currentAssetsVal = get(bsMaps.currentAssets, key);
+    const currentLiabsVal = get(bsMaps.currentLiabilities, key);
+
+    const bsExisting = await prisma.balanceSheet.findUnique({
+      where: { companyId_year_quarter: { companyId: company.id, year, quarter } },
+    });
+
+    const bsData = {
+      companyId: company.id,
+      year,
+      quarter,
+      source: 'sec-xbrl',
+      tier: '1',
+      rawTags: bsRawTags,
+      cashAndCashEquivalents: get(bsMaps.cash, key),
+      shortTermInvestments: get(bsMaps.shortTermInvestments, key),
+      accountsReceivable: get(bsMaps.receivables, key),
+      inventory: get(bsMaps.inventory, key),
+      totalCurrentAssets: currentAssetsVal,
+      propertyPlantEquipment: get(bsMaps.ppe, key),
+      goodwill: get(bsMaps.goodwill, key),
+      intangibleAssets: get(bsMaps.intangibles, key),
+      totalNonCurrentAssets: assetsVal != null && currentAssetsVal != null ? assetsVal - currentAssetsVal : null,
+      totalAssets: assetsVal,
+      accountsPayable: get(bsMaps.accountsPayable, key),
+      shortTermDebt: get(bsMaps.shortTermDebt, key),
+      totalCurrentLiabilities: currentLiabsVal,
+      longTermDebt: get(bsMaps.longTermDebt, key),
+      totalNonCurrentLiabilities: liabsVal != null && currentLiabsVal != null ? liabsVal - currentLiabsVal : null,
+      totalLiabilities: liabsVal,
+      totalStockholdersEquity: eqVal,
+      retainedEarnings: get(bsMaps.retainedEarnings, key),
+      treasuryStock: get(bsMaps.treasuryStock, key),
+    };
+
+    const secBsWarnings = validateBalanceSheet(bsData);
+    logValidationWarnings(company.id, secBsWarnings, 'SEC-Q');
+
+    if (bsExisting) {
+      if (bsExisting.source !== 'manual') {
+        await prisma.balanceSheet.update({ where: { id: bsExisting.id }, data: bsData });
+      }
+    } else {
+      await prisma.balanceSheet.create({ data: bsData });
+    }
+    balanceSheets++;
+  }
+  result.balanceSheets += balanceSheets;
+  if (balanceSheets > 0) {
+    console.log(`[SEC] ${company.id}: imported ${balanceSheets} quarterly balanceSheet rows`);
+  }
 }
 
 export async function addCompanyFromTicker(ticker: string) {
