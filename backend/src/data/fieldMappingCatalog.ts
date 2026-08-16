@@ -85,7 +85,7 @@ export const FIELD_MAPPING_CATALOG: FieldMappingEntry[] = [
     description: 'Gastos operativos totales',
     defaultValue: 0,
     sources: {
-      sec: ['OperatingExpenses', 'OperatingCostsAndExpenses'],
+      sec: ['OperatingExpenses', 'OperatingCostsAndExpenses', 'CostsAndExpenses'],
       european: ['ifrs-full:OperatingExpenses'],
       yahoo: [],
     },
@@ -97,7 +97,7 @@ export const FIELD_MAPPING_CATALOG: FieldMappingEntry[] = [
     description: 'Gastos de ventas, generales y administrativos',
     defaultValue: 0,
     sources: {
-      sec: ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense'],
+      sec: ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'SellingAndMarketingExpense'],
       european: ['SellingGeneralAndAdministrativeExpense'],
       yahoo: [],
     },
@@ -381,7 +381,7 @@ export const FIELD_MAPPING_CATALOG: FieldMappingEntry[] = [
     description: 'Inventario',
     defaultValue: null,
     sources: {
-      sec: ['InventoryNet', 'Inventory', 'InventoryCurrent'],
+      sec: ['InventoryNet', 'Inventory', 'InventoryCurrent', 'AirlineRelatedInventoryNet'],
       european: ['ifrs-full:Inventories'],
       yahoo: ['inventory'],
     },
@@ -405,7 +405,7 @@ export const FIELD_MAPPING_CATALOG: FieldMappingEntry[] = [
     description: 'Inversiones a corto plazo',
     defaultValue: null,
     sources: {
-      sec: ['ShortTermInvestments', 'MarketableSecuritiesCurrent'],
+      sec: ['ShortTermInvestments', 'MarketableSecuritiesCurrent', 'AvailableForSaleSecuritiesDebtSecuritiesCurrent'],
       european: [],
       yahoo: [],
     },

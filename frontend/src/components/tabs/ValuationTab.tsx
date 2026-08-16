@@ -143,16 +143,22 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     }
   };
 
-  const active = results.find(r => r.id === activeMethod);
   const recommendedModel = getRecommendedModel(company.sector, company.industry);
+  const applicable = results.filter(r => r.fairValue != null && r.fairValue > 0);
+  const activeId = applicable.some(r => r.id === activeMethod)
+    ? activeMethod
+    : (applicable.find(r => r.id === recommendedModel)?.id ?? applicable[0]?.id ?? 'dcf');
+  const active = results.find(r => r.id === activeId);
 
   if (!stock) {
     return <div className="tab-empty">Sin datos suficientes para valoración</div>;
   }
 
-  const validValues = results.filter(r => r.fairValue != null && r.fairValue > 0).map(r => r.fairValue!);
-  const recommendedResult = results.find(r => r.id === recommendedModel);
-  const recommendedFair = recommendedResult?.fairValue ?? null;
+  const validValues = applicable.map(r => r.fairValue!);
+  const heroResult = applicable.find(r => r.id === recommendedModel) ?? applicable[0] ?? null;
+  const heroModel = heroResult?.id ?? recommendedModel;
+  const heroRecommended = heroResult?.id === recommendedModel;
+  const recommendedFair = heroResult?.fairValue ?? null;
   const avgFair = weightedAverage(results);
   const avgUpside = recommendedFair && stock.currentPrice > 0 ? (recommendedFair - stock.currentPrice) / stock.currentPrice : null;
   const { verdict, label: verdictLabel } = getVerdict(recommendedFair, stock.currentPrice);
@@ -190,7 +196,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               {recommendedFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${recommendedFair.toFixed(2)}` : '—'}
             </span>
             <span className="val-hero-label"><span className="info-label-row">Valor justo <InfoButton content={INFO['valuation.hero']} /></span></span>
-            <span className="val-hero-method"><AbbrTip abbr={METHOD_NAMES[recommendedModel] || recommendedModel} /></span>
+            <span className="val-hero-method"><AbbrTip abbr={METHOD_NAMES[heroModel] || heroModel} /></span>
           </div>
 
           <div className="val-hero-center">
@@ -237,7 +243,12 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
           </p>
         )}
         <p className="verdict-explanation">
-          La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[recommendedModel] || recommendedModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>. Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
+          {heroRecommended ? (
+            <>La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+          ) : (
+            <>La valoración se basa en el <strong>método con datos disponibles</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), el mejor ajuste para esta empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+          )}{' '}
+          Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
         </p>
         {periodInfo.year && periodInfo.year < new Date().getFullYear() - 2 && (
           <p className="val-stale-warning">
@@ -248,34 +259,44 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
 
       {/* Method Grid */}
       <SectionReveal delay={80}>
-        <div className="val-method-grid">
-          {results.map((r) => {
-            const isActive = activeMethod === r.id;
-            const isNA = r.fairValue == null || r.fairValue === 0;
-            const isNegative = r.fairValue != null && r.fairValue < 0;
-            const isRecommended = r.id === recommendedModel;
-            return (
-              <button
-                key={r.id}
-                className={`val-method-card ${isActive ? 'val-method-card--active' : ''} ${isNA ? 'val-method-card--na' : ''} ${isRecommended ? 'val-method-card--recommended' : ''}`}
-                onClick={() => setActiveMethod(r.id)}
-              >
-                <div className="val-method-card-header">
-                  <span className="val-method-card-name">{r.name}</span>
-                  {isRecommended && <span className="val-recommended-badge">Método sugerido por sector</span>}
-                  <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
-                </div>
-                <span className={`val-method-card-value ${isNegative ? 'val-method-card-value--negative' : ''}`}>
-                  {isNA ? 'N/D' : `${isNegative ? '-' : ''}${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${(isNegative ? -r.fairValue! : r.fairValue!).toFixed(2)}`}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {applicable.length === 0 ? (
+          <div className="tab-empty">Sin datos suficientes para valoración</div>
+        ) : (
+          <>
+            <div className="val-method-grid">
+              {applicable.map((r) => {
+                const isActive = activeId === r.id;
+                const isRecommended = heroRecommended && r.id === recommendedModel;
+                return (
+                  <button
+                    key={r.id}
+                    className={`val-method-card ${isActive ? 'val-method-card--active' : ''} ${isRecommended ? 'val-method-card--recommended' : ''}`}
+                    onClick={() => setActiveMethod(r.id)}
+                  >
+                    <div className="val-method-card-header">
+                      <span className="val-method-card-name">{r.name}</span>
+                      {isRecommended && <span className="val-recommended-badge">Método sugerido por sector</span>}
+                      <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
+                    </div>
+                    <span className="val-method-card-value">
+                      {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{r.fairValue!.toFixed(2)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {applicable.length < results.length && (
+              <p className="verdict-explanation">
+                <strong>No aplican a esta empresa por su modelo de negocio:</strong>{' '}
+                {results.filter(r => !applicable.includes(r)).map(r => `${r.name} (${r.confidenceReason || 'sin datos'})`).join('; ')}.
+              </p>
+            )}
+          </>
+        )}
       </SectionReveal>
 
       {/* Detail Panel */}
-      {active && (
+      {applicable.length > 0 && active && (
         <SectionReveal delay={160}>
           <div className="val-detail">
             <div className="val-hero">

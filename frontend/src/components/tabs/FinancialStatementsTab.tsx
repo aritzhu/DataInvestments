@@ -202,6 +202,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
                   <h4 className="stmt-bs-subtitle">Activos</h4>
                   <div className="stmt-bs-block">
                     <div className="stmt-bs-row"><span>Efectivo y equivalentes</span><span>{formatNum(bs.cashAndCashEquivalents)}</span></div>
+                    <div className="stmt-bs-row"><span>Inversiones a corto plazo</span><span>{formatNum(bs.shortTermInvestments)}</span></div>
                     <div className="stmt-bs-row"><span>Cuentas por cobrar</span><span>{formatNum(bs.accountsReceivable)}</span></div>
                     <div className="stmt-bs-row"><span>Inventario</span><span>{formatNum(bs.inventory)}</span></div>
                     <div className="stmt-bs-row stmt-bs-row--sub"><span>Activos corrientes</span><span>{formatNum(bs.totalCurrentAssets)}</span></div>
