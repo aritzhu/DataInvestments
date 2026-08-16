@@ -184,8 +184,8 @@ const QUARTERLY_FIELD_TAGS: Record<string, { tags: string[]; pointInTime: boolea
   netIncome: { tags: ['NetIncomeLoss', 'ProfitLoss'], pointInTime: false },
   costOfRevenue: { tags: ['CostOfGoodsAndServicesSold', 'CostOfRevenue', 'CostOfGoodsSold', 'CostOfSales'], pointInTime: false },
   grossProfit: { tags: ['GrossProfit', 'GrossProfitLoss'], pointInTime: false },
-  operatingExpenses: { tags: ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense'], pointInTime: false },
-  sgaExpense: { tags: ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense'], pointInTime: false },
+  operatingExpenses: { tags: ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense', 'CostsAndExpenses'], pointInTime: false },
+  sgaExpense: { tags: ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense', 'SellingAndMarketingExpense'], pointInTime: false },
   rdExpense: { tags: ['ResearchAndDevelopmentExpense'], pointInTime: false },
   interestExpense: { tags: ['InterestExpense', 'InterestAndDebtExpense', 'InterestExpenseNonoperating'], pointInTime: false },
   taxExpense: { tags: ['IncomeTaxExpenseBenefit', 'ProvisionForIncomeTaxes', 'IncomeTaxExpenseContinuingOperations'], pointInTime: false },
@@ -200,7 +200,7 @@ const QUARTERLY_FIELD_TAGS: Record<string, { tags: string[]; pointInTime: boolea
   totalAssets: { tags: ['Assets', 'AssetsCurrent'], pointInTime: true },
   cash: { tags: ['CashAndCashEquivalentsAtCarryingValue', 'CashCashEquivalentsAndShortTermInvestments', 'Cash', 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents'], pointInTime: true },
   receivables: { tags: ['AccountsReceivableNetCurrent', 'ReceivablesNetCurrent', 'AccountsReceivableNet'], pointInTime: true },
-  inventory: { tags: ['InventoryNet', 'Inventory', 'InventoryCurrent'], pointInTime: true },
+  inventory: { tags: ['InventoryNet', 'Inventory', 'InventoryCurrent', 'AirlineRelatedInventoryNet'], pointInTime: true },
   currentAssets: { tags: ['AssetsCurrent'], pointInTime: true },
   ppe: { tags: ['PropertyPlantAndEquipmentNet', 'PropertyPlantAndEquipmentGross', 'PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization'], pointInTime: true },
   goodwill: { tags: ['Goodwill', 'GoodwillImpairmentLoss'], pointInTime: true },
@@ -211,7 +211,7 @@ const QUARTERLY_FIELD_TAGS: Record<string, { tags: string[]; pointInTime: boolea
   shortTermDebt: { tags: ['DebtCurrent', 'LongTermDebtCurrent', 'ShortTermBorrowings'], pointInTime: true },
   longTermDebt: { tags: ['LongTermDebtNoncurrent', 'LongTermDebt'], pointInTime: true },
   retainedEarnings: { tags: ['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings'], pointInTime: true },
-  shortTermInvestments: { tags: ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities'], pointInTime: true },
+  shortTermInvestments: { tags: ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities', 'AvailableForSaleSecuritiesDebtSecuritiesCurrent'], pointInTime: true },
   treasuryStock: { tags: ['TreasuryStockValue', 'TreasuryStockCommon', 'TreasuryStock'], pointInTime: true },
 };
 
@@ -371,11 +371,11 @@ export function extractCostOfRevenue(facts: SECCompanyFacts): ExtractedValues {
 }
 
 export function extractOperatingExpenses(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense']);
+  return extractBestTag(facts, ['OperatingExpenses', 'OperatingCostsAndExpenses', 'OperatingExpense', 'CostsAndExpenses']);
 }
 
 export function extractSGA(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense']);
+  return extractBestTag(facts, ['SellingGeneralAndAdministrativeExpense', 'SellingAndAdministrativeExpense', 'AdministrativeExpense', 'SalesAndMarketingExpense', 'SellingAndMarketingExpense']);
 }
 
 export function extractRD(facts: SECCompanyFacts): ExtractedValues {
@@ -552,7 +552,7 @@ export function extractReceivables(facts: SECCompanyFacts): ExtractedValues {
 }
 
 export function extractInventory(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['InventoryNet', 'Inventory', 'InventoryCurrent']);
+  return extractBestTag(facts, ['InventoryNet', 'Inventory', 'InventoryCurrent', 'AirlineRelatedInventoryNet']);
 }
 
 export function extractCurrentAssets(facts: SECCompanyFacts): ExtractedValues {
@@ -596,7 +596,7 @@ export function extractCurrentLiabilities(facts: SECCompanyFacts): ExtractedValu
 }
 
 export function extractShortTermInvestments(facts: SECCompanyFacts): ExtractedValues {
-  return extractBestTag(facts, ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities']);
+  return extractBestTag(facts, ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities', 'AvailableForSaleSecuritiesDebtSecuritiesCurrent']);
 }
 
 export function extractTreasuryStock(facts: SECCompanyFacts): ExtractedValues {

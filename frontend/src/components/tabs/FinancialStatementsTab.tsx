@@ -42,7 +42,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
   const bs = balanceSheet;
   const grossProfit = f.grossProfit ?? (f.revenue - f.costOfRevenue);
   const operatingProfit = f.ebit ?? (grossProfit - f.operatingExpenses);
-  const otherOpex = Math.max(0, f.operatingExpenses - f.sgaExpense - f.rdExpense);
+  const otherOpex = f.operatingExpenses != null ? Math.max(0, f.operatingExpenses - (f.sgaExpense ?? 0) - (f.rdExpense ?? 0)) : null;
 
   const incomeStatement = [
     { label: 'Ingresos', value: f.revenue, level: 0 },
@@ -63,7 +63,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
     { label: 'Beneficio bruto', value: grossProfit, color: 'var(--blue-light)', type: 'subtotal' as const },
     { label: 'SGA', value: -f.sgaExpense, color: 'var(--orange)', type: 'expense' as const },
     { label: 'I+D', value: -f.rdExpense, color: 'var(--amber)', type: 'expense' as const },
-    { label: 'Otros gastos op.', value: -otherOpex, color: 'var(--orange-light)', type: 'expense' as const },
+    { label: 'Otros gastos op.', value: -(otherOpex ?? 0), color: 'var(--orange-light)', type: 'expense' as const },
     { label: 'EBIT', value: operatingProfit, color: 'var(--purple)', type: 'subtotal' as const },
     { label: 'Intereses', value: -f.interestExpense, color: 'var(--red)', type: 'expense' as const },
     { label: 'Impuestos', value: -f.taxExpense, color: 'var(--red)', type: 'expense' as const },
@@ -180,7 +180,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
                 <div key={i} className={`stmt-row ${row.bold ? 'stmt-row--bold' : ''} stmt-row--level-${row.level}`}>
                   <span className="stmt-label">{row.label}</span>
                   <span className="stmt-value">{formatNum(row.value)}</span>
-                  <span className="stmt-pct">{pctOf(row.value, f.revenue)}</span>
+                  <span className="stmt-pct">{pctOf(row.value ?? 0, f.revenue)}</span>
                 </div>
               ))}
             </div>
