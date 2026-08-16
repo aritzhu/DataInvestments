@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
@@ -170,11 +170,11 @@ export function Landing() {
   const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(() => initialCache?.valuationLimits ?? null);
   const [undervalued, setUndervalued] = useState<any[]>(() => initialCache?.undervalued ?? []);
   const [overvalued, setOvervalued] = useState<any[]>(() => initialCache?.overvalued ?? []);
-  const [screenMinMargin, setScreenMinMargin] = useState('');
-  const [screenMaxPe, setScreenMaxPe] = useState('');
-  const [screenMinFcf, setScreenMinFcf] = useState('');
-  const [screenMaxNd, setScreenMaxNd] = useState('');
-  const [sortBy, setSortBy] = useState('');
+  const [screenMinMargin, setScreenMinMargin] = useState(searchParams.get('screenMinMargin') || '');
+  const [screenMaxPe, setScreenMaxPe] = useState(searchParams.get('screenMaxPe') || '');
+  const [screenMinFcf, setScreenMinFcf] = useState(searchParams.get('screenMinFcf') || '');
+  const [screenMaxNd, setScreenMaxNd] = useState(searchParams.get('screenMaxNd') || '');
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
   const [isLoading, setIsLoading] = useState(() => initialCache == null);
   const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
 
@@ -291,7 +291,7 @@ export function Landing() {
     return () => document.removeEventListener('click', onClick, true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const raw = sessionStorage.getItem('landing_scroll');
     if (raw == null) return;
     sessionStorage.removeItem('landing_scroll');
@@ -299,7 +299,7 @@ export function Landing() {
     if (Number.isFinite(saved)) pendingRestore.current = saved;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (restoreDone.current) return;
     if (pendingRestore.current == null) return;
     if (companies.length === 0) return;
@@ -336,8 +336,13 @@ export function Landing() {
     if (showFavoritesOnly) params.fav = '1';
     if (page > 1) params.page = String(page);
     if (pageSize !== DEFAULT_PAGE_SIZE) params.pageSize = String(pageSize);
+    if (screenMinMargin) params.screenMinMargin = screenMinMargin;
+    if (screenMaxPe) params.screenMaxPe = screenMaxPe;
+    if (screenMinFcf) params.screenMinFcf = screenMinFcf;
+    if (screenMaxNd) params.screenMaxNd = screenMaxNd;
+    if (sortBy) params.sortBy = sortBy;
     setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page, pageSize]);
+  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {

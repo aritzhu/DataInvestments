@@ -4,6 +4,8 @@ import './index.css'
 import App from './App'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 
+history.scrollRestoration = 'manual'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
