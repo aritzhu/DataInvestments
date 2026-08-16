@@ -53,10 +53,23 @@ const CATEGORY_TITLES: Record<string, string> = {
   other: 'Otros',
 };
 
+function sortPeriodDesc<T extends { year: number; quarter?: number | null }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  });
+}
+
+function emptyTags(): RawTags {
+  return { sec: [], european: [], yahoo: [] };
+}
+
 interface Props {
   ticker: string;
   isAdmin: boolean;
-  selectedYear: number | null;
+  selectedPeriod: 'ttm' | number | null;
+  pills: Array<'ttm' | number>;
+  ttmLabel: string;
 }
 
 function RawBlockTable({ block, title }: { block: RawBlock | null; title: string }) {
@@ -165,11 +178,11 @@ function RawCategoryGroup({
   );
 }
 
-export function RawDataTab({ ticker, isAdmin, selectedYear }: Props) {
+export function RawDataTab({ ticker, isAdmin, selectedPeriod, pills, ttmLabel }: Props) {
   const [data, setData] = useState<RawResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [year, setYear] = useState<number | null>(selectedYear);
+  const [period, setPeriod] = useState<'ttm' | number | null>(selectedPeriod);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -191,8 +204,6 @@ export function RawDataTab({ ticker, isAdmin, selectedYear }: Props) {
       })
       .then((d) => {
         setData(d);
-        const years = [...new Set(d.years.map((y) => y.year))];
-        setYear((prev) => (prev != null && years.includes(prev) ? prev : (years[0] ?? null)));
         setLoading(false);
       })
       .catch((err) => {
@@ -202,8 +213,13 @@ export function RawDataTab({ ticker, isAdmin, selectedYear }: Props) {
   }, [ticker, isAdmin]);
 
   useEffect(() => {
-    if (selectedYear != null) setYear(selectedYear);
-  }, [selectedYear]);
+    if (!data) return;
+    setPeriod((prev) => (prev != null && pills.includes(prev) ? prev : (pills[0] ?? null)));
+  }, [data, pills]);
+
+  useEffect(() => {
+    if (selectedPeriod != null) setPeriod(selectedPeriod);
+  }, [selectedPeriod]);
 
   if (!isAdmin) return null;
 
@@ -229,43 +245,114 @@ export function RawDataTab({ ticker, isAdmin, selectedYear }: Props) {
     return <div className="raw-empty-banner">Sin datos raw disponibles para esta empresa.</div>;
   }
 
-  const availableYears = [...new Set(data.years.map((y) => y.year))];
-  const yearEntries = data.years.filter((y) => y.year === year);
-  const current = yearEntries.find((y) => y.quarter == null) ?? yearEntries[0] ?? null;
+  const annualEntries = sortPeriodDesc(data.years.filter((y) => (y.quarter ?? 0) === 0));
+  const latestAnnual = annualEntries[0];
+  const quarterEntries = data.years.filter((y) => (y.quarter ?? 0) > 0);
+  const byQuarter = new Map(quarterEntries.map((y) => [`${y.year}-${y.quarter}`, y]));
+  const latestQuarter = sortPeriodDesc(quarterEntries)[0];
+
+  // Walk back 4 consecutive quarters with a financial block (mirrors the TTM
+  // logic used on the rest of the page).
+  const ttmQuarters: RawYear[] = [];
+  if (latestQuarter) {
+    let y = latestQuarter.year;
+    let q = latestQuarter.quarter ?? 4;
+    for (let i = 0; i < 4; i++) {
+      const rec = byQuarter.get(`${y}-${q}`);
+      if (!rec || !rec.financial) break;
+      ttmQuarters.push(rec);
+      q -= 1;
+      if (q === 0) {
+        q = 4;
+        y -= 1;
+      }
+    }
+  }
+  const ttmFull = ttmQuarters.length === 4;
+
+  const ttmFinancialBlock: RawBlock | null = ttmFull
+    ? (() => {
+        const blocks = ttmQuarters.map((y) => y.financial).filter((b): b is RawBlock => b != null);
+        const skeleton = blocks[0].rows;
+        const annualRows = latestAnnual?.financial?.rows ?? [];
+        const rows = skeleton.map((row) => {
+          const values = blocks.map((b) => b.rows.find((r) => r.field === row.field)?.value ?? null);
+          const allPresent = values.every((v) => v != null);
+          const fallback = annualRows.find((r) => r.field === row.field)?.value ?? null;
+          return {
+            field: row.field,
+            label: row.label,
+            category: row.category,
+            value: allPresent ? values.reduce((s, v) => s + (v ?? 0), 0) : fallback,
+            tags: emptyTags(),
+            winningTag: null,
+          };
+        });
+        const from = ttmQuarters[3];
+        const to = ttmQuarters[0];
+        return { source: `TTM · suma 4 trimestres (Q${from.quarter} ${from.year}–Q${to.quarter} ${to.year})`, tier: blocks[0].tier, rows };
+      })()
+    : null;
+
+  let financialBlock: RawBlock | null = null;
+  let balanceBlock: RawBlock | null = null;
+  let financialTitle = '';
+  let balanceTitle = '';
+  let emptyYear: number | null = null;
+
+  if (period === 'ttm') {
+    if (ttmFull) {
+      financialBlock = ttmFinancialBlock;
+      balanceBlock = ttmQuarters[0].balance;
+      financialTitle = `Resultado — ${ttmLabel}`;
+      balanceTitle = `Balance — ${ttmLabel}`;
+    } else if (latestAnnual) {
+      financialBlock = latestAnnual.financial;
+      balanceBlock = latestAnnual.balance;
+      financialTitle = `Resultado — ${latestAnnual.year}`;
+      balanceTitle = `Balance — ${latestAnnual.year}`;
+    }
+  } else {
+    const yearEntries = data.years.filter((y) => y.year === period);
+    const current = yearEntries.find((y) => (y.quarter ?? 0) === 0) ?? yearEntries[0] ?? null;
+    if (current) {
+      financialBlock = current.financial;
+      balanceBlock = current.balance;
+      const suffix = current.quarter != null && current.quarter !== 0 ? ` Q${current.quarter}` : '';
+      financialTitle = `Resultado — ${current.year}${suffix}`;
+      balanceTitle = `Balance — ${current.year}${suffix}`;
+      emptyYear = current.year;
+    }
+  }
 
   return (
     <div className="raw-tab">
-      {availableYears.length > 1 && (
+      {pills.length > 1 && (
         <div className="cp-year-bar">
           <Calendar size={16} />
-          <span className="cp-year-label">Año:</span>
+          <span className="cp-year-label">Año fiscal:</span>
           <div className="cp-year-pills">
-            {availableYears.map((y) => (
+            {pills.map((p) => (
               <button
-                key={y}
-                className={`cp-year-pill ${year === y ? 'cp-year-pill--active' : ''}`}
-                onClick={() => setYear(y)}
+                key={p === 'ttm' ? 'ttm' : p}
+                className={`cp-year-pill ${period === p ? 'cp-year-pill--active' : ''}`}
+                onClick={() => setPeriod(p)}
               >
-                {y}
+                {p === 'ttm' ? ttmLabel : p}
               </button>
             ))}
           </div>
         </div>
       )}
-      {current ? (
+      {financialBlock || balanceBlock ? (
         <>
-          {current.financial && (
-            <RawBlockTable block={current.financial} title={`Resultado — ${current.year}${current.quarter != null ? ` Q${current.quarter}` : ''}`} />
-          )}
-          {current.balance && (
-            <RawBlockTable block={current.balance} title={`Balance — ${current.year}${current.quarter != null ? ` Q${current.quarter}` : ''}`} />
-          )}
-          {!current.financial && !current.balance && (
-            <div className="raw-empty-banner">Sin datos raw para {current.year}.</div>
-          )}
+          {financialBlock && <RawBlockTable block={financialBlock} title={financialTitle} />}
+          {balanceBlock && <RawBlockTable block={balanceBlock} title={balanceTitle} />}
         </>
       ) : (
-        <div className="raw-empty-banner">Selecciona un año para ver los datos raw.</div>
+        <div className="raw-empty-banner">
+          {emptyYear != null ? `Sin datos raw para ${emptyYear}.` : 'Selecciona un periodo para ver los datos raw.'}
+        </div>
       )}
     </div>
   );

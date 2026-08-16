@@ -5,7 +5,7 @@ import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
 import { formatPct, safeDiv } from '../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, type ValuationInput } from '../utils/valuation';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, trailing12Months, type ValuationInput } from '../utils/valuation';
 import { InfoButton } from './ui/InfoButton';
 import { INFO } from '../utils/infoContent';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
@@ -62,6 +62,7 @@ export interface CompanyProfile {
     totalAssets: number | null;
     totalLiabilities: number | null;
     totalEquity: number | null;
+    periodLabel?: string;
   }>;
   stockMetrics: Array<{
     id: string;
@@ -140,6 +141,111 @@ export interface CompanyProfile {
   } | null;
 }
 
+type Financial = CompanyProfile['financials'][0];
+type BalanceSheet = CompanyProfile['balanceSheets'][0];
+type TTMData = NonNullable<ReturnType<typeof trailing12Months>>;
+
+function sortByPeriodDesc<T extends { year: number; quarter?: number | null }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return (b.quarter ?? 0) - (a.quarter ?? 0);
+  });
+}
+
+function latestBalanceSheet(balanceSheets: BalanceSheet[]): BalanceSheet | undefined {
+  return sortByPeriodDesc(balanceSheets)[0];
+}
+
+function annualFinancialYears(financials: Financial[]): number[] {
+  return [...new Set(financials.filter((f) => (f.quarter ?? 0) === 0).map((f) => f.year))].sort((a, b) => b - a);
+}
+
+// Best row for a fiscal year: the complete annual (quarter=0) row when it
+// exists, otherwise the latest quarterly row of that year.
+function financialForYear(financials: Financial[], year: number): Financial | undefined {
+  const annual = financials.find((f) => f.year === year && (f.quarter ?? 0) === 0);
+  if (annual) return annual;
+  return sortByPeriodDesc(financials.filter((f) => f.year === year))[0];
+}
+
+function balanceForYear(balanceSheets: BalanceSheet[], year: number): BalanceSheet | undefined {
+  const annual = balanceSheets.find((b) => b.year === year && (b.quarter ?? 0) === 0);
+  if (annual) return annual;
+  return sortByPeriodDesc(balanceSheets.filter((b) => b.year === year))[0];
+}
+
+// Synthesizes a "TTM" financial row from the last 4 consecutive quarters.
+// Balance fields are point-in-time → taken from the latest balance sheet.
+function buildTtmFinancial(ttm: TTMData, latestQuarter: Financial, balanceSheet: BalanceSheet | undefined): Financial {
+  const bs = ttm.balanceSheet ?? balanceSheet;
+  return {
+    id: 'ttm',
+    year: latestQuarter.year,
+    quarter: latestQuarter.quarter,
+    revenue: ttm.revenue,
+    costOfRevenue: ttm.costOfRevenue,
+    grossProfit: ttm.grossProfit,
+    operatingExpenses: ttm.operatingExpenses,
+    sgaExpense: ttm.sgaExpense,
+    rdExpense: ttm.rdExpense,
+    interestExpense: ttm.interestExpense,
+    taxExpense: ttm.taxExpense,
+    netIncome: ttm.netIncome,
+    ebitda: ttm.ebitda,
+    ebit: ttm.ebit,
+    capex: ttm.capex,
+    depreciation: ttm.depreciation,
+    operatingCashFlow: ttm.operatingCashFlow,
+    investingCashFlow: latestQuarter.investingCashFlow,
+    financingCashFlow: latestQuarter.financingCashFlow,
+    freeCashFlow: ttm.freeCashFlow,
+    dividendsPaid: ttm.dividendsPaid,
+    shareRepurchases: ttm.shareRepurchases,
+    totalAssets: bs?.totalAssets ?? latestQuarter.totalAssets,
+    totalLiabilities: bs?.totalLiabilities ?? latestQuarter.totalLiabilities,
+    totalEquity: bs?.totalStockholdersEquity ?? latestQuarter.totalEquity,
+    periodLabel: latestQuarter.quarter != null
+      ? `TTM Q${latestQuarter.quarter} ${latestQuarter.year}`
+      : `TTM ${latestQuarter.year}`,
+  };
+}
+
+interface PeriodInfo {
+  ttm: TTMData | null;
+  latest: Financial | undefined;
+  annualYears: number[];
+  showTTM: boolean;
+  pills: Array<'ttm' | number>;
+  ttmLabel: string;
+}
+
+// Decides which periods the fiscal-year selector offers. A "TTM" pill is
+// shown (and used by default) when the newest data is quarterly and there are
+// ≥4 consecutive quarters newer than the last complete annual year. Partial
+// years (e.g. 2026 with only Q1/Q2) are never offered as a full fiscal year.
+function computePeriodInfo(financials: Financial[], balanceSheets: BalanceSheet[]): PeriodInfo {
+  const ttm = trailing12Months(financials, balanceSheets);
+  const annualYears = annualFinancialYears(financials);
+  const allYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
+  const latest = sortByPeriodDesc(financials)[0];
+  const showTTM = ttm != null
+    && ttm.isTTM
+    && latest != null
+    && (latest.quarter ?? 0) > 0
+    && (annualYears[0] == null || latest.year > annualYears[0]);
+
+  const pills: Array<'ttm' | number> = [];
+  if (showTTM) pills.push('ttm');
+  for (const y of annualYears) pills.push(y);
+  if (pills.length === 0) pills.push(...allYears);
+
+  const ttmLabel = latest != null
+    ? (latest.quarter != null ? `TTM Q${latest.quarter} ${latest.year}` : `TTM ${latest.year}`)
+    : 'TTM';
+
+  return { ttm, latest, annualYears, showTTM, pills, ttmLabel };
+}
+
 export type TabId = 'financials' | 'sankey' | 'valuation' | 'fundamental' | 'raw';
 
 const TABS: { id: TabId; label: string }[] = [
@@ -198,7 +304,7 @@ export function CompanyPage() {
     ? [...TABS, { id: 'raw', label: 'Raw' }]
     : TABS;
   const [activeTab, setActiveTab] = useState<TabId>(tabs.some((t) => t.id === requestedTab) ? requestedTab : 'financials');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<'ttm' | number | null>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -230,8 +336,9 @@ export function CompanyPage() {
       })
       .then((d: CompanyProfile) => {
         setData(d);
-        const years = [...new Set(d.financials.map((f) => f.year))].sort((a, b) => b - a);
-        setSelectedYear(years[0] || null);
+        const info = computePeriodInfo(d.financials, d.balanceSheets);
+        const defaultYear = info.pills.find((p) => p !== 'ttm') ?? null;
+        setSelectedPeriod(info.showTTM ? 'ttm' : defaultYear);
         setLoading(false);
       })
       .catch((err) => {
@@ -394,8 +501,24 @@ export function CompanyPage() {
 
   const { company, financials, stockMetrics, balanceSheets, segments, dataSync } = data;
   const stock = stockMetrics[0] || null;
-  const availableYears = [...new Set(financials.map((f) => f.year))].sort((a, b) => b - a);
-  const currentFinancial = financials.find((f) => f.year === selectedYear) || financials[0];
+  const periodInfo = computePeriodInfo(financials, balanceSheets);
+
+  let currentFinancial: Financial | undefined;
+  if (selectedPeriod === 'ttm' && periodInfo.ttm && periodInfo.latest) {
+    currentFinancial = buildTtmFinancial(periodInfo.ttm, periodInfo.latest, latestBalanceSheet(balanceSheets));
+  } else if (selectedPeriod != null && selectedPeriod !== 'ttm') {
+    currentFinancial = financialForYear(financials, selectedPeriod);
+  }
+  if (!currentFinancial) currentFinancial = periodInfo.latest ?? financials[0];
+
+  const currentBalanceSheet = selectedPeriod === 'ttm'
+    ? (periodInfo.ttm?.balanceSheet ?? latestBalanceSheet(balanceSheets) ?? null)
+    : selectedPeriod != null
+      ? (balanceForYear(balanceSheets, selectedPeriod) ?? null)
+      : (latestBalanceSheet(balanceSheets) ?? null);
+
+  const segmentYear = selectedPeriod === 'ttm' ? (periodInfo.annualYears[0] ?? null) : selectedPeriod;
+  const selectedYear = selectedPeriod === 'ttm' ? null : selectedPeriod;
 
   const marketCap = stock?.marketCap;
   const ev = stock?.enterpriseValue;
@@ -725,19 +848,19 @@ export function CompanyPage() {
         )}
       </div>
 
-      {/* Year Selector — only in tabs where content depends on selected year */}
-      {availableYears.length > 1 && ['financials', 'sankey'].includes(activeTab) && (
+      {/* Period Selector — only in tabs where content depends on selected period */}
+      {periodInfo.pills.length > 1 && ['financials', 'sankey'].includes(activeTab) && (
         <div className="cp-year-bar">
           <Calendar size={16} />
           <span className="cp-year-label">Año fiscal:</span>
           <div className="cp-year-pills">
-            {availableYears.map((y) => (
+            {periodInfo.pills.map((p) => (
               <button
-                key={y}
-                className={`cp-year-pill ${selectedYear === y ? 'cp-year-pill--active' : ''}`}
-                onClick={() => setSelectedYear(y)}
+                key={p === 'ttm' ? 'ttm' : p}
+                className={`cp-year-pill ${selectedPeriod === p ? 'cp-year-pill--active' : ''}`}
+                onClick={() => setSelectedPeriod(p)}
               >
-                {y}
+                {p === 'ttm' ? periodInfo.ttmLabel : p}
               </button>
             ))}
           </div>
@@ -768,15 +891,15 @@ export function CompanyPage() {
         {activeTab === 'financials' && (
           <FinancialStatementsTab
             financial={currentFinancial}
-            balanceSheet={balanceSheets.find((b) => b.year === selectedYear) || null}
+            balanceSheet={currentBalanceSheet}
             stock={stock}
-            segments={segments.filter((s) => s.year === selectedYear)}
+            segments={segments.filter((s) => s.year === segmentYear)}
           />
         )}
         {activeTab === 'sankey' && (
           <CashFlowSankeyTab
             financial={currentFinancial}
-            balanceSheet={balanceSheets.find((b) => b.year === selectedYear) || null}
+            balanceSheet={currentBalanceSheet}
             stock={stock}
             selectedYear={selectedYear}
           />
@@ -801,7 +924,13 @@ export function CompanyPage() {
           />
         )}
         {activeTab === 'raw' && isAdmin && ticker && (
-          <RawDataTab ticker={ticker} isAdmin={isAdmin} selectedYear={selectedYear} />
+          <RawDataTab
+            ticker={ticker}
+            isAdmin={isAdmin}
+            selectedPeriod={selectedPeriod}
+            pills={periodInfo.pills}
+            ttmLabel={periodInfo.ttmLabel}
+          />
         )}
       </div>
 

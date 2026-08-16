@@ -141,7 +141,7 @@ export function CompareTab({ company, financial, stock }: Props) {
             <InfoButton content={INFO['compare.header']} />
           </div>
           <p className="cmp-subtitle">
-            Como se compara <strong>{company.ticker}</strong> con su sector ({company.sector || 'N/A'}) y el S&P 500{financial?.year ? ` · Período de la empresa: ejercicio ${financial.year}` : ''}
+            Como se compara <strong>{company.ticker}</strong> con su sector ({company.sector || 'N/A'}) y el S&P 500{financial?.year ? ` · Período de la empresa: ejercicio ${financial.periodLabel ?? financial.year}` : ''}
           </p>
         </div>
       </SectionReveal>

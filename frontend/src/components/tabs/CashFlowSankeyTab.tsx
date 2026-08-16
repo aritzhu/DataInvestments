@@ -361,7 +361,7 @@ export function CashFlowSankeyTab({ financial, balanceSheet, stock, selectedYear
         <div className="cs-sankey-card">
           <div className="cs-sankey-title">Flujos de caja</div>
           <div className="cs-sankey-subtitle">
-            {selectedYear ? `Ejercicio ${selectedYear}` : 'Último ejercicio disponible'} — cómo se genera y distribuye el efectivo
+            {financial.periodLabel ?? (selectedYear ? `Ejercicio ${selectedYear}` : 'Último ejercicio disponible')} — cómo se genera y distribuye el efectivo
           </div>
           <CashFlowSankeyDiagram nodes={sankeyData.nodes} links={sankeyData.links} />
         </div>

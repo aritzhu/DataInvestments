@@ -170,7 +170,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
 
       <div className="fund-freshness-row">
         <span className={`fund-freshness-chip fund-freshness-chip--${freshnessTone}`}>
-          {financial?.year != null ? `Datos ejercicio ${financial.year}` : 'Datos financieros'}
+          {financial?.year != null ? `Datos ejercicio ${financial.periodLabel ?? financial.year}` : 'Datos financieros'}
           {efficiency.periodLabel && efficiency.periodLabel !== '—' ? ` · ${efficiency.periodLabel}` : ''}
           {syncLabel ? ` · Actualizado ${syncLabel}` : ' · sin registro de sincronización'}
           {isStale && !hasSyncError ? ' · desactualizado' : ''}

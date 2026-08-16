@@ -149,7 +149,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
       {/* Financial Sankey */}
       <SectionReveal delay={0}>
         <button className="fs-section-toggle" onClick={() => toggle('sankey')}>
-          <span className="fs-section-title">Sankey: cómo la empresa genera y usa el dinero — {f.year}</span>
+          <span className="fs-section-title">Sankey: cómo la empresa genera y usa el dinero — {f.periodLabel ?? f.year}</span>
           <span className={`fs-section-arrow ${openSections.sankey ? 'fs-section-arrow--open' : ''}`}>▾</span>
         </button>
         {openSections.sankey && (
@@ -165,7 +165,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
       {/* Income Statement */}
       <SectionReveal delay={0}>
         <button className="fs-section-toggle" onClick={() => toggle('income')}>
-          <span className="fs-section-title">Cuenta de resultados — {f.year}</span>
+          <span className="fs-section-title">Cuenta de resultados — {f.periodLabel ?? f.year}</span>
           <span className={`fs-section-arrow ${openSections.income ? 'fs-section-arrow--open' : ''}`}>▾</span>
         </button>
         {openSections.income && (
@@ -191,7 +191,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
       {/* Balance Sheet */}
       <SectionReveal delay={60}>
         <button className="fs-section-toggle" onClick={() => toggle('balance')}>
-          <span className="fs-section-title">Balance — {f.year}</span>
+          <span className="fs-section-title">Balance — {f.periodLabel ?? f.year}</span>
           <span className={`fs-section-arrow ${openSections.balance ? 'fs-section-arrow--open' : ''}`}>▾</span>
         </button>
         {openSections.balance && (
@@ -378,7 +378,7 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
             )}
             {productSegments.length === 0 && geoSegments.length === 0 && (
               <div className="rev-no-data">
-                <p>Sin datos de segmentos disponibles para {f.year}.</p>
+                <p>Sin datos de segmentos disponibles para {f.periodLabel ?? f.year}.</p>
                 <p className="rev-hint">Los datos de segmentos se importan automáticamente desde SEC EDGAR.</p>
               </div>
             )}

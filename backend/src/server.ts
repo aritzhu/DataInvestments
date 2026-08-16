@@ -288,7 +288,7 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
 
     const financials = await prisma.financialData.findMany({
       where: { companyId: company.id },
-      orderBy: { year: 'desc' },
+      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
     });
 
     const stockMetrics = await prisma.stockMetric.findMany({
@@ -298,7 +298,7 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
 
     const balanceSheets = await prisma.balanceSheet.findMany({
       where: { companyId: company.id },
-      orderBy: { year: 'desc' },
+      orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
     });
 
     const segments = await prisma.revenueSegment.findMany({
