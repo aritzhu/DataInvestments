@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
 import { markSectionVisited } from '../../utils/courseProgress';
 
@@ -11,6 +12,7 @@ interface ContentSection {
   layout?: 'left' | 'right' | 'bottom';
   author?: string;
   libros?: string[];
+  url?: string;
 }
 
 interface CourseContentProps {
@@ -169,6 +171,23 @@ export function CourseContent({ contenido, courseId, className = '' }: CourseCon
             );
           case 'books':
             return <BooksSection key={idx} section={section} idx={idx} />;
+          case 'link':
+            return (
+              <div key={idx} data-section-idx={idx} className="course-section course-section--link">
+                <a
+                  href={section.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="course-section-link-btn"
+                >
+                  <ExternalLink size={18} className="course-link-icon" />
+                  <div className="course-link-text">
+                    {section.titulo && <span className="course-link-title">{section.titulo}</span>}
+                    {section.contenido && <span className="course-link-desc">{section.contenido}</span>}
+                  </div>
+                </a>
+              </div>
+            );
           default:
             return null;
         }

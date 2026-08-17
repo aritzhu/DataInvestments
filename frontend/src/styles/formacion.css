@@ -540,6 +540,49 @@
   color: var(--gold-text);
 }
 
+/* ── Link section ───────────────────────────────────────────────────────── */
+
+.course-section--link {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.course-section-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.course-section-link-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(143, 180, 204, 0.25);
+  border-color: var(--gold);
+}
+.course-link-icon {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+.course-link-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.course-link-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+.course-link-desc {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
 /* ── Libros relacionados en cursos ──────────────────────────────────────── */
 
 .course-section--books {

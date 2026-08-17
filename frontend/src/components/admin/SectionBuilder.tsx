@@ -7,9 +7,10 @@ const TIPO_LABELS: Record<string, string> = {
   text_image: 'Texto + Imagen',
   quote: 'Cita',
   books: 'Libros',
+  link: 'Enlace',
 };
 
-const TIPOS = ['heading', 'text', 'image', 'text_image', 'quote', 'books'] as const;
+const TIPOS = ['heading', 'text', 'image', 'text_image', 'quote', 'books', 'link'] as const;
 type SectionTipo = (typeof TIPOS)[number];
 
 interface Section {
@@ -21,6 +22,7 @@ interface Section {
   layout?: 'left' | 'right' | 'bottom';
   author?: string;
   libros?: string[];
+  url?: string;
 }
 
 interface SectionBuilderProps {
@@ -56,6 +58,11 @@ function typeDefault(tipo: SectionTipo): Section {
       base.titulo = 'Libros relacionados';
       base.contenido = '';
       base.libros = [];
+      break;
+    case 'link':
+      base.url = '';
+      base.titulo = '';
+      base.contenido = '';
       break;
   }
   return base;
@@ -290,6 +297,38 @@ export function SectionBuilder({ value, onChange }: SectionBuilderProps) {
                   <small style={{ color: 'var(--text-tertiary)', fontSize: '0.72rem' }}>
                     Solo se muestran los ISBN que coinciden con los libros de la landing.
                   </small>
+                </div>
+              </>
+            )}
+
+            {section.tipo === 'link' && (
+              <>
+                <div className="section-builder-field">
+                  <label>URL del enlace</label>
+                  <input
+                    type="text"
+                    value={section.url || ''}
+                    onChange={(e) => updateSection(index, { url: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div className="section-builder-field">
+                  <label>Título del enlace</label>
+                  <input
+                    type="text"
+                    value={section.titulo || ''}
+                    onChange={(e) => updateSection(index, { titulo: e.target.value })}
+                    placeholder="Texto que se mostrará en el botón"
+                  />
+                </div>
+                <div className="section-builder-field">
+                  <label>Descripción (opcional)</label>
+                  <textarea
+                    value={section.contenido || ''}
+                    onChange={(e) => updateSection(index, { contenido: e.target.value })}
+                    placeholder="Descripción breve del enlace..."
+                    rows={2}
+                  />
                 </div>
               </>
             )}
