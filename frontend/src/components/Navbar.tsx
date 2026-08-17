@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search } from 'lucide-react';
+import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
 import '../styles/navbar.css';
@@ -99,6 +99,10 @@ export function Navbar() {
           {/* Desktop links */}
           <div className="navbar-links">
             <Link to="/" className="navbar-link">Inicio</Link>
+            <Link to="/formacion" className="navbar-link">
+              <GraduationCap size={14} />
+              Formación
+            </Link>
             <Link to="/empresa/AAPL" className="navbar-cta">
               Analizar
             </Link>
@@ -197,6 +201,10 @@ export function Navbar() {
             <Link to="/" className="navbar-mobile-link">
               <Home size={20} />
               Inicio
+            </Link>
+            <Link to="/formacion" className="navbar-mobile-link">
+              <GraduationCap size={20} />
+              Formación
             </Link>
             <Link to="/empresa/AAPL" className="navbar-mobile-link navbar-mobile-link--cta">
               <BarChart3 size={20} />

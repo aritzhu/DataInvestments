@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { seedCourses } from './coursesDemo';
 
 const prisma = new PrismaClient();
 
@@ -8,10 +9,10 @@ async function main() {
 
   // ── Admin user ──
   const adminEmail = 'admin@datainvestments.com';
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!existingAdmin) {
+  let admin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!admin) {
     const passwordHash = await bcrypt.hash('admin123', 10);
-    await prisma.user.create({
+    admin = await prisma.user.create({
       data: {
         email: adminEmail,
         name: 'Admin',
@@ -225,6 +226,8 @@ async function main() {
       totalStockholdersEquity: 291552000000, retainedEarnings: 0, treasuryStock: 0,
     },
   });
+
+  await seedCourses(prisma, admin.id);
 
   console.log('Database seeded successfully!');
 }

@@ -17,6 +17,7 @@ import adminRoutes from './routes/admin';
 import fieldConfigRoutes from './routes/fieldConfig';
 import statementsRoutes from './routes/statements';
 import portfolioRoutes from './routes/portfolio';
+import coursesRoutes from './routes/courses';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
@@ -59,12 +60,12 @@ const upload = multer({
   storage: uploadStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Formato no soportado. Usa JPG, PNG o WebP.'));
+      cb(new Error('Formato no soportado. Usa JPG, PNG, WebP o PDF.'));
     }
   },
 });
@@ -521,6 +522,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/admin/field-config', fieldConfigRoutes);
 app.use('/api/admin/statements', statementsRoutes);
 app.use('/api/portfolios', portfolioRoutes);
+app.use('/api/courses', coursesRoutes);
 
 // ── Site Settings ─────────────────────────────────────────────────────────
 

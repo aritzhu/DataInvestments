@@ -1056,10 +1056,10 @@ export function Landing() {
             <p className="cta-desc">
               Analiza empresas de forma visual e intuitiva con datos financieros reales
             </p>
-            <a href="#companies" className="cta-btn">
-              Comenzar ahora
+            <Link to="/formacion" className="cta-btn">
+              Empezar ahora
               <ArrowRight size={20} />
-            </a>
+            </Link>
           </div>
         </section>
       </SectionReveal>

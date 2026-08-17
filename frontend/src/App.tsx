@@ -13,6 +13,8 @@ import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { PortfolioDetailPage } from './pages/PortfolioDetailPage';
 import { LegalPage } from './pages/LegalPage';
+import { FormacionPage } from './pages/FormacionPage';
+import { CursoDetallePage } from './pages/CursoDetallePage';
 
 function App() {
   return (
@@ -40,6 +42,8 @@ function App() {
                       <Route path="/portfolios/:id" element={<ProtectedRoute><PortfolioDetailPage /></ProtectedRoute>} />
                       <Route path="/legal" element={<Navigate to="/legal/terminos" replace />} />
                       <Route path="/legal/:slug" element={<LegalPage />} />
+                      <Route path="/formacion" element={<FormacionPage />} />
+                      <Route path="/formacion/:id" element={<CursoDetallePage />} />
                     </Routes>
                   </main>
                 </>

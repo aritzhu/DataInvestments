@@ -8,6 +8,7 @@ import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
 import { StatementsEditor } from './StatementsEditor';
 import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
+import { CoursesManager } from './CoursesManager';
 import '../../styles/admin.css';
 
 interface ProgressUpdate {
@@ -90,6 +91,7 @@ export function AdminPanel() {
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
   const [showStatements, setShowStatements] = useState(false);
+  const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos'>('empresas');
 
   const getAuth = () => {
     const t = localStorage.getItem('token');
@@ -525,6 +527,36 @@ export function AdminPanel() {
       </div>
 
       <div className="admin-content-inner">
+        {/* Tabs */}
+        <div className="admin-tabs-bar">
+          <button
+            className={`admin-tab-btn ${adminTab === 'empresas' ? 'active' : ''}`}
+            onClick={() => setAdminTab('empresas')}
+          >
+            Empresas
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'contenido' ? 'active' : ''}`}
+            onClick={() => setAdminTab('contenido')}
+          >
+            🎨 Contenido
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'libros' ? 'active' : ''}`}
+            onClick={() => setAdminTab('libros')}
+          >
+            📚 Libros
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'cursos' ? 'active' : ''}`}
+            onClick={() => setAdminTab('cursos')}
+          >
+            🎓 Cursos
+          </button>
+        </div>
+
+        {adminTab === 'empresas' && (
+        <>
         {/* API Status */}
         <div className="admin-status-grid">
           <div className="admin-status-card">
@@ -576,6 +608,11 @@ export function AdminPanel() {
           </div>
         )}
 
+        </>
+        )}
+
+        {adminTab === 'contenido' && (
+        <>
         {/* Hero Settings */}
         <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--pink-pale) 0%, var(--pink-pale) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -755,6 +792,11 @@ export function AdminPanel() {
           </div>
         </div>
 
+        </>
+        )}
+
+        {adminTab === 'empresas' && (
+        <>
         {/* Data Statistics */}
         {companies.length > 0 && <DataStatsSection />}
 
@@ -1094,6 +1136,11 @@ export function AdminPanel() {
           </div>
         </div>
 
+        </>
+        )}
+
+        {adminTab === 'libros' && (
+        <>
         {/* Books Management */}
         <div className="admin-form-section" style={{ border: '2px solid var(--amber-pale)', borderRadius: '1rem', padding: '1.5rem', background: 'linear-gradient(135deg, var(--amber-pale) 0%, var(--amber-line) 100%)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -1166,7 +1213,15 @@ export function AdminPanel() {
             + Añadir libro
           </button>
         </div>
+        </>
+        )}
 
+        {adminTab === 'cursos' && (
+          <CoursesManager />
+        )}
+
+        {adminTab === 'empresas' && (
+        <>
         {/* Companies Table */}
         <div className="admin-table-section">
           <div className="admin-table-header">
@@ -1261,6 +1316,8 @@ export function AdminPanel() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -11,6 +11,7 @@
     "db:push": "prisma db push --schema=src/infrastructure/prisma/schema.prisma",
     "db:studio": "prisma studio --schema=src/infrastructure/prisma/schema.prisma",
     "db:seed": "tsx src/infrastructure/prisma/seed.ts",
+    "db:seed:demo": "tsx src/infrastructure/prisma/demoSeed.ts",
     "db:migrate:deploy": "prisma migrate deploy --schema=src/infrastructure/prisma/schema.prisma",
     "backfill:meta": "tsx src/scripts/backfillCompanyMeta.ts",
     "backfill:logos": "tsx src/scripts/backfillLogos.ts",
