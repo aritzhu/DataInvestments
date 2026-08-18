@@ -26,7 +26,7 @@ export function trackEvent(action: string, params?: Record<string, unknown>) {
   }
 
   try {
-    fetch(`${API_BASE}/api/analytics/event`, {
+    fetch(`${API_BASE}/analytics/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -49,7 +49,7 @@ export function usePageTracking() {
 
 export function useInitAnalytics() {
   useEffect(() => {
-    fetch(`${API_BASE}/api/settings`)
+    fetch(`${API_BASE}/settings`)
       .then((res) => res.json())
       .then((data) => {
         const id = data.analytics_id;
