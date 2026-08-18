@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /favorites
+Disallow: /settings
+Disallow: /portfolios
+Disallow: /admin
+
+Sitemap: https://dataInvestments.dionestudio.es/sitemap.xml
