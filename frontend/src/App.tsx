@@ -1,21 +1,23 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useInitAnalytics, usePageTracking } from './hooks/useAnalytics';
-import { Landing } from './components/Landing';
-import { CompanyPage } from './components/CompanyPage';
-import { AdminPanel } from './components/admin/AdminPanel';
 import { Navbar } from './components/Navbar';
 import { AdminRoute } from './components/AdminRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { FavoritesPage } from './pages/FavoritesPage';
-import { AccountSettingsPage } from './pages/AccountSettingsPage';
-import { PortfoliosPage } from './pages/PortfoliosPage';
-import { PortfolioDetailPage } from './pages/PortfolioDetailPage';
-import { LegalPage } from './pages/LegalPage';
-import { FormacionPage } from './pages/FormacionPage';
-import { CursoDetallePage } from './pages/CursoDetallePage';
+
+const Landing = lazy(() => import('./components/Landing').then(m => ({ default: m.Landing })));
+const CompanyPage = lazy(() => import('./components/CompanyPage').then(m => ({ default: m.CompanyPage })));
+const AdminPanel = lazy(() => import('./components/admin/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import('./pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage').then(m => ({ default: m.FavoritesPage })));
+const AccountSettingsPage = lazy(() => import('./pages/AccountSettingsPage').then(m => ({ default: m.AccountSettingsPage })));
+const PortfoliosPage = lazy(() => import('./pages/PortfoliosPage').then(m => ({ default: m.PortfoliosPage })));
+const PortfolioDetailPage = lazy(() => import('./pages/PortfolioDetailPage').then(m => ({ default: m.PortfolioDetailPage })));
+const LegalPage = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
+const FormacionPage = lazy(() => import('./pages/FormacionPage').then(m => ({ default: m.FormacionPage })));
+const CursoDetallePage = lazy(() => import('./pages/CursoDetallePage').then(m => ({ default: m.CursoDetallePage })));
 
 function App() {
   useInitAnalytics();
@@ -34,6 +36,7 @@ function AppRoutes() {
 
   return (
     <div className="min-h-screen flex flex-col app-shell">
+      <Suspense>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -63,6 +66,7 @@ function AppRoutes() {
           }
         />
       </Routes>
+      </Suspense>
     </div>
   );
 }
