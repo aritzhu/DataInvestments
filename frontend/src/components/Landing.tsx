@@ -13,6 +13,7 @@ import { InfoButton } from './ui/InfoButton';
 import { INFO } from '../utils/infoContent';
 import { Skeleton, SkeletonCard } from './ui/Skeleton';
 import { getLandingCache, setLandingCache, type CompanyFromAPI } from '../utils/companiesCache';
+import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/landing.css';
 
 interface FavoriteCompany {
@@ -492,7 +493,7 @@ export function Landing() {
                   <div className="valuation-list">
                     {undervalued.map((c: any, i: number) => (
                       <SectionReveal key={c.ticker} delay={40 + i * 60}>
-                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green">
+                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--green" onClick={() => trackEvent('company_view', { ticker: c.ticker, source: 'undervalued' })}>
                           <div className="valuation-card-head">
                             <div className="valuation-card-left">
                               {(c.logoUrl || companyLogoUrl(c.website)) ? (
@@ -555,7 +556,7 @@ export function Landing() {
                   <div className="valuation-list">
                     {overvalued.map((c: any, i: number) => (
                       <SectionReveal key={c.ticker} delay={140 + i * 60}>
-                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red">
+                        <Link to={`/empresa/${c.ticker}?tab=valuation`} className="valuation-card valuation-card--red" onClick={() => trackEvent('company_view', { ticker: c.ticker, source: 'overvalued' })}>
                           <div className="valuation-card-head">
                             <div className="valuation-card-left">
                               {(c.logoUrl || companyLogoUrl(c.website)) ? (
@@ -928,11 +929,11 @@ export function Landing() {
                       </div>
                       <p className="company-card-desc">{company.name}</p>
                       <div className="company-card-actions">
-                        <Link to={`/empresa/${company.ticker}`} className="company-card-btn company-card-btn--secondary">
+                        <Link to={`/empresa/${company.ticker}`} className="company-card-btn company-card-btn--secondary" onClick={() => trackEvent('company_view', { ticker: company.ticker, source: 'listing' })}>
                           <DollarSign size={14} />
                           Dashboard
                         </Link>
-                        <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-card-btn company-card-btn--primary">
+                        <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-card-btn company-card-btn--primary" onClick={() => trackEvent('company_view', { ticker: company.ticker, source: 'listing' })}>
                           <TrendingUp size={14} />
                           Ver valoración
                         </Link>
@@ -957,7 +958,7 @@ export function Landing() {
                     <div className={`company-list-avatar ${(company.logoUrl || companyLogoUrl(company.website)) ? 'company-list-avatar--hidden' : ''}`}>
                       {company.ticker.slice(0, 2)}
                     </div>
-                    <Link to={`/empresa/${company.ticker}`} className="company-list-info">
+                    <Link to={`/empresa/${company.ticker}`} className="company-list-info" onClick={() => trackEvent('company_view', { ticker: company.ticker, source: 'listing' })}>
                       <div className="company-list-ticker">{company.ticker}</div>
                       <div className="company-list-name">{company.name}</div>
                     </Link>
@@ -981,8 +982,8 @@ export function Landing() {
                       >
                         <Heart size={16} fill={user && isFavorite(company.id) ? 'currentColor' : 'none'} />
                       </button>
-                      <Link to={`/empresa/${company.ticker}`} className="company-list-link">Dashboard</Link>
-                      <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-list-link company-list-link--accent">Valoración</Link>
+                      <Link to={`/empresa/${company.ticker}`} className="company-list-link" onClick={() => trackEvent('company_view', { ticker: company.ticker, source: 'listing' })}>Dashboard</Link>
+                      <Link to={`/empresa/${company.ticker}?tab=valuation`} className="company-list-link company-list-link--accent" onClick={() => trackEvent('company_view', { ticker: company.ticker, source: 'listing' })}>Valoración</Link>
                     </div>
                   </div>
                 </SectionReveal>

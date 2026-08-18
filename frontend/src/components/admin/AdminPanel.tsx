@@ -9,6 +9,7 @@ import { DataStatsSection } from './DataStatsSection';
 import { StatementsEditor } from './StatementsEditor';
 import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
 import { CoursesManager } from './CoursesManager';
+import { AnalyticsSection } from './AnalyticsSection';
 import '../../styles/admin.css';
 
 interface ProgressUpdate {
@@ -91,7 +92,7 @@ export function AdminPanel() {
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
   const [showStatements, setShowStatements] = useState(false);
-  const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos'>('empresas');
+  const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos' | 'analytics'>('empresas');
 
   const getAuth = () => {
     const t = localStorage.getItem('token');
@@ -552,6 +553,12 @@ export function AdminPanel() {
             onClick={() => setAdminTab('cursos')}
           >
             🎓 Cursos
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setAdminTab('analytics')}
+          >
+            📊 Analytics
           </button>
         </div>
 
@@ -1218,6 +1225,42 @@ export function AdminPanel() {
 
         {adminTab === 'cursos' && (
           <CoursesManager />
+        )}
+
+        {adminTab === 'analytics' && (
+        <>
+        <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>📊</span>
+            <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Configuración Analytics</h2>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>
+            Integra Google Analytics para medir el tráfico. Introduce tu Measurement ID (G-XXXXXXXXXX) desde tu cuenta de Google Analytics.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1, maxWidth: 400 }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.5rem' }}>Google Analytics Measurement ID</label>
+              <input
+                type="text"
+                value={heroSettings.analytics_id || ''}
+                onChange={(e) => setHeroSettings((prev) => ({ ...prev, analytics_id: e.target.value }))}
+                placeholder="G-XXXXXXXXXX"
+                className="admin-form-input"
+              />
+            </div>
+            <button onClick={handleSaveHero} disabled={heroSaving} style={{ padding: '0.5rem 1.25rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroSaving ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+              {heroSaving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+        <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>📈</span>
+            <h2 className="admin-form-title" style={{ marginBottom: 0 }}>Estadísticas</h2>
+          </div>
+          <AnalyticsSection />
+        </div>
+        </>
         )}
 
         {adminTab === 'empresas' && (

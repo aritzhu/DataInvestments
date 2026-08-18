@@ -348,6 +348,17 @@ model SiteSetting {
   updatedAt DateTime @updatedAt
 }
 
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  event     String
+  page      String?
+  params    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([event])
+}
+
 model Course {
   id          String   @id @default(uuid())
   userId      String

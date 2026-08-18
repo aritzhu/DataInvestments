@@ -18,6 +18,7 @@ import fieldConfigRoutes from './routes/fieldConfig';
 import statementsRoutes from './routes/statements';
 import portfolioRoutes from './routes/portfolio';
 import coursesRoutes from './routes/courses';
+import analyticsRoutes from './routes/analytics.routes';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
@@ -523,6 +524,7 @@ app.use('/api/admin/field-config', fieldConfigRoutes);
 app.use('/api/admin/statements', statementsRoutes);
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api/courses', coursesRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // ── Site Settings ─────────────────────────────────────────────────────────
 

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, GraduationCap, Loader2 } from 'lucide-react';
 import { coursesApi, type Course } from '../utils/coursesApi';
 import { CourseContent } from '../components/course/CourseContent';
+import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/formacion.css';
 
 export function CursoDetallePage() {
@@ -17,7 +18,10 @@ export function CursoDetallePage() {
     setError('');
     coursesApi
       .findById(id)
-      .then((data) => setCourse(data))
+      .then((data) => {
+        setCourse(data);
+        if (data) trackEvent('course_view', { course_id: data.id, course_title: data.titulo });
+      })
       .catch(() => setError('No se pudo cargar el curso.'))
       .finally(() => setLoading(false));
   }, [id]);

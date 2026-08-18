@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import { LEGAL_DOCUMENTS, getLegalDocument, DEFAULT_UPDATED_AT } from '../legal/content';
+import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/legal.css';
 
 const FALLBACK = '[Pendiente — configurar en el panel de administración]';
@@ -9,6 +10,10 @@ const FALLBACK_REGISTRAL = 'No indicado';
 export function LegalPage() {
   const { slug } = useParams<{ slug: string }>();
   const [settings, setSettings] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    trackEvent('legal_view', { slug: slug || 'terminos' });
+  }, [slug]);
 
   useEffect(() => {
     fetch('/api/settings')

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { useInitAnalytics, usePageTracking } from './hooks/useAnalytics';
 import { Landing } from './components/Landing';
 import { CompanyPage } from './components/CompanyPage';
 import { AdminPanel } from './components/admin/AdminPanel';
@@ -17,42 +18,52 @@ import { FormacionPage } from './pages/FormacionPage';
 import { CursoDetallePage } from './pages/CursoDetallePage';
 
 function App() {
+  useInitAnalytics();
+
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen flex flex-col app-shell">
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-            <Route
-              path="*"
-              element={
-                <>
-                  <Navbar />
-                  <main className="flex-1 flex flex-col">
-                    <Routes>
-                      <Route path="/" element={<Landing />} />
-                      <Route path="/empresa/:ticker" element={<CompanyPage />} />
-                      <Route path="/cashflow/:ticker" element={<CompanyPage />} />
-                      <Route path="/valuation/:ticker" element={<CompanyPage />} />
-                      <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
-                      <Route path="/settings" element={<ProtectedRoute><AccountSettingsPage /></ProtectedRoute>} />
-                      <Route path="/portfolios" element={<ProtectedRoute><PortfoliosPage /></ProtectedRoute>} />
-                      <Route path="/portfolios/:id" element={<ProtectedRoute><PortfolioDetailPage /></ProtectedRoute>} />
-                      <Route path="/legal" element={<Navigate to="/legal/terminos" replace />} />
-                      <Route path="/legal/:slug" element={<LegalPage />} />
-                      <Route path="/formacion" element={<FormacionPage />} />
-                      <Route path="/formacion/:id" element={<CursoDetallePage />} />
-                    </Routes>
-                  </main>
-                </>
-              }
-            />
-          </Routes>
-        </div>
+        <AppRoutes />
       </Router>
     </AuthProvider>
+  );
+}
+
+function AppRoutes() {
+  usePageTracking();
+
+  return (
+    <div className="min-h-screen flex flex-col app-shell">
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+        <Route
+          path="*"
+          element={
+            <>
+              <Navbar />
+              <main className="flex-1 flex flex-col">
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/empresa/:ticker" element={<CompanyPage />} />
+                  <Route path="/cashflow/:ticker" element={<CompanyPage />} />
+                  <Route path="/valuation/:ticker" element={<CompanyPage />} />
+                  <Route path="/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><AccountSettingsPage /></ProtectedRoute>} />
+                  <Route path="/portfolios" element={<ProtectedRoute><PortfoliosPage /></ProtectedRoute>} />
+                  <Route path="/portfolios/:id" element={<ProtectedRoute><PortfolioDetailPage /></ProtectedRoute>} />
+                  <Route path="/legal" element={<Navigate to="/legal/terminos" replace />} />
+                  <Route path="/legal/:slug" element={<LegalPage />} />
+                  <Route path="/formacion" element={<FormacionPage />} />
+                  <Route path="/formacion/:id" element={<CursoDetallePage />} />
+                </Routes>
+              </main>
+            </>
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 

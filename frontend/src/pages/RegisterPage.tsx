@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/auth.css';
 
 export function RegisterPage() {
@@ -36,6 +37,7 @@ export function RegisterPage() {
     setLoading(true);
     try {
       await register(email, name, password);
+      trackEvent('register');
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar');

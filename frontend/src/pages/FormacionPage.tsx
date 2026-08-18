@@ -4,6 +4,7 @@ import { GraduationCap, FileDown, ArrowRight, BookOpen, Loader2, CheckCircle2, C
 import { coursesApi, type Course } from '../utils/coursesApi';
 import { getCourseProgress, resetAllProgress } from '../utils/courseProgress';
 import { parseCourseContent } from '../components/course/CourseContent';
+import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/formacion.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -24,6 +25,10 @@ export function FormacionPage() {
   const [guidePdfUrl, setGuidePdfUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [progressTick, setProgressTick] = useState(0);
+
+  useEffect(() => {
+    trackEvent('formacion_view');
+  }, []);
 
   useEffect(() => {
     coursesApi
