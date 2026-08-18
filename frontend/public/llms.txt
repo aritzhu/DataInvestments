@@ -1,0 +1,13 @@
+# DataInvestments
+
+DataInvestments es una plataforma de consulta y visualización de información financiera de empresas cotizadas, con fines informativos y educativos. No constituye asesoramiento financiero ni recomendación de inversión.
+
+## Pages
+
+- [Inicio](https://dataInvestments.dionestudio.es/) — Página principal con valoraciones y empresas
+- [Formación](https://dataInvestments.dionestudio.es/formacion) — Cursos de educación financiera
+- [Términos y Condiciones](https://dataInvestments.dionestudio.es/legal/terminos) — Términos de uso
+- [Política de Privacidad](https://dataInvestments.dionestudio.es/legal/privacidad) — Protección de datos
+- [Aviso Legal](https://dataInvestments.dionestudio.es/legal/aviso-legal) — Información del titular
+- [Advertencia de Riesgos](https://dataInvestments.dionestudio.es/legal/riesgos) — Riesgos de inversión
+- [Política de Cookies](https://dataInvestments.dionestudio.es/legal/cookies) — Almacenamiento del navegador

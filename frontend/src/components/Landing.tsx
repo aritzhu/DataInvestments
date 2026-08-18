@@ -461,8 +461,9 @@ export function Landing() {
               <div className="valuation-filters">
                 <div className="country-filter-wrapper">
                   <Globe size={14} className="country-filter-icon" />
-                  <select
+                   <select
                     className="country-filter"
+                    aria-label="Filtrar por país"
                     value={valuationCountry}
                     onChange={(e) => setValuationCountry(e.target.value)}
                   >
@@ -723,6 +724,7 @@ export function Landing() {
                     <Globe size={14} className="country-filter-icon" />
                     <select
                       className="country-filter"
+                      aria-label="Filtrar por país"
                       value={selectedCountry}
                       onChange={(e) => setSelectedCountry(e.target.value)}
                     >
