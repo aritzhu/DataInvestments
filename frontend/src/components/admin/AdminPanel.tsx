@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag, ArrowUp, ArrowDown, Trash2, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, RotateCcw, CheckCircle2, XCircle, Globe, Tag, ArrowUp, ArrowDown, Trash2, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { apiFetch } from '../../utils/api';
@@ -1271,6 +1271,16 @@ export function AdminPanel() {
             <button onClick={handleSaveAnalyticsId} disabled={analyticsSaving} style={{ padding: '0.5rem 1.25rem', background: analyticsSaved ? '#16a34a' : 'var(--primary)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: analyticsSaving ? 0.6 : 1, whiteSpace: 'nowrap', transition: 'background 0.3s' }}>
               {analyticsSaving ? 'Guardando...' : analyticsSaved ? 'Guardado ✓' : 'Guardar'}
             </button>
+            <a
+              href="https://analytics.google.com/analytics/web/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0.5rem 1.25rem', background: 'transparent', color: 'var(--primary)', border: '2px solid var(--primary)', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'background 0.2s, color 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--primary)'; }}
+            >
+              <ExternalLink size={14} /> Ver en GA
+            </a>
           </div>
         </div>
         <div className="admin-form-section" style={{ border: '2px solid var(--pink-pale)', borderRadius: '1rem', padding: '1.5rem' }}>
