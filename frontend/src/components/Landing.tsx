@@ -794,7 +794,7 @@ export function Landing() {
                   onChange={(e) => setScreenMaxNd(e.target.value)}
                   className="screener-input"
                 />
-                <select className="screener-select" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                <select className="screener-select" aria-label="Ordenar por" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
                   <option value="">Orden: Ticker</option>
                   <option value="pe">Orden: P/E</option>
                   <option value="netMargin">Orden: Margen neto</option>
