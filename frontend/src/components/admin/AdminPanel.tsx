@@ -93,6 +93,8 @@ export function AdminPanel() {
   const [sp500Count, setSp500Count] = useState(0);
   const [showStatements, setShowStatements] = useState(false);
   const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos' | 'analytics'>('empresas');
+  const [analyticsSaving, setAnalyticsSaving] = useState(false);
+  const [analyticsSaved, setAnalyticsSaved] = useState(false);
 
   const getAuth = () => {
     const t = localStorage.getItem('token');
@@ -168,6 +170,24 @@ export function AdminPanel() {
       });
     } finally {
       setHeroSaving(false);
+    }
+  };
+
+  const handleSaveAnalyticsId = async () => {
+    setAnalyticsSaving(true);
+    setAnalyticsSaved(false);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...auth },
+        body: JSON.stringify({ analytics_id: heroSettings.analytics_id || '' }),
+      });
+      if (res.ok) {
+        setAnalyticsSaved(true);
+        setTimeout(() => setAnalyticsSaved(false), 3000);
+      }
+    } finally {
+      setAnalyticsSaving(false);
     }
   };
 
@@ -1248,8 +1268,8 @@ export function AdminPanel() {
                 className="admin-form-input"
               />
             </div>
-            <button onClick={handleSaveHero} disabled={heroSaving} style={{ padding: '0.5rem 1.25rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: heroSaving ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-              {heroSaving ? 'Guardando...' : 'Guardar'}
+            <button onClick={handleSaveAnalyticsId} disabled={analyticsSaving} style={{ padding: '0.5rem 1.25rem', background: analyticsSaved ? '#16a34a' : 'var(--primary)', color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: analyticsSaving ? 0.6 : 1, whiteSpace: 'nowrap', transition: 'background 0.3s' }}>
+              {analyticsSaving ? 'Guardando...' : analyticsSaved ? 'Guardado ✓' : 'Guardar'}
             </button>
           </div>
         </div>
