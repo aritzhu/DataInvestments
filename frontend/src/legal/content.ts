@@ -241,6 +241,59 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
       },
     ],
   },
+  {
+    slug: 'cookies',
+    title: 'Política de Cookies',
+    shortTitle: 'Cookies',
+    updatedAt: '{FECHA_ACTUALIZACION}',
+    sections: [
+      {
+        heading: '1. Qué son las cookies',
+        paragraphs: [
+          'Las cookies son pequeños archivos de texto que los sitios web almacenan en el navegador del usuario para recordar información sobre su visita. Pueden utilizarse para recordar preferencias, analizar el tráfico o personalizar el contenido.',
+        ],
+      },
+      {
+        heading: '2. Qué almacenamiento utiliza este sitio',
+        paragraphs: [
+          'DataInvestments no utiliza cookies propias ni de terceros. Sin embargo, emplea el almacenamiento local del navegador (localStorage y sessionStorage) para los siguientes fines:',
+          '• Token de autenticación (localStorage): almacena el token de sesión para mantener al usuario identificado entre visitas. Se elimina automáticamente al cerrar sesión.',
+          '• Preferencia de tema (localStorage): conserva la elección de tema claro u oscuro del usuario.',
+          '• Progreso de formación (localStorage): registra qué apartados de cada curso ha visitado el usuario.',
+          '• Posición de scroll en la landing (sessionStorage): guarda la posición de desplazamiento para restaurarla al volver a la página principal. Se borra automáticamente al cerrar la pestaña.',
+        ],
+      },
+      {
+        heading: '3. Cómo gestionar o eliminar el almacenamiento',
+        paragraphs: [
+          'El usuario puede borrar manualmente los datos almacenados en cualquier momento desde la configuración de su navegador:',
+          '• Chrome: Configuración → Privacidad y seguridad → Borrar datos de navegación → Avanzado → Almacenamiento local.',
+          '• Firefox: Configuración → Privacidad y seguridad → Datos del sitio → Almacenamiento local.',
+          '• Safari: Preferencias → Privacidad → Administrar datos de sitios web.',
+          '• Edge: Configuración → Privacidad → Borrar datos de navegación → Almacenamiento local.',
+          'Tenga en cuenta que eliminar el token de autenticación cerrará su sesión activa.',
+        ],
+      },
+      {
+        heading: '4. Cookies de terceros',
+        paragraphs: [
+          'Este sitio no incluye widgets, botones sociales,.frames ni cualquier otro elemento que instale cookies de terceros.',
+        ],
+      },
+      {
+        heading: '5. Modificaciones',
+        paragraphs: [
+          'DataInvestments se reserva el derecho de modificar esta Política de Cookies en cualquier momento. Los cambios se publicarán en esta página y serán efectivos desde su publicación.',
+        ],
+      },
+      {
+        heading: '6. Contacto',
+        paragraphs: [
+          'Para cualquier duda sobre esta Política de Cookies, puede contactar con el titular del sitio a través de {EMAIL}.',
+        ],
+      },
+    ],
+  },
 ];
 
 export function getLegalDocument(slug: string): LegalDocument | undefined {

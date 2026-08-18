@@ -1084,6 +1084,7 @@ export function Landing() {
             <Link to="/legal/privacidad" className="footer-legal-link">Privacidad</Link>
             <Link to="/legal/aviso-legal" className="footer-legal-link">Aviso Legal</Link>
             <Link to="/legal/riesgos" className="footer-legal-link">Riesgos</Link>
+            <Link to="/legal/cookies" className="footer-legal-link">Cookies</Link>
           </nav>
         </div>
       </footer>

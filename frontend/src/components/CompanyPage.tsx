@@ -948,6 +948,7 @@ export function CompanyPage() {
           <Link to="/legal/privacidad" className="cp-footer-legal-link">Privacidad</Link>
           <Link to="/legal/aviso-legal" className="cp-footer-legal-link">Aviso Legal</Link>
           <Link to="/legal/riesgos" className="cp-footer-legal-link">Riesgos</Link>
+          <Link to="/legal/cookies" className="cp-footer-legal-link">Cookies</Link>
         </nav>
       </footer>
     </div>

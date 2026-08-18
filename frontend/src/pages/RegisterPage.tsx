@@ -119,8 +119,9 @@ export function RegisterPage() {
               />
               <span>
                 He leído y acepto los{' '}
-                <Link to="/legal/terminos" className="auth-link">Términos y Condiciones</Link> y la{' '}
-                <Link to="/legal/privacidad" className="auth-link">Política de Privacidad</Link>.
+                <Link to="/legal/terminos" className="auth-link">Términos y Condiciones</Link>, la{' '}
+                <Link to="/legal/privacidad" className="auth-link">Política de Privacidad</Link> y la{' '}
+                <Link to="/legal/cookies" className="auth-link">Política de Cookies</Link>.
               </span>
             </label>
           </div>
