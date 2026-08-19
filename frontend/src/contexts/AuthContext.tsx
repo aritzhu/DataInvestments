@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { setTheme } from '../utils/theme';
 
 export interface User {
@@ -7,6 +7,8 @@ export interface User {
   name: string;
   role: 'admin' | 'user';
   theme: 'dark' | 'light';
+  subscriptionTier: 'free' | 'pro' | 'premium';
+  trialUsed: boolean;
 }
 
 export interface Favorite {
@@ -36,6 +38,14 @@ export interface Favorite {
   };
 }
 
+export interface UsageInfo {
+  views: number;
+  limit: number;
+  remaining: number;
+  tier: string;
+  canView?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   favorites: Favorite[];
@@ -51,6 +61,11 @@ interface AuthContextType {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateTheme: (theme: 'dark' | 'light') => Promise<void>;
   deleteAccount: () => Promise<void>;
+  updateUserTier: (tier: string) => void;
+  usage: UsageInfo | null;
+  loadUsage: () => Promise<void>;
+  recordCompanyView: (ticker: string) => Promise<UsageInfo>;
+  canViewCompany: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -65,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState<UsageInfo | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -82,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data);
         if (data) {
           loadFavorites();
+          loadUsage();
         }
         else setLoading(false);
       })
@@ -118,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', data.token);
     setUser(data.user);
     await loadFavorites();
+    await loadUsage();
   };
 
   const register = async (email: string, name: string, password: string) => {
@@ -134,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', data.token);
     setUser(data.user);
     setFavorites([]);
+    await loadUsage();
   };
 
   const loginWithGoogle = async (idToken: string) => {
@@ -150,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('token', data.token);
     setUser(data.user);
     await loadFavorites();
+    await loadUsage();
   };
 
   const logout = async () => {
@@ -235,10 +255,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
     setUser(null);
     setFavorites([]);
+    setUsage(null);
   };
 
+  const updateUserTier = (tier: string) => {
+    if (user) {
+      setUser({ ...user, subscriptionTier: tier as User['subscriptionTier'] });
+    }
+  };
+
+  const loadUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/subscription/usage', { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setUsage(data);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const recordCompanyView = useCallback(async (ticker: string): Promise<UsageInfo> => {
+    const res = await fetch('/api/subscription/track-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ ticker }),
+    });
+    if (res.ok) {
+      const data: UsageInfo = await res.json();
+      setUsage(data);
+      return data;
+    }
+    const fallback = { views: 0, limit: 3, remaining: 3, tier: 'free' };
+    setUsage(fallback);
+    return fallback;
+  }, []);
+
+  const canViewCompany = user
+    ? user.subscriptionTier === 'premium' || (usage !== null && usage.remaining !== 0)
+    : true;
+
   return (
-    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount }}>
+    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount, updateUserTier, usage, loadUsage, recordCompanyView, canViewCompany }}>
       {children}
     </AuthContext.Provider>
   );

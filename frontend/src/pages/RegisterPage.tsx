@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/auth.css';
 
 export function RegisterPage() {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,6 +44,18 @@ export function RegisterPage() {
       setError(err instanceof Error ? err.message : 'Error al registrar');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) return;
+    setError('');
+    try {
+      await loginWithGoogle(credentialResponse.credential);
+      trackEvent('register', { method: 'google' });
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar con Google');
     }
   };
 
@@ -130,6 +143,22 @@ export function RegisterPage() {
             {loading ? 'Creando...' : 'Crear cuenta'}
           </button>
         </form>
+
+        <div className="auth-divider">
+          <span>o regístrate con</span>
+        </div>
+
+        <div className="auth-google">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Error al registrar con Google')}
+            theme="outline"
+            size="large"
+            width="100%"
+            text="signup_with"
+            shape="rectangular"
+          />
+        </div>
 
         <div className="auth-footer">
           <p className="auth-footer-text">

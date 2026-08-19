@@ -34,7 +34,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme, subscriptionTier: user.subscriptionTier, trialUsed: user.trialUsed },
     });
   } catch (error) {
     console.error('[Auth] Register error:', error);
@@ -66,7 +66,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme, subscriptionTier: user.subscriptionTier, trialUsed: user.trialUsed },
     });
   } catch (error) {
     console.error('[Auth] Login error:', error);
@@ -127,7 +127,7 @@ router.post('/google', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme, subscriptionTier: user.subscriptionTier, trialUsed: user.trialUsed },
     });
   } catch (error) {
     console.error('[Auth] Google login error:', error);
@@ -147,7 +147,7 @@ router.get('/me', async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { id: true, email: true, name: true, role: true, theme: true },
+      select: { id: true, email: true, name: true, role: true, theme: true, subscriptionTier: true, trialUsed: true },
     });
 
     if (!user) {
@@ -196,7 +196,7 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res) => {
     const user = await prisma.user.update({
       where: { id: req.user!.id },
       data,
-      select: { id: true, email: true, name: true, role: true, theme: true },
+      select: { id: true, email: true, name: true, role: true, theme: true, subscriptionTier: true, trialUsed: true },
     });
 
     res.json(user);
@@ -257,7 +257,7 @@ router.put('/theme', requireAuth, async (req: AuthRequest, res) => {
     const user = await prisma.user.update({
       where: { id: req.user!.id },
       data: { theme },
-      select: { id: true, email: true, name: true, role: true, theme: true },
+      select: { id: true, email: true, name: true, role: true, theme: true, subscriptionTier: true, trialUsed: true },
     });
 
     res.json(user);

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
+import { UsageIndicator } from './ui/UsageIndicator';
 import '../styles/navbar.css';
 
 export function Navbar() {
@@ -177,6 +178,7 @@ export function Navbar() {
                 <Settings size={20} />
               </Link>
             )}
+            {user && <UsageIndicator />}
             {user ? (
               <div className="navbar-user">
                 <Link to="/settings" className="navbar-user-name" title="Configuración">
@@ -289,6 +291,15 @@ export function Navbar() {
               <Link to="/settings" className="navbar-mobile-link">
                 <Settings size={20} />
                 Configuración
+              </Link>
+            )}
+            {user && (
+              <UsageIndicator />
+            )}
+            {user && (
+              <Link to="/plans" className="navbar-mobile-link">
+                <BarChart3 size={20} />
+                Mis planes
               </Link>
             )}
             {user?.role === 'admin' && (

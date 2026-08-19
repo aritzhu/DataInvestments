@@ -14,6 +14,8 @@ import { ValuationTab } from './tabs/ValuationTab';
 import { FundamentalTab } from './tabs/FundamentalTab';
 import { RawDataTab } from './tabs/RawDataTab';
 import { useAuth } from '../contexts/AuthContext';
+import { RegistrationHookModal } from './RegistrationHookModal';
+import { PaywallModal } from './PaywallModal';
 import { listPortfolios, addHolding, createPortfolio } from '../services/portfolioService';
 import type { Portfolio } from '../types/portfolio';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
@@ -299,7 +301,7 @@ export function CompanyPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, isFavorite, addFavorite, removeFavorite } = useAuth();
+  const { user, isFavorite, addFavorite, removeFavorite, recordCompanyView, usage } = useAuth();
   const [data, setData] = useState<CompanyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,6 +331,29 @@ export function CompanyPage() {
   const [alarmLoading, setAlarmLoading] = useState(false);
   const [existingAlarm, setExistingAlarm] = useState<{ id: string; targetVerdict: string; triggered: boolean } | null>(null);
   const alarmModalRef = useRef<HTMLDivElement>(null);
+
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showHookModal, setShowHookModal] = useState(false);
+  const lastTrackedTicker = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!ticker) return;
+    if (user && user.role === 'admin') return;
+    if (lastTrackedTicker.current === ticker) return;
+    lastTrackedTicker.current = ticker;
+    if (user) {
+      recordCompanyView(ticker).then((info) => {
+        if (info.canView === false) setShowPaywall(true);
+      });
+    } else {
+      const trialUsed = localStorage.getItem('di-trial-used');
+      if (trialUsed) {
+        setShowHookModal(true);
+      } else {
+        localStorage.setItem('di-trial-used', '1');
+      }
+    }
+  }, [ticker, user]);
 
   useEffect(() => {
     if (!ticker) return;
@@ -543,6 +568,10 @@ export function CompanyPage() {
       return prev;
     }, { replace: true });
   };
+
+  if (showHookModal && ticker) {
+    return <RegistrationHookModal ticker={ticker} />;
+  }
 
   return (
     <div className="cp-page">
@@ -951,6 +980,10 @@ export function CompanyPage() {
           <Link to="/legal/cookies" className="cp-footer-legal-link">Cookies</Link>
         </nav>
       </footer>
+
+      {showPaywall && usage && (
+        <PaywallModal views={usage.views} limit={usage.limit} />
+      )}
     </div>
   );
 }

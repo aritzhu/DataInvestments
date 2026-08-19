@@ -207,21 +207,26 @@ model DataSync {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  passwordHash String?
-  role         String   @default("user")
-  theme        String   @default("dark")
-  googleId     String?  @unique
-  avatar       String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String    @id @default(uuid())
+  email             String    @unique
+  name              String
+  passwordHash      String?
+  role              String    @default("user")
+  theme             String    @default("dark")
+  googleId          String?   @unique
+  avatar            String?
+  subscriptionTier  String    @default("free")
+  trialUsed         Boolean   @default(false)
+  subscriptionStart DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   favorites  Favorite[]
   alarms     Alarm[]
   portfolios Portfolio[]
   courses    Course[]
+  usageCounters     UsageCounter[]
+  planSelections    PlanSelection[]
 }
 
 model Favorite {
@@ -394,4 +399,27 @@ model CompanyOverride {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, field])
+}
+
+model UsageCounter {
+  id          String   @id @default(uuid())
+  userId      String
+  month       String
+  companyViews Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([userId])
+}
+
+model PlanSelection {
+  id         String   @id @default(uuid())
+  userId     String
+  plan       String
+  selectedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
