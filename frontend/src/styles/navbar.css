@@ -228,9 +228,9 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-default);
-  background: var(--surface-1);
+  padding: 4px;
+  background: transparent;
+  border: none;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -241,7 +241,6 @@
 }
 
 .navbar-hamburger:hover {
-  background: var(--surface-2);
   color: var(--text-primary);
 }
 

@@ -203,6 +203,8 @@
 /* Compare table */
 .plans-table-wrapper {
   margin-bottom: 2rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .plans-compare-title {
@@ -242,6 +244,12 @@
 
 .plans-table-featured {
   background: rgba(99, 179, 237, 0.04);
+}
+
+@media (max-width: 640px) {
+  .plans-table { font-size: 0.75rem; }
+  .plans-table th,
+  .plans-table td { padding: 0.5rem; }
 }
 
 .plan-feature-check-wrap {
