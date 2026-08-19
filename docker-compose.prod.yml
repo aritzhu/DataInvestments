@@ -37,6 +37,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       SEC_USER_AGENT: ${SEC_USER_AGENT}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
 
   sync-worker:
     environment:
@@ -48,6 +49,7 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: /api
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     container_name: datainvestments-frontend
     restart: unless-stopped
     expose:

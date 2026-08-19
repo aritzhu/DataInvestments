@@ -42,6 +42,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   addFavorite: (companyId: string) => Promise<void>;
   removeFavorite: (companyId: string) => Promise<void>;
@@ -135,6 +136,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setFavorites([]);
   };
 
+  const loginWithGoogle = async (idToken: string) => {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al iniciar sesión con Google');
+    }
+    const data = await res.json();
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
+    await loadFavorites();
+  };
+
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     localStorage.removeItem('token');
@@ -221,7 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, favorites, loading, login, register, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount }}>
+    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

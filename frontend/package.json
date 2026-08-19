@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -16,6 +17,7 @@
     "recharts": "^2.15.0"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3",
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.3",

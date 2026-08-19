@@ -1,7 +1,10 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import prisma from '../infrastructure/prisma/client';
 import { generateToken, verifyToken, requireAuth, type AuthRequest } from '../middleware/jwt';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const router: ExpressRouter = Router();
 
@@ -48,7 +51,7 @@ router.post('/login', async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
+    if (!user || !user.passwordHash) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -73,6 +76,63 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', (_req, res) => {
   res.json({ success: true });
+});
+
+router.post('/google', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      res.status(400).json({ error: 'ID token is required' });
+      return;
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      res.status(401).json({ error: 'Invalid Google token' });
+      return;
+    }
+
+    const { email, name, picture, sub: googleId } = payload;
+
+    let user = await prisma.user.findUnique({ where: { googleId } });
+
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { email } });
+      if (user) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId, avatar: picture || user.avatar },
+        });
+      } else {
+        const userCount = await prisma.user.count();
+        const role = userCount === 0 ? 'admin' : 'user';
+        user = await prisma.user.create({
+          data: {
+            email,
+            name: name || email.split('@')[0],
+            googleId,
+            avatar: picture,
+            role,
+          },
+        });
+      }
+    }
+
+    const token = generateToken({ id: user.id, role: user.role });
+
+    res.json({
+      token,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, theme: user.theme },
+    });
+  } catch (error) {
+    console.error('[Auth] Google login error:', error);
+    res.status(401).json({ error: 'Invalid Google token' });
+  }
 });
 
 router.get('/me', async (req, res) => {
@@ -157,6 +217,11 @@ router.put('/password', requireAuth, async (req: AuthRequest, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
     if (!user) {
       res.status(401).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!user.passwordHash) {
+      res.status(400).json({ error: 'This account uses Google login. Password change is not available.' });
       return;
     }
 

@@ -210,9 +210,11 @@ model User {
   id           String   @id @default(uuid())
   email        String   @unique
   name         String
-  passwordHash String
+  passwordHash String?
   role         String   @default("user")
   theme        String   @default("dark")
+  googleId     String?  @unique
+  avatar       String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
