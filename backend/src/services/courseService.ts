@@ -66,23 +66,35 @@ export interface CourseDTO {
   orden: number;
   activo: boolean;
   slug: string | null;
+  totalSecciones?: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-function toDomain(row: CourseRow): CourseDTO {
+function countSections(contenido: string | null): number {
+  if (!contenido) return 0;
+  try {
+    const parsed = JSON.parse(contenido);
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function toDomain(row: CourseRow, excludeContent?: boolean): CourseDTO {
   return {
     id: row.id,
     userId: row.userId,
     autor: row.user?.name ?? null,
     titulo: row.titulo,
     descripcion: row.descripcion,
-    contenido: row.contenido,
+    contenido: excludeContent ? null : row.contenido,
     imagen: row.imagen,
     categoria: row.categoria,
     orden: row.orden,
     activo: row.activo,
     slug: row.slug,
+    ...(excludeContent ? { totalSecciones: countSections(row.contenido) } : {}),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -124,7 +136,7 @@ export const courseService = {
       orderBy: [{ orden: 'asc' }, { createdAt: 'desc' }],
       include: { user: { select: { name: true } } },
     });
-    return Promise.all(rows.map(ensureSlug)).then((r) => r.map(toDomain));
+    return Promise.all(rows.map(ensureSlug)).then((r) => r.map((row) => toDomain(row)));
   },
 
   async findAllActive(): Promise<CourseDTO[]> {
@@ -133,7 +145,7 @@ export const courseService = {
       orderBy: [{ orden: 'asc' }, { createdAt: 'desc' }],
       include: { user: { select: { name: true } } },
     });
-    return Promise.all(rows.map(ensureSlug)).then((r) => r.map(toDomain));
+    return Promise.all(rows.map(ensureSlug)).then((r) => r.map((row) => toDomain(row, true)));
   },
 
   async findById(id: string): Promise<CourseDTO | null> {

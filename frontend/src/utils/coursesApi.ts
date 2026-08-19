@@ -12,6 +12,7 @@ export interface Course {
   orden: number;
   activo: boolean;
   slug: string | null;
+  totalSecciones?: number;
   createdAt: string;
   updatedAt: string;
 }

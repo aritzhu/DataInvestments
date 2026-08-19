@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,9 @@ export function Navbar() {
   const navigate = useNavigate();
   const { user, logout, updateTheme } = useAuth();
   const [search, setSearch] = useState('');
+  const [suggestions, setSuggestions] = useState<{ id: string; ticker: string; name: string }[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const suggestionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -61,11 +64,39 @@ export function Navbar() {
     if (user) updateTheme(next);
   };
 
+  // Suggestions debounce
+  useEffect(() => {
+    if (suggestionsTimeout.current) clearTimeout(suggestionsTimeout.current);
+    if (search.length < 2) { setSuggestions([]); return; }
+    suggestionsTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/companies?q=${encodeURIComponent(search)}&pageSize=6`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(Array.isArray(data.data) ? data.data.slice(0, 6) : []);
+        }
+      } catch { setSuggestions([]); }
+    }, 250);
+    return () => { if (suggestionsTimeout.current) clearTimeout(suggestionsTimeout.current); };
+  }, [search]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const term = search.trim();
     navigate(term ? `/?search=${encodeURIComponent(term)}#companies` : '/#companies');
     setSearch('');
+    setSuggestions([]);
     setMenuOpen(false);
   };
 
@@ -82,19 +113,35 @@ export function Navbar() {
           </Link>
 
           {/* Desktop search */}
-          <form className="navbar-search" onSubmit={handleSearch} role="search">
-            <Search size={15} className="navbar-search-icon" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar empresa..."
-              aria-label="Buscar empresa"
-            />
-            <button type="submit" aria-label="Buscar">
-              <Search size={15} />
-            </button>
-          </form>
+          <div className="navbar-search-wrapper" ref={searchRef} style={{ position: 'relative', flex: '0 1 20rem', maxWidth: '24rem' }}>
+            <form className="navbar-search" onSubmit={handleSearch} role="search">
+              <Search size={15} className="navbar-search-icon" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar empresa..."
+                aria-label="Buscar empresa"
+              />
+              <button type="submit" aria-label="Buscar">
+                <Search size={15} />
+              </button>
+            </form>
+            {suggestions.length > 0 && (
+              <div className="navbar-search-suggestions">
+                {suggestions.map((c) => (
+                  <div
+                    key={c.id}
+                    className="navbar-search-suggestion"
+                    onMouseDown={() => { setSearch(`${c.ticker} — ${c.name}`); setSuggestions([]); }}
+                  >
+                    <span className="navbar-search-suggestion-ticker">{c.ticker}</span>
+                    <span className="navbar-search-suggestion-name">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Desktop links */}
           <div className="navbar-links">
@@ -173,19 +220,35 @@ export function Navbar() {
             </button>
           </div>
 
-          <form className="navbar-mobile-search" onSubmit={handleSearch} role="search">
-            <Search size={15} className="navbar-mobile-search-icon" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar empresa..."
-              aria-label="Buscar empresa"
-            />
-            <button type="submit" aria-label="Buscar">
-              <Search size={15} />
-            </button>
-          </form>
+          <div className="navbar-mobile-search-wrapper" style={{ position: 'relative' }}>
+            <form className="navbar-mobile-search" onSubmit={handleSearch} role="search">
+              <Search size={15} className="navbar-mobile-search-icon" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar empresa..."
+                aria-label="Buscar empresa"
+              />
+              <button type="submit" aria-label="Buscar">
+                <Search size={15} />
+              </button>
+            </form>
+            {suggestions.length > 0 && (
+              <div className="navbar-mobile-search-suggestions">
+                {suggestions.map((c) => (
+                  <div
+                    key={c.id}
+                    className="navbar-mobile-search-suggestion"
+                    onMouseDown={() => { setSearch(`${c.ticker} — ${c.name}`); setSuggestions([]); }}
+                  >
+                    <span className="navbar-search-suggestion-ticker">{c.ticker}</span>
+                    <span className="navbar-search-suggestion-name">{c.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {user && (
             <div className="navbar-mobile-user">

@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { GraduationCap, FileDown, ArrowRight, BookOpen, Loader2, CheckCircle2, Check, RotateCcw } from 'lucide-react';
 import { coursesApi, type Course } from '../utils/coursesApi';
 import { getCourseProgress, resetAllProgress } from '../utils/courseProgress';
-import { parseCourseContent } from '../components/course/CourseContent';
 import { trackEvent } from '../hooks/useAnalytics';
 import '../styles/formacion.css';
 
@@ -15,8 +14,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function totalSections(course: Course): number {
-  if (!course.contenido) return 0;
-  return parseCourseContent(course.contenido).length;
+  return course.totalSecciones ?? 0;
 }
 
 export function FormacionPage() {

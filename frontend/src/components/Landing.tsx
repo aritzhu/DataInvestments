@@ -178,6 +178,9 @@ export function Landing() {
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
   const [isLoading, setIsLoading] = useState(() => initialCache == null);
   const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
+  const [suggestions, setSuggestions] = useState<{ id: string; ticker: string; name: string }[]>([]);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const suggestionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const books = useMemo<Book[] | null>(() => {
     const raw = heroSettings.books;
@@ -370,6 +373,22 @@ export function Landing() {
     setSearchTerm(searchParams.get('search') || '');
   }, [searchParams]);
 
+  // Suggestions debounce
+  useEffect(() => {
+    if (suggestionsTimeout.current) clearTimeout(suggestionsTimeout.current);
+    if (searchTerm.length < 2) { setSuggestions([]); return; }
+    suggestionsTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/companies?q=${encodeURIComponent(searchTerm)}&pageSize=8`);
+        if (res.ok) {
+          const data = await res.json();
+          setSuggestions(Array.isArray(data.data) ? data.data.slice(0, 8) : []);
+        }
+      } catch { setSuggestions([]); }
+    }, 250);
+    return () => { if (suggestionsTimeout.current) clearTimeout(suggestionsTimeout.current); };
+  }, [searchTerm]);
+
   // Scroll to companies section when arriving via navbar search (#companies)
   useEffect(() => {
     if (location.hash !== '#companies' || companies.length === 0) return;
@@ -378,6 +397,17 @@ export function Landing() {
     }, 100);
     return () => clearTimeout(timer);
   }, [location.hash, companies.length]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const favoriteCompanies = useMemo<FavoriteCompany[]>(
     () => favorites.map((f) => f.company as unknown as FavoriteCompany).filter(Boolean),
@@ -710,7 +740,7 @@ export function Landing() {
           {companies.length > 0 && (
             <div className="sector-filters-wrapper">
               <div className="search-row">
-                <div className="companies-search-wrapper">
+                <div className="companies-search-wrapper" ref={searchWrapperRef} style={{ position: 'relative' }}>
                   <input
                     type="text"
                     value={searchTerm}
@@ -718,6 +748,20 @@ export function Landing() {
                     placeholder="Buscar por ticker, nombre o sector..."
                     className="companies-search-input"
                   />
+                  {suggestions.length > 0 && (
+                    <div className="search-suggestions">
+                      {suggestions.map((c) => (
+                        <div
+                          key={c.id}
+                          className="search-suggestion-item"
+                          onMouseDown={() => { setSearchTerm(`${c.ticker} — ${c.name}`); setSuggestions([]); }}
+                        >
+                          <span className="search-suggestion-ticker">{c.ticker}</span>
+                          <span className="search-suggestion-name">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {availableCountries.length > 0 && (
                   <div className="country-filter-wrapper">
