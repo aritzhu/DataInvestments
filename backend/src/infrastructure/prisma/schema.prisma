@@ -423,3 +423,19 @@ model PlanSelection {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Plan {
+  id           String   @id @default(uuid())
+  slug         String   @unique
+  name         String
+  priceMonthly Float    @default(0)
+  companyViews Int      @default(3)
+  favorites    Int      @default(3)
+  portfolios   Int      @default(1)
+  screening    Boolean  @default(false)
+  compare      Boolean  @default(false)
+  exportData   Boolean  @default(false)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

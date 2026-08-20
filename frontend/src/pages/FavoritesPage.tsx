@@ -35,7 +35,7 @@ const VERDICT_LABELS: Record<string, string> = {
 };
 
 export function FavoritesPage() {
-  const { favorites, removeFavorite } = useAuth();
+  const { favorites, removeFavorite, planLimits, usage } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('favorites');
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [alarmsLoading, setAlarmsLoading] = useState(true);
@@ -104,7 +104,11 @@ export function FavoritesPage() {
         >
           <Heart size={16} />
           Favoritos
-          <span className="fav-tab-count">{favorites.length}</span>
+          <span className="fav-tab-count">
+            {planLimits && planLimits.favorites !== -1
+              ? `${favorites.length}/${planLimits.favorites}`
+              : favorites.length}
+          </span>
         </button>
         <button
           className={`fav-tab ${activeTab === 'alarms' ? 'fav-tab--active' : ''}`}
@@ -116,6 +120,13 @@ export function FavoritesPage() {
         </button>
         <InfoButton content={INFO['favorites.card']} align="right" />
       </div>
+
+      {activeTab === 'favorites' && planLimits && planLimits.favorites !== -1 && usage && usage.favorites >= planLimits.favorites && (
+        <div className="fav-limit-banner">
+          Límite de favoritos alcanzado ({usage.favorites}/{planLimits.favorites}).{' '}
+          <Link to="/plans" className="fav-limit-link">Mejora tu plan</Link>
+        </div>
+      )}
 
       {activeTab === 'favorites' && (
         <div className="fav-content">

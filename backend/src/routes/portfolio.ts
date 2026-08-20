@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import * as portfolioService from '../services/portfolioService';
+import * as planService from '../services/planService';
 import prisma from '../infrastructure/prisma/client';
 
 const router: ExpressRouter = Router();
@@ -14,6 +15,16 @@ router.post('/', async (req: AuthRequest, res) => {
       res.status(400).json({ error: 'Name is required' });
       return;
     }
+
+    const canCreate = await planService.canCreatePortfolio(req.user!.id);
+    if (!canCreate) {
+      const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+      const plan = await planService.getUserPlan(user?.subscriptionTier ?? 'free');
+      const count = await prisma.portfolio.count({ where: { userId: req.user!.id } });
+      res.status(403).json({ error: 'Portfolios limit reached', reason: 'portfolios', limit: plan.portfolios, current: count });
+      return;
+    }
+
     const portfolio = await portfolioService.createPortfolio(req.user!.id, { name, description, currency });
     res.status(201).json(portfolio);
   } catch (error) {

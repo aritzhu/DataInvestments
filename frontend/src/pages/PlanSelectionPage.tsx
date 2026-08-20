@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, X, BarChart3, Heart, Briefcase, Download, GitCompare, Lock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,15 +11,35 @@ interface PlanFeature {
   premium: string | boolean;
 }
 
-const FEATURES: PlanFeature[] = [
-  { label: 'Análisis de empresas / mes', free: '3', pro: '20', premium: 'Ilimitados' },
-  { label: 'Cursos de inversión', free: true, pro: true, premium: true },
-  { label: 'Favoritos y alarmas', free: '3', pro: '10', premium: 'Ilimitadas' },
-  { label: 'Portfolios', free: '1', pro: '5', premium: 'Ilimitados' },
-  { label: 'Screening avanzado', free: false, pro: true, premium: true },
-  { label: 'Comparar empresas', free: false, pro: true, premium: true },
-  { label: 'Exportar datos', free: false, pro: false, premium: true },
-];
+interface PlanData {
+  slug: string;
+  name: string;
+  priceMonthly: number;
+  companyViews: number;
+  favorites: number;
+  portfolios: number;
+  screening: boolean;
+  compare: boolean;
+  exportData: boolean;
+}
+
+function formatLimit(val: number): string {
+  return val === -1 ? 'Ilimitados' : String(val);
+}
+
+function buildFeatures(plans: PlanData[]): PlanFeature[] {
+  const bySlug = Object.fromEntries(plans.map((p) => [p.slug, p]));
+  const f = (s: string) => bySlug[s];
+  return [
+    { label: 'Análisis de empresas / mes', free: formatLimit(f('free')?.companyViews ?? 3), pro: formatLimit(f('pro')?.companyViews ?? 20), premium: formatLimit(f('premium')?.companyViews ?? -1) },
+    { label: 'Cursos de inversión', free: true, pro: true, premium: true },
+    { label: 'Favoritos y alarmas', free: formatLimit(f('free')?.favorites ?? 3), pro: formatLimit(f('pro')?.favorites ?? 10), premium: formatLimit(f('premium')?.favorites ?? -1) },
+    { label: 'Portfolios', free: formatLimit(f('free')?.portfolios ?? 1), pro: formatLimit(f('pro')?.portfolios ?? 5), premium: formatLimit(f('premium')?.portfolios ?? -1) },
+    { label: 'Screening avanzado', free: f('free')?.screening ?? false, pro: f('pro')?.screening ?? true, premium: f('premium')?.screening ?? true },
+    { label: 'Comparar empresas', free: f('free')?.compare ?? false, pro: f('pro')?.compare ?? true, premium: f('premium')?.compare ?? true },
+    { label: 'Exportar datos', free: f('free')?.exportData ?? false, pro: f('pro')?.exportData ?? false, premium: f('premium')?.exportData ?? true },
+  ];
+}
 
 function FeatureCheck({ value }: { value: string | boolean }) {
   if (value === true) return <span className="plan-feature-check-wrap"><Check size={16} className="plan-feature-check plan-feature-check--yes" /></span>;
@@ -33,8 +53,33 @@ export function PlanSelectionPage() {
   const [selecting, setSelecting] = useState<string | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [msg, setMsg] = useState('');
+  const [plans, setPlans] = useState<PlanData[]>([]);
+  const [features, setFeatures] = useState<PlanFeature[]>([]);
 
   const currentTier = user?.subscriptionTier || 'free';
+
+  useEffect(() => {
+    fetch('/api/subscription/plans')
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: PlanData[]) => {
+        setPlans(data);
+        setFeatures(buildFeatures(data));
+      })
+      .catch(() => {
+        setFeatures([
+          { label: 'Análisis de empresas / mes', free: '3', pro: '20', premium: 'Ilimitados' },
+          { label: 'Cursos de inversión', free: true, pro: true, premium: true },
+          { label: 'Favoritos y alarmas', free: '3', pro: '10', premium: 'Ilimitadas' },
+          { label: 'Portfolios', free: '1', pro: '5', premium: 'Ilimitados' },
+          { label: 'Screening avanzado', free: false, pro: true, premium: true },
+          { label: 'Comparar empresas', free: false, pro: true, premium: true },
+          { label: 'Exportar datos', free: false, pro: false, premium: true },
+        ]);
+      });
+  }, []);
+
+  const price = (slug: string) => plans.find((p) => p.slug === slug)?.priceMonthly ?? 0;
+  const planName = (slug: string) => plans.find((p) => p.slug === slug)?.name ?? slug;
 
   const handleSelectPlan = async (plan: string) => {
     if (plan === 'premium') {
@@ -55,7 +100,7 @@ export function PlanSelectionPage() {
     if (res.ok) {
       await loadUsage();
       updateUserTier(plan);
-      setMsg(`Plan cambiado a ${plan === 'free' ? 'Gratis' : 'Pro'} correctamente`);
+      setMsg(`Plan cambiado a ${planName(plan)} correctamente`);
       } else {
         const err = await res.json();
         setMsg(err.error || 'Error al cambiar plan');
@@ -65,6 +110,16 @@ export function PlanSelectionPage() {
     }
     setSelecting(null);
   };
+
+  const displayFeatures = features.length > 0 ? features : [
+    { label: 'Análisis de empresas / mes', free: '3', pro: '20', premium: 'Ilimitados' },
+    { label: 'Cursos de inversión', free: true, pro: true, premium: true },
+    { label: 'Favoritos y alarmas', free: '3', pro: '10', premium: 'Ilimitadas' },
+    { label: 'Portfolios', free: '1', pro: '5', premium: 'Ilimitados' },
+    { label: 'Screening avanzado', free: false, pro: true, premium: true },
+    { label: 'Comparar empresas', free: false, pro: true, premium: true },
+    { label: 'Exportar datos', free: false, pro: false, premium: true },
+  ];
 
   return (
     <div className="plans-page">
@@ -83,18 +138,18 @@ export function PlanSelectionPage() {
           <div className={`plan-card ${currentTier === 'free' ? 'plan-card--current' : ''}`}>
             {currentTier === 'free' && <div className="plan-badge">Plan actual</div>}
             <div className="plan-card-header">
-              <h3 className="plan-name">Gratis</h3>
+              <h3 className="plan-name">{planName('free')}</h3>
               <div className="plan-price">
-                <span className="plan-price-amount">0€</span>
+                <span className="plan-price-amount">{price('free')}€</span>
                 <span className="plan-price-period">/mes</span>
               </div>
               <p className="plan-desc">Para empezar a explorar el mundo de la inversión</p>
             </div>
             <ul className="plan-features">
-              <li><BarChart3 size={16} /> 3 análisis de empresas / mes</li>
+              <li><BarChart3 size={16} /> {formatLimit(plans.find((p) => p.slug === 'free')?.companyViews ?? 3)} análisis de empresas / mes</li>
               <li><Check size={16} /> Cursos de inversión</li>
-              <li><Heart size={16} /> 3 favoritos y alarmas</li>
-              <li><Briefcase size={16} /> 1 portfolio</li>
+              <li><Heart size={16} /> {formatLimit(plans.find((p) => p.slug === 'free')?.favorites ?? 3)} favoritos y alarmas</li>
+              <li><Briefcase size={16} /> {formatLimit(plans.find((p) => p.slug === 'free')?.portfolios ?? 1)} portfolio</li>
             </ul>
             <button
               className={`plan-btn ${currentTier === 'free' ? 'plan-btn--current' : 'plan-btn--outline'}`}
@@ -110,18 +165,18 @@ export function PlanSelectionPage() {
             {currentTier === 'pro' && <div className="plan-badge">Plan actual</div>}
             {currentTier !== 'pro' && <div className="plan-badge plan-badge--popular">Popular</div>}
             <div className="plan-card-header">
-              <h3 className="plan-name">Pro</h3>
+              <h3 className="plan-name">{planName('pro')}</h3>
               <div className="plan-price">
-                <span className="plan-price-amount">9.99€</span>
+                <span className="plan-price-amount">{price('pro')}€</span>
                 <span className="plan-price-period">/mes</span>
               </div>
               <p className="plan-desc">Para inversores que quieren ir más allá</p>
             </div>
             <ul className="plan-features">
-              <li><BarChart3 size={16} /> 20 análisis de empresas / mes</li>
+              <li><BarChart3 size={16} /> {formatLimit(plans.find((p) => p.slug === 'pro')?.companyViews ?? 20)} análisis de empresas / mes</li>
               <li><Check size={16} /> Cursos de inversión</li>
-              <li><Heart size={16} /> 10 favoritos y alarmas</li>
-              <li><Briefcase size={16} /> 5 portfolios</li>
+              <li><Heart size={16} /> {formatLimit(plans.find((p) => p.slug === 'pro')?.favorites ?? 10)} favoritos y alarmas</li>
+              <li><Briefcase size={16} /> {formatLimit(plans.find((p) => p.slug === 'pro')?.portfolios ?? 5)} portfolios</li>
               <li><GitCompare size={16} /> Screening avanzado</li>
               <li><GitCompare size={16} /> Comparar empresas</li>
             </ul>
@@ -138,9 +193,9 @@ export function PlanSelectionPage() {
           <div className={`plan-card ${currentTier === 'premium' ? 'plan-card--current' : ''}`}>
             {currentTier === 'premium' && <div className="plan-badge">Plan actual</div>}
             <div className="plan-card-header">
-              <h3 className="plan-name">Premium</h3>
+              <h3 className="plan-name">{planName('premium')}</h3>
               <div className="plan-price">
-                <span className="plan-price-amount">19.99€</span>
+                <span className="plan-price-amount">{price('premium')}€</span>
                 <span className="plan-price-period">/mes</span>
               </div>
               <p className="plan-desc">Sin límites para profesionales</p>
@@ -176,7 +231,7 @@ export function PlanSelectionPage() {
               </tr>
             </thead>
             <tbody>
-              {FEATURES.map((f) => (
+              {displayFeatures.map((f) => (
                 <tr key={f.label}>
                   <td>{f.label}</td>
                   <td><FeatureCheck value={f.free} /></td>

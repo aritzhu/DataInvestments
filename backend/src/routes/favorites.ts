@@ -1,6 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import prisma from '../infrastructure/prisma/client';
+import * as planService from '../services/planService';
 
 const router: ExpressRouter = Router();
 
@@ -43,6 +44,15 @@ router.post('/:companyId', requireAuth, async (req: AuthRequest, res) => {
 
     if (existing) {
       res.status(409).json({ error: 'Already in favorites' });
+      return;
+    }
+
+    const canAdd = await planService.canAddFavorite(userId);
+    if (!canAdd) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const plan = await planService.getUserPlan(user?.subscriptionTier ?? 'free');
+      const count = await prisma.favorite.count({ where: { userId } });
+      res.status(403).json({ error: 'Favorites limit reached', reason: 'favorites', limit: plan.favorites, current: count });
       return;
     }
 

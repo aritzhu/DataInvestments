@@ -1,25 +1,46 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import prisma from '../infrastructure/prisma/client';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
+import * as planService from '../services/planService';
 
 const router: ExpressRouter = Router();
-
-const FREE_LIMIT = 3;
-const PRO_LIMIT = 20;
-const PREMIUM_LIMIT = Infinity;
 
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function tierLimit(tier: string): number {
-  switch (tier) {
-    case 'premium': return PREMIUM_LIMIT;
-    case 'pro': return PRO_LIMIT;
-    default: return FREE_LIMIT;
+// ── Public: list all active plans (for PlanSelectionPage) ──
+router.get('/plans', async (_req, res) => {
+  try {
+    const plans = await planService.getAllActivePlans();
+    res.json(plans.map((p) => ({
+      slug: p.slug,
+      name: p.name,
+      priceMonthly: p.priceMonthly,
+      companyViews: p.companyViews,
+      favorites: p.favorites,
+      portfolios: p.portfolios,
+      screening: p.screening,
+      compare: p.compare,
+      exportData: p.exportData,
+    })));
+  } catch (error) {
+    console.error('[Subscription] Plans error:', error);
+    res.status(500).json({ error: 'Error fetching plans' });
   }
-}
+});
+
+// ── Auth: combined plan info + usage (replaces /usage) ──
+router.get('/plan-info', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const info = await planService.getPlanInfo(req.user!.id);
+    res.json(info);
+  } catch (error) {
+    console.error('[Subscription] Plan-info error:', error);
+    res.status(500).json({ error: 'Error fetching plan info' });
+  }
+});
 
 router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
   try {
@@ -33,49 +54,35 @@ router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    const limit = tierLimit(user.subscriptionTier);
+    const plan = await planService.getUserPlan(user.subscriptionTier);
+    const isUnlimited = plan.companyViews === -1;
 
-    if (user.subscriptionTier !== 'premium') {
+    if (!isUnlimited) {
       const counter = await prisma.usageCounter.findUnique({
         where: { userId_month: { userId, month } },
       });
 
       const currentViews = counter?.companyViews ?? 0;
-      const remaining = Math.max(0, limit - currentViews);
 
-      if (remaining === 0) {
-        res.json({ canView: false, views: currentViews, limit, remaining: 0, tier: user.subscriptionTier });
+      if (currentViews >= plan.companyViews) {
+        res.json({ canView: false, views: currentViews, limit: plan.companyViews, remaining: 0, tier: user.subscriptionTier });
         return;
       }
-
-      const updated = await prisma.usageCounter.upsert({
-        where: { userId_month: { userId, month } },
-        update: { companyViews: { increment: 1 } },
-        create: { userId, month, companyViews: 1 },
-      });
-
-      res.json({
-        canView: true,
-        views: updated.companyViews,
-        limit,
-        remaining: Math.max(0, limit - updated.companyViews),
-        tier: user.subscriptionTier,
-      });
-    } else {
-      const counter = await prisma.usageCounter.upsert({
-        where: { userId_month: { userId, month } },
-        update: { companyViews: { increment: 1 } },
-        create: { userId, month, companyViews: 1 },
-      });
-
-      res.json({
-        canView: true,
-        views: counter.companyViews,
-        limit: -1,
-        remaining: -1,
-        tier: 'premium',
-      });
     }
+
+    const updated = await prisma.usageCounter.upsert({
+      where: { userId_month: { userId, month } },
+      update: { companyViews: { increment: 1 } },
+      create: { userId, month, companyViews: 1 },
+    });
+
+    res.json({
+      canView: true,
+      views: updated.companyViews,
+      limit: isUnlimited ? -1 : plan.companyViews,
+      remaining: isUnlimited ? -1 : Math.max(0, plan.companyViews - updated.companyViews),
+      tier: user.subscriptionTier,
+    });
   } catch (error) {
     console.error('[Subscription] Track view error:', error);
     res.status(500).json({ error: 'Error tracking view' });
@@ -85,27 +92,13 @@ router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
 router.get('/usage', requireAuth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const month = currentMonth();
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      res.status(401).json({ error: 'User not found' });
-      return;
-    }
-
-    const counter = await prisma.usageCounter.findUnique({
-      where: { userId_month: { userId, month } },
-    });
-
-    const views = counter?.companyViews ?? 0;
-    const limit = tierLimit(user.subscriptionTier);
-
+    const info = await planService.getPlanInfo(userId);
     res.json({
-      views,
-      limit: user.subscriptionTier === 'premium' ? -1 : limit,
-      remaining: user.subscriptionTier === 'premium' ? -1 : Math.max(0, limit - views),
-      tier: user.subscriptionTier,
-      canView: user.subscriptionTier === 'premium' ? true : views < limit,
+      views: info.usage.companyViews,
+      limit: info.limits.companyViews === -1 ? -1 : info.limits.companyViews,
+      remaining: info.limits.companyViews === -1 ? -1 : Math.max(0, info.limits.companyViews - info.usage.companyViews),
+      tier: info.tier,
+      canView: info.canViewCompany,
     });
   } catch (error) {
     console.error('[Subscription] Usage error:', error);
@@ -116,29 +109,10 @@ router.get('/usage', requireAuth, async (req: AuthRequest, res) => {
 router.get('/can-view', requireAuth, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const month = currentMonth();
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      res.status(401).json({ error: 'User not found' });
-      return;
-    }
-
-    if (user.subscriptionTier === 'premium') {
-      res.json({ canView: true, remaining: -1 });
-      return;
-    }
-
-    const counter = await prisma.usageCounter.findUnique({
-      where: { userId_month: { userId, month } },
-    });
-
-    const views = counter?.companyViews ?? 0;
-    const limit = tierLimit(user.subscriptionTier);
-
+    const info = await planService.getPlanInfo(userId);
     res.json({
-      canView: views < limit,
-      remaining: Math.max(0, limit - views),
+      canView: info.canViewCompany,
+      remaining: info.limits.companyViews === -1 ? -1 : Math.max(0, info.limits.companyViews - info.usage.companyViews),
     });
   } catch (error) {
     console.error('[Subscription] Can-view error:', error);

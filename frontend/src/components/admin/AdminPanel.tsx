@@ -10,6 +10,8 @@ import { StatementsEditor } from './StatementsEditor';
 import { DEFAULT_BOOKS, type Book } from '../BookCarousel';
 import { CoursesManager } from './CoursesManager';
 import { AnalyticsSection } from './AnalyticsSection';
+import { PlansManager } from './PlansManager';
+import { UsersManager } from './UsersManager';
 import '../../styles/admin.css';
 
 interface ProgressUpdate {
@@ -92,7 +94,7 @@ export function AdminPanel() {
   const [sp500Loading, setSp500Loading] = useState(false);
   const [sp500Count, setSp500Count] = useState(0);
   const [showStatements, setShowStatements] = useState(false);
-  const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos' | 'analytics'>('empresas');
+  const [adminTab, setAdminTab] = useState<'empresas' | 'contenido' | 'libros' | 'cursos' | 'analytics' | 'planes' | 'usuarios'>('empresas');
   const [analyticsSaving, setAnalyticsSaving] = useState(false);
   const [analyticsSaved, setAnalyticsSaved] = useState(false);
 
@@ -579,6 +581,18 @@ export function AdminPanel() {
             onClick={() => setAdminTab('analytics')}
           >
             📊 Analytics
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'planes' ? 'active' : ''}`}
+            onClick={() => setAdminTab('planes')}
+          >
+            💳 Planes
+          </button>
+          <button
+            className={`admin-tab-btn ${adminTab === 'usuarios' ? 'active' : ''}`}
+            onClick={() => setAdminTab('usuarios')}
+          >
+            👥 Usuarios
           </button>
         </div>
 
@@ -1291,6 +1305,14 @@ export function AdminPanel() {
           <AnalyticsSection />
         </div>
         </>
+        )}
+
+        {adminTab === 'planes' && (
+          <PlansManager />
+        )}
+
+        {adminTab === 'usuarios' && (
+          <UsersManager />
         )}
 
         {adminTab === 'empresas' && (

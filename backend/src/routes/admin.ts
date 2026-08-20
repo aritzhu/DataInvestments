@@ -13,6 +13,7 @@ import { getRecommendedModel } from '../services/valuationService';
 import { parsePagination, paginate } from '../utils/pagination';
 import { getFieldByName, type FieldCategory } from '../data/fieldMappingCatalog';
 import { buildFieldTagsMap, SOURCE_KEYS, type SourceKey } from '../data/fieldTagHelper';
+import * as planService from '../services/planService';
 
 const router: ExpressRouter = Router();
 
@@ -853,6 +854,187 @@ router.get('/data-stats', async (_req, res) => {
   } catch (error) {
     console.error('[Admin] Data stats error:', error);
     res.status(500).json({ error: 'Error fetching data statistics' });
+  }
+});
+
+// ── Plan management ──
+
+// GET /api/admin/plans — list all plans
+router.get('/plans', async (_req, res) => {
+  try {
+    const plans = await prisma.plan.findMany({ orderBy: { priceMonthly: 'asc' } });
+    res.json(plans);
+  } catch (error) {
+    console.error('[Admin] Plans list error:', error);
+    res.status(500).json({ error: 'Error fetching plans' });
+  }
+});
+
+// PUT /api/admin/plans/:slug — update plan limits
+router.put('/plans/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { name, priceMonthly, companyViews, favorites, portfolios, screening, compare, exportData, active } = req.body;
+
+    const existing = await prisma.plan.findUnique({ where: { slug } });
+    if (!existing) {
+      res.status(404).json({ error: 'Plan not found' });
+      return;
+    }
+
+    const updated = await prisma.plan.update({
+      where: { slug },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(priceMonthly !== undefined && { priceMonthly }),
+        ...(companyViews !== undefined && { companyViews }),
+        ...(favorites !== undefined && { favorites }),
+        ...(portfolios !== undefined && { portfolios }),
+        ...(screening !== undefined && { screening }),
+        ...(compare !== undefined && { compare }),
+        ...(exportData !== undefined && { exportData }),
+        ...(active !== undefined && { active }),
+      },
+    });
+
+    planService.invalidateCache();
+    res.json(updated);
+  } catch (error) {
+    console.error('[Admin] Plan update error:', error);
+    res.status(500).json({ error: 'Error updating plan' });
+  }
+});
+
+// ── User management ──
+
+// GET /api/admin/users — list users with plan info (paginated)
+router.get('/users', async (req, res) => {
+  try {
+    const { search } = req.query as Record<string, string>;
+    const { page, pageSize, skip, take } = parsePagination(req.query, 50);
+    const where: any = {};
+
+    if (search && search.trim() !== '') {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          subscriptionTier: true,
+          subscriptionStart: true,
+          trialUsed: true,
+          createdAt: true,
+          _count: { select: { favorites: true, portfolios: true, alarms: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    res.json({
+      ...paginate({ data: users, total, page, pageSize }),
+      total,
+    });
+  } catch (error) {
+    console.error('[Admin] Users list error:', error);
+    res.status(500).json({ error: 'Error fetching users' });
+  }
+});
+
+// GET /api/admin/users/:id — get user detail with usage
+router.get('/users/:id', async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        subscriptionTier: true,
+        subscriptionStart: true,
+        trialUsed: true,
+        createdAt: true,
+        _count: { select: { favorites: true, portfolios: true, alarms: true } },
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const usage = await planService.getUserUsage(user.id);
+    const plan = await planService.getUserPlan(user.subscriptionTier);
+
+    res.json({ ...user, usage, plan });
+  } catch (error) {
+    console.error('[Admin] User detail error:', error);
+    res.status(500).json({ error: 'Error fetching user' });
+  }
+});
+
+// PUT /api/admin/users/:id/tier — change user subscription tier
+router.put('/users/:id/tier', async (req, res) => {
+  try {
+    const { tier } = req.body;
+    if (tier !== 'free' && tier !== 'pro' && tier !== 'premium') {
+      res.status(400).json({ error: 'Invalid tier. Must be free, pro, or premium' });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { subscriptionTier: tier, subscriptionStart: new Date() },
+      select: { id: true, email: true, name: true, subscriptionTier: true },
+    });
+
+    await prisma.planSelection.create({
+      data: { userId: user.id, plan: tier },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('[Admin] User tier update error:', error);
+    res.status(500).json({ error: 'Error updating user tier' });
+  }
+});
+
+// DELETE /api/admin/users/:id — delete a user
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.role === 'admin') {
+      const adminCount = await prisma.user.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) {
+        res.status(400).json({ error: 'Cannot delete the only admin account' });
+        return;
+      }
+    }
+
+    await prisma.user.delete({ where: { id: userId } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Admin] User delete error:', error);
+    res.status(500).json({ error: 'Error deleting user' });
   }
 });
 

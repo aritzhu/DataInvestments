@@ -94,6 +94,22 @@
   color: var(--red);
 }
 
+.fav-limit-banner {
+  background: var(--amber-bg, rgba(245, 158, 11, 0.1));
+  border: 1px solid var(--amber-border, rgba(245, 158, 11, 0.3));
+  color: var(--amber-text, #d97706);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.fav-limit-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
 .fav-content {
   min-height: 200px;
 }

@@ -38,12 +38,34 @@ export interface Favorite {
   };
 }
 
+export interface PlanLimits {
+  companyViews: number;
+  favorites: number;
+  portfolios: number;
+  screening: boolean;
+  compare: boolean;
+  exportData: boolean;
+  priceMonthly: number;
+  name: string;
+}
+
 export interface UsageInfo {
   views: number;
   limit: number;
   remaining: number;
   tier: string;
   canView?: boolean;
+  favorites: number;
+  portfolios: number;
+}
+
+export interface PlanInfo {
+  tier: string;
+  limits: PlanLimits;
+  usage: { companyViews: number; favorites: number; portfolios: number };
+  canViewCompany: boolean;
+  canAddFavorite: boolean;
+  canCreatePortfolio: boolean;
 }
 
 interface AuthContextType {
@@ -63,9 +85,13 @@ interface AuthContextType {
   deleteAccount: () => Promise<void>;
   updateUserTier: (tier: string) => void;
   usage: UsageInfo | null;
+  planLimits: PlanLimits | null;
+  planInfo: PlanInfo | null;
   loadUsage: () => Promise<void>;
   recordCompanyView: (ticker: string) => Promise<UsageInfo>;
   canViewCompany: boolean;
+  canAddFavorite: boolean;
+  canCreatePortfolio: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -81,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
+  const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -177,6 +205,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
     setUser(null);
     setFavorites([]);
+    setUsage(null);
+    setPlanLimits(null);
+    setPlanInfo(null);
   };
 
   const addFavorite = async (companyId: string) => {
@@ -187,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (res.ok) {
       const fav = await res.json();
       setFavorites((prev) => [fav, ...prev]);
+      await loadUsage();
     }
   };
 
@@ -197,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (res.ok) {
       setFavorites((prev) => prev.filter((f) => f.companyId !== companyId));
+      await loadUsage();
     }
   };
 
@@ -256,6 +289,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setFavorites([]);
     setUsage(null);
+    setPlanLimits(null);
+    setPlanInfo(null);
   };
 
   const updateUserTier = (tier: string) => {
@@ -266,10 +301,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUsage = useCallback(async () => {
     try {
-      const res = await fetch('/api/subscription/usage', { headers: authHeaders() });
+      const res = await fetch('/api/subscription/plan-info', { headers: authHeaders() });
       if (res.ok) {
-        const data = await res.json();
-        setUsage(data);
+        const data: PlanInfo = await res.json();
+        setPlanInfo(data);
+        setPlanLimits(data.limits);
+        setUsage({
+          views: data.usage.companyViews,
+          limit: data.limits.companyViews === -1 ? -1 : data.limits.companyViews,
+          remaining: data.limits.companyViews === -1 ? -1 : Math.max(0, data.limits.companyViews - data.usage.companyViews),
+          tier: data.tier,
+          canView: data.canViewCompany,
+          favorites: data.usage.favorites,
+          portfolios: data.usage.portfolios,
+        });
       }
     } catch {
       // ignore
@@ -283,21 +328,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ ticker }),
     });
     if (res.ok) {
-      const data: UsageInfo = await res.json();
-      setUsage(data);
-      return data;
+      const data = await res.json();
+      const newUsage: UsageInfo = {
+        views: data.views,
+        limit: data.limit,
+        remaining: data.remaining,
+        tier: data.tier,
+        canView: data.canView,
+        favorites: usage?.favorites ?? 0,
+        portfolios: usage?.portfolios ?? 0,
+      };
+      setUsage(newUsage);
+      return newUsage;
     }
-    const fallback = { views: 0, limit: 3, remaining: 3, tier: 'free' };
+    const fallback: UsageInfo = { views: 0, limit: 3, remaining: 3, tier: 'free', favorites: 0, portfolios: 0 };
     setUsage(fallback);
     return fallback;
-  }, []);
+  }, [usage]);
 
   const canViewCompany = user
     ? user.subscriptionTier === 'premium' || (usage !== null && usage.remaining !== 0)
     : true;
 
+  const canAddFavorite = planInfo
+    ? planInfo.canAddFavorite
+    : true;
+
+  const canCreatePortfolio = planInfo
+    ? planInfo.canCreatePortfolio
+    : true;
+
   return (
-    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount, updateUserTier, usage, loadUsage, recordCompanyView, canViewCompany }}>
+    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount, updateUserTier, usage, planLimits, planInfo, loadUsage, recordCompanyView, canViewCompany, canAddFavorite, canCreatePortfolio }}>
       {children}
     </AuthContext.Provider>
   );

@@ -227,6 +227,22 @@ async function main() {
     },
   });
 
+  // ── Plans ──
+  const plans = [
+    { slug: 'free', name: 'Gratis', priceMonthly: 0, companyViews: 3, favorites: 3, portfolios: 1, screening: false, compare: false, exportData: false },
+    { slug: 'pro', name: 'Pro', priceMonthly: 9.99, companyViews: 20, favorites: 10, portfolios: 5, screening: true, compare: true, exportData: false },
+    { slug: 'premium', name: 'Premium', priceMonthly: 19.99, companyViews: -1, favorites: -1, portfolios: -1, screening: true, compare: true, exportData: true },
+  ];
+
+  for (const plan of plans) {
+    await prisma.plan.upsert({
+      where: { slug: plan.slug },
+      update: plan,
+      create: plan,
+    });
+  }
+  console.log(`${plans.length} plans seeded`);
+
   await seedCourses(prisma, admin.id);
 
   console.log('Database seeded successfully!');

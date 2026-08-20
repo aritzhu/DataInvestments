@@ -550,6 +550,19 @@
   color: var(--text-tertiary);
 }
 
+/* Section wrapper for sub-components */
+.admin-section {
+  padding: 0.5rem 0;
+}
+
+/* Loading state for sub-components */
+.admin-loading {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+}
+
 /* Bulk Import */
 .bulk-progress {
   margin-top: 1rem;
