@@ -301,7 +301,7 @@ export function CompanyPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, isFavorite, addFavorite, removeFavorite, recordCompanyView, usage } = useAuth();
+  const { user, isFavorite, addFavorite, removeFavorite, recordCompanyView, usage, isCompanyVisited } = useAuth();
   const [data, setData] = useState<CompanyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -342,6 +342,7 @@ export function CompanyPage() {
     if (lastTrackedTicker.current === ticker) return;
     lastTrackedTicker.current = ticker;
     if (user) {
+      if (isCompanyVisited(ticker)) return;
       recordCompanyView(ticker).then((info) => {
         if (info.canView === false) setShowPaywall(true);
       });
@@ -595,6 +596,9 @@ export function CompanyPage() {
               {company.ticker.slice(0, 2)}
             </div>
             <h1 className="cp-ticker">{company.ticker}</h1>
+            {isCompanyVisited(company.ticker) && (
+              <span className="cp-visited-badge" title="Ya visitada - accesible sin consumir vistas">✓ Visitada</span>
+            )}
             {stock && (
               <div className="cp-price">
                 <span className="cp-price-value">

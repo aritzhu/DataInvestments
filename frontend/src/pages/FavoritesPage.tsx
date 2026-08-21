@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Clock, Bell, Trash2, CheckCircle, Circle } from 'lucide-react';
+import { Heart, Clock, Bell, Trash2, CheckCircle, Circle, Eye } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER } from '../utils/valuation';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
@@ -25,7 +25,7 @@ interface Alarm {
   };
 }
 
-type TabId = 'favorites' | 'alarms';
+type TabId = 'favorites' | 'alarms' | 'visited';
 
 const VERDICT_LABELS: Record<string, string> = {
   buy: 'Infravalorada',
@@ -39,6 +39,8 @@ export function FavoritesPage() {
   const [activeTab, setActiveTab] = useState<TabId>('favorites');
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [alarmsLoading, setAlarmsLoading] = useState(true);
+  const [visitedCompanies, setVisitedCompanies] = useState<any[]>([]);
+  const [visitedLoading, setVisitedLoading] = useState(true);
 
   const getAuth = () => {
     const t = localStorage.getItem('token');
@@ -52,6 +54,16 @@ export function FavoritesPage() {
       .catch(() => {})
       .finally(() => setAlarmsLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'visited') {
+      fetch('/api/subscription/visited', { headers: getAuth() })
+        .then((res) => res.json())
+        .then((data) => setVisitedCompanies(data))
+        .catch(() => {})
+        .finally(() => setVisitedLoading(false));
+    }
+  }, [activeTab]);
 
   const handleDeleteAlarm = async (alarmId: string) => {
     if (!confirm('¿Eliminar esta alarma?')) return;
@@ -117,6 +129,13 @@ export function FavoritesPage() {
           <Bell size={16} />
           Alarmas
           <span className="fav-tab-count">{alarms.length}</span>
+        </button>
+        <button
+          className={`fav-tab ${activeTab === 'visited' ? 'fav-tab--active' : ''}`}
+          onClick={() => setActiveTab('visited')}
+        >
+          <Eye size={16} />
+          Visitadas
         </button>
         <InfoButton content={INFO['favorites.card']} align="right" />
       </div>
@@ -317,6 +336,109 @@ export function FavoritesPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'visited' && (
+        <div className="fav-content">
+          {visitedLoading ? (
+            <div className="fav-loading">Cargando visitadas...</div>
+          ) : visitedCompanies.length === 0 ? (
+            <div className="fav-empty">
+              <Eye size={48} className="fav-empty-icon" />
+              <h3>No tienes empresas visitadas</h3>
+              <p>Las empresas que visites aparecerán aquí y podrás volver a verlas sin consumir vistas.</p>
+              <Link to="/" className="fav-empty-link">Explorar empresas</Link>
+            </div>
+          ) : (
+            <div className="fav-grid">
+              {visitedCompanies.map((company: any) => {
+                const stock = company.stockMetrics?.[0];
+                const currentPrice = stock?.currentPrice ?? 0;
+                const intrinsicValue = stock?.intrinsicValue ?? null;
+                const marginOfSafety = stock?.marginOfSafety ?? null;
+                const { verdict, upside, label } = getVerdict(intrinsicValue, currentPrice);
+
+                return (
+                  <div key={company.id} className="fav-card">
+                    <div className="fav-card-top">
+                      <Link to={`/empresa/${company.ticker}`} className="fav-card-avatar fav-card-avatar--link">
+                        {(company.logoUrl || companyLogoUrl(company.website)) ? (
+                          <img
+                            src={company.logoUrl || companyLogoUrl(company.website)!}
+                            alt={company.ticker}
+                            className="fav-card-avatar fav-card-avatar--img"
+                            loading="lazy" decoding="async"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('fav-card-avatar--hidden'); }}
+                          />
+                        ) : null}
+                        <span className={`${(company.logoUrl || companyLogoUrl(company.website)) ? 'fav-card-avatar--hidden' : ''}`}>
+                          {company.ticker.slice(0, 2)}
+                        </span>
+                      </Link>
+                      <div className="fav-card-info">
+                        <Link to={`/empresa/${company.ticker}`} className="fav-card-ticker">
+                          {company.ticker}
+                        </Link>
+                        <div className="fav-card-name">{company.name}</div>
+                        <div className="fav-card-sector">{company.sector || company.industry || ''}</div>
+                      </div>
+                      <span className="fav-visited-free" title="Accesible sin consumir vista mensual">Gratis</span>
+                    </div>
+
+                    <div className="fav-card-divider" />
+
+                    <div className="fav-card-metrics">
+                      <div className="fav-metric">
+                        <span className="fav-metric-label">Precio actual</span>
+                        <span className="fav-metric-value">{formatNumber(currentPrice)}</span>
+                      </div>
+                      <div className="fav-metric">
+                        <span className="fav-metric-label">Valor intrínseco</span>
+                        <span className="fav-metric-value">{intrinsicValue != null ? formatNumber(intrinsicValue) : 'N/D'}</span>
+                      </div>
+                      <div className="fav-metric">
+                        <span className="fav-metric-label">Margen seguridad</span>
+                        <span className="fav-metric-value">{marginOfSafety != null ? formatPercent(marginOfSafety) : 'N/D'}</span>
+                      </div>
+                    </div>
+
+                    <div className="fav-card-verdict" style={{ background: VERDICT_BG[verdict], borderColor: VERDICT_BORDER[verdict] }}>
+                      <span className="fav-verdict-badge" style={{ color: VERDICT_COLORS[verdict] }}>
+                        {verdict === 'buy' && '▲'}
+                        {verdict === 'hold' && '●'}
+                        {verdict === 'sell' && '▼'}
+                        {' '}{label}
+                      </span>
+                      {upside != null && (
+                        <span className="fav-verdict-upside" style={{ color: VERDICT_COLORS[verdict] }}>
+                          {upside > 0 ? '+' : ''}{(upside * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="fav-card-extra">
+                      {stock?.peRatio != null && (
+                        <span className="fav-extra-pill">PE {stock.peRatio.toFixed(1)}</span>
+                      )}
+                      {stock?.pbRatio != null && (
+                        <span className="fav-extra-pill">PB {stock.pbRatio.toFixed(1)}</span>
+                      )}
+                      {stock?.marketCap != null && (
+                        <span className="fav-extra-pill">{formatNumber(stock.marketCap)}</span>
+                      )}
+                    </div>
+
+                    <div className="fav-card-actions">
+                      <Link to={`/empresa/${company.ticker}#valoracion`} className="fav-action-btn">
+                        Ver valoración
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

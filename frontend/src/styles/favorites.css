@@ -110,6 +110,20 @@
   text-decoration: underline;
 }
 
+.fav-visited-free {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .fav-content {
   min-height: 200px;
 }

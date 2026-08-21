@@ -42,6 +42,37 @@ router.get('/plan-info', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/visited', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const rows = await prisma.visitedCompany.findMany({
+      where: { userId },
+      orderBy: { visitedAt: 'desc' },
+      select: { ticker: true, visitedAt: true },
+    });
+
+    const companies = await Promise.all(
+      rows.map(async (r) => {
+        const company = await prisma.company.findUnique({
+          where: { ticker: r.ticker },
+          select: {
+            id: true, ticker: true, name: true, sector: true, industry: true,
+            website: true, logoUrl: true,
+            stockMetrics: { orderBy: { date: 'desc' }, take: 1 },
+            financialData: { orderBy: [{ year: 'desc' }, { quarter: 'desc' }], take: 1 },
+          },
+        });
+        return company ? { ...company, visitedAt: r.visitedAt } : null;
+      })
+    );
+
+    res.json(companies.filter(Boolean));
+  } catch (error) {
+    console.error('[Subscription] Visited error:', error);
+    res.status(500).json({ error: 'Error fetching visited companies' });
+  }
+});
+
 router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { ticker } = req.body;
@@ -54,6 +85,27 @@ router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
+    // Already visited → free revisit, no count
+    const alreadyVisited = await planService.isTickerVisited(userId, ticker);
+    if (alreadyVisited) {
+      const counter = await prisma.usageCounter.findUnique({
+        where: { userId_month: { userId, month } },
+      });
+      const currentViews = counter?.companyViews ?? 0;
+      const plan = await planService.getUserPlan(user.subscriptionTier);
+      const isUnlimited = plan.companyViews === -1;
+      res.json({
+        canView: true,
+        views: currentViews,
+        limit: isUnlimited ? -1 : plan.companyViews,
+        remaining: isUnlimited ? -1 : Math.max(0, plan.companyViews - currentViews),
+        tier: user.subscriptionTier,
+        visited: true,
+      });
+      return;
+    }
+
+    // New company → check limit, then count + mark visited
     const plan = await planService.getUserPlan(user.subscriptionTier);
     const isUnlimited = plan.companyViews === -1;
 
@@ -76,12 +128,15 @@ router.post('/track-view', requireAuth, async (req: AuthRequest, res) => {
       create: { userId, month, companyViews: 1 },
     });
 
+    await planService.markTickerVisited(userId, ticker);
+
     res.json({
       canView: true,
       views: updated.companyViews,
       limit: isUnlimited ? -1 : plan.companyViews,
       remaining: isUnlimited ? -1 : Math.max(0, plan.companyViews - updated.companyViews),
       tier: user.subscriptionTier,
+      visited: false,
     });
   } catch (error) {
     console.error('[Subscription] Track view error:', error);

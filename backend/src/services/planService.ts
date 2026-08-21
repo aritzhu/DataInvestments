@@ -50,7 +50,10 @@ export async function getPlanInfo(userId: string) {
   if (!user) throw new Error('User not found');
 
   const plan = await getUserPlan(user.subscriptionTier);
-  const usage = await getUserUsage(userId);
+  const [usage, visitedTickers] = await Promise.all([
+    getUserUsage(userId),
+    getVisitedTickers(userId),
+  ]);
 
   const isUnlimited = (val: number) => val === -1;
 
@@ -74,6 +77,7 @@ export async function getPlanInfo(userId: string) {
     canViewCompany: isUnlimited(plan.companyViews) || usage.companyViews < plan.companyViews,
     canAddFavorite: isUnlimited(plan.favorites) || usage.favorites < plan.favorites,
     canCreatePortfolio: isUnlimited(plan.portfolios) || usage.portfolios < plan.portfolios,
+    visitedTickers,
   };
 }
 
@@ -108,4 +112,28 @@ export async function getAllActivePlans(): Promise<Plan[]> {
   planCache.clear();
   plans.forEach((p) => planCache.set(p.slug, p));
   return plans;
+}
+
+export async function getVisitedTickers(userId: string): Promise<string[]> {
+  const rows = await prisma.visitedCompany.findMany({
+    where: { userId },
+    orderBy: { visitedAt: 'desc' },
+    select: { ticker: true },
+  });
+  return rows.map((r) => r.ticker);
+}
+
+export async function isTickerVisited(userId: string, ticker: string): Promise<boolean> {
+  const row = await prisma.visitedCompany.findUnique({
+    where: { userId_ticker: { userId, ticker } },
+  });
+  return row !== null;
+}
+
+export async function markTickerVisited(userId: string, ticker: string): Promise<void> {
+  await prisma.visitedCompany.upsert({
+    where: { userId_ticker: { userId, ticker } },
+    create: { userId, ticker },
+    update: { visitedAt: new Date() },
+  });
 }

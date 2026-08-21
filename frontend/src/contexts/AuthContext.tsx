@@ -66,6 +66,7 @@ export interface PlanInfo {
   canViewCompany: boolean;
   canAddFavorite: boolean;
   canCreatePortfolio: boolean;
+  visitedTickers: string[];
 }
 
 interface AuthContextType {
@@ -92,6 +93,8 @@ interface AuthContextType {
   canViewCompany: boolean;
   canAddFavorite: boolean;
   canCreatePortfolio: boolean;
+  visitedTickers: string[];
+  isCompanyVisited: (ticker: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -109,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
+  const [visitedTickers, setVisitedTickers] = useState<string[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -291,6 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsage(null);
     setPlanLimits(null);
     setPlanInfo(null);
+    setVisitedTickers([]);
   };
 
   const updateUserTier = (tier: string) => {
@@ -306,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data: PlanInfo = await res.json();
         setPlanInfo(data);
         setPlanLimits(data.limits);
+        setVisitedTickers(data.visitedTickers ?? []);
         setUsage({
           views: data.usage.companyViews,
           limit: data.limits.companyViews === -1 ? -1 : data.limits.companyViews,
@@ -329,6 +335,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (res.ok) {
       const data = await res.json();
+      if (!data.visited) {
+        setVisitedTickers((prev) => prev.includes(ticker) ? prev : [...prev, ticker]);
+      }
       const newUsage: UsageInfo = {
         views: data.views,
         limit: data.limit,
@@ -358,8 +367,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ? planInfo.canCreatePortfolio
     : true;
 
+  const isCompanyVisited = useCallback((ticker: string) => {
+    return visitedTickers.includes(ticker);
+  }, [visitedTickers]);
+
   return (
-    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount, updateUserTier, usage, planLimits, planInfo, loadUsage, recordCompanyView, canViewCompany, canAddFavorite, canCreatePortfolio }}>
+    <AuthContext.Provider value={{ user, favorites, loading, login, register, loginWithGoogle, logout, addFavorite, removeFavorite, isFavorite, updateProfile, changePassword, updateTheme, deleteAccount, updateUserTier, usage, planLimits, planInfo, loadUsage, recordCompanyView, canViewCompany, canAddFavorite, canCreatePortfolio, visitedTickers, isCompanyVisited }}>
       {children}
     </AuthContext.Provider>
   );

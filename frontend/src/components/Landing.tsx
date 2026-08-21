@@ -116,7 +116,7 @@ function getPageNumbers(current: number, total: number): (number | '...')[] {
 }
 
 export function Landing() {
-  const { user, favorites, isFavorite, addFavorite, removeFavorite } = useAuth();
+  const { user, favorites, isFavorite, addFavorite, removeFavorite, isCompanyVisited, visitedTickers } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -163,6 +163,7 @@ export function Landing() {
   const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSort);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(initialShowFavoritesOnly);
+  const [showVisitedOnly, setShowVisitedOnly] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>(initialCountry);
   const [valuationCountry, setValuationCountry] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -419,7 +420,10 @@ export function Landing() {
 
   const availableCountries = useMemo(() => facets.countries, [facets.countries]);
 
-  const paginatedCompanies = companies;
+  const paginatedCompanies = useMemo(() => {
+    if (!showVisitedOnly || !user) return companies;
+    return companies.filter((c) => visitedTickers.includes(c.ticker));
+  }, [companies, showVisitedOnly, user, visitedTickers]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pageStart = (page - 1) * pageSize + 1;
@@ -797,11 +801,20 @@ export function Landing() {
                 {user && favoriteCompanies.length > 0 && (
                   <button
                     className={`fav-filter-btn ${showFavoritesOnly ? 'fav-filter-btn--active' : ''}`}
-                    onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                    onClick={() => { setShowFavoritesOnly(!showFavoritesOnly); setPage(1); }}
                   >
                     <Heart size={15} fill={showFavoritesOnly ? 'currentColor' : 'none'} />
                     Favoritas
                     <span className="fav-filter-count">{favoriteCompanies.length}</span>
+                  </button>
+                )}
+                {user && visitedTickers.length > 0 && (
+                  <button
+                    className={`fav-filter-btn ${showVisitedOnly ? 'fav-filter-btn--active fav-filter-btn--green' : ''}`}
+                    onClick={() => { setShowVisitedOnly(!showVisitedOnly); setPage(1); }}
+                  >
+                    ✓ Gratis
+                    <span className="fav-filter-count">{visitedTickers.length}</span>
                   </button>
                 )}
                 <div className="view-toggle">
@@ -969,7 +982,7 @@ export function Landing() {
                           {company.ticker.slice(0, 2)}
                         </div>
                         <div>
-                          <div className="company-card-ticker">{company.ticker}</div>
+                          <div className="company-card-ticker">{company.ticker}{isCompanyVisited(company.ticker) && <span className="company-visited-badge">✓ Gratis</span>}</div>
                           <div className="company-card-name">{company.sector || company.industry || 'N/A'}</div>
                         </div>
                         <button
@@ -1012,7 +1025,7 @@ export function Landing() {
                       {company.ticker.slice(0, 2)}
                     </div>
                     <Link to={`/empresa/${company.ticker}`} className="company-list-info" onClick={() => handleCompanyClick(company.ticker)}>
-                      <div className="company-list-ticker">{company.ticker}</div>
+                      <div className="company-list-ticker">{company.ticker}{isCompanyVisited(company.ticker) && <span className="company-visited-badge">✓ Gratis</span>}</div>
                       <div className="company-list-name">{company.name}</div>
                     </Link>
                     <div className="company-list-meta">

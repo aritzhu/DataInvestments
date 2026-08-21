@@ -221,12 +221,13 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  favorites  Favorite[]
-  alarms     Alarm[]
-  portfolios Portfolio[]
-  courses    Course[]
-  usageCounters     UsageCounter[]
-  planSelections    PlanSelection[]
+  favorites        Favorite[]
+  alarms           Alarm[]
+  portfolios       Portfolio[]
+  courses          Course[]
+  usageCounters    UsageCounter[]
+  planSelections   PlanSelection[]
+  visitedCompanies VisitedCompany[]
 }
 
 model Favorite {
@@ -438,4 +439,16 @@ model Plan {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model VisitedCompany {
+  id        String   @id @default(uuid())
+  userId    String
+  ticker    String
+  visitedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ticker])
+  @@index([userId])
 }
