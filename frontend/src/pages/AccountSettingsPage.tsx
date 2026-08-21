@@ -1,14 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Shield, Sun, Moon, Trash2 } from 'lucide-react';
+import { User, Shield, Sun, Moon, Trash2, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme } from '../utils/theme';
 import { InfoButton } from '../components/ui/InfoButton';
 import { INFO } from '../utils/infoContent';
 import '../styles/settings.css';
 
+const PLAN_NAMES: Record<string, string> = {
+  free: 'Gratuito',
+  pro: 'Pro',
+  premium: 'Premium',
+};
+
+function subscriptionStatusInfo(status?: string | null): { label: string; className: string } | null {
+  if (!status) return null;
+  if (status === 'active' || status === 'trialing') return { label: 'Activa', className: 'set-sub-badge--active' };
+  if (status === 'past_due' || status === 'unpaid' || status === 'incomplete') return { label: 'Pago pendiente', className: 'set-sub-badge--warning' };
+  if (status === 'canceled' || status === 'incomplete_expired') return { label: 'Cancelada', className: 'set-sub-badge--canceled' };
+  return null;
+}
+
 export function AccountSettingsPage() {
-  const { user, updateProfile, changePassword, updateTheme, deleteAccount } = useAuth();
+  const { user, planInfo, loadUsage, updateProfile, changePassword, updateTheme, deleteAccount } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState(user?.name || '');
@@ -29,7 +43,88 @@ export function AccountSettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
   const theme = getTheme();
+
+  const tier = planInfo?.tier || user?.subscriptionTier || 'free';
+  const isPaidTier = tier === 'pro' || tier === 'premium';
+  const statusBadge = isPaidTier ? subscriptionStatusInfo(planInfo?.subscriptionStatus) : null;
+  const renewalDate = planInfo?.currentPeriodEnd
+    ? new Date(planInfo.currentPeriodEnd).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+  const pendingCancellation = !!planInfo?.cancelAtPeriodEnd;
+
+  const refreshPlanInfo = () => {
+    void loadUsage();
+    setTimeout(() => void loadUsage(), 2500);
+  };
+
+  const handleManageSubscription = async () => {
+    setSubError('');
+    setSubLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/subscription/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setSubError(data.error || 'Error al abrir el portal de suscripción');
+    } catch {
+      setSubError('Error de conexión');
+    }
+    setSubLoading(false);
+  };
+
+  const handleCancelSubscription = async () => {
+    setSubError('');
+    setSubLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/subscription/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setConfirmCancel(false);
+        refreshPlanInfo();
+      } else {
+        const data = await res.json();
+        setSubError(data.error || 'Error al anular la suscripción');
+      }
+    } catch {
+      setSubError('Error de conexión');
+    }
+    setSubLoading(false);
+  };
+
+  const handleResumeSubscription = async () => {
+    setSubError('');
+    setSubLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/subscription/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        refreshPlanInfo();
+      } else {
+        const data = await res.json();
+        setSubError(data.error || 'Error al reactivar la suscripción');
+      }
+    } catch {
+      setSubError('Error de conexión');
+    }
+    setSubLoading(false);
+  };
 
   const handleProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,6 +315,95 @@ export function AccountSettingsPage() {
                 Claro
               </button>
             </div>
+          </div>
+        </section>
+
+        <section className="set-card">
+          <div className="set-card-header">
+            <CreditCard size={18} className="set-card-icon" />
+            <h2 className="set-card-title"><span className="info-label-row">Suscripción <InfoButton content={INFO['settings.subscription']} /></span></h2>
+          </div>
+          <div className="set-form">
+            <div className="set-sub-row">
+              <span className="set-sub-plan">{PLAN_NAMES[tier] ?? tier}</span>
+              {statusBadge && (
+                <span className={`set-sub-badge ${statusBadge.className}`}>{statusBadge.label}</span>
+              )}
+            </div>
+            {isPaidTier && renewalDate && planInfo?.subscriptionStatus !== 'canceled' && (
+              pendingCancellation ? (
+                <p className="set-note set-sub-cancel-note">
+                  Tu suscripción se cancelará el <strong>{renewalDate}</strong>. Mantendrás todas las ventajas del plan hasta esa fecha.
+                </p>
+              ) : (
+                <p className="set-note">Próxima renovación: <strong>{renewalDate}</strong></p>
+              )
+            )}
+            {subError && <div className="auth-error">{subError}</div>}
+            <div className="set-danger-actions">
+              <button
+                className="set-cancel-btn"
+                onClick={() => navigate('/plans')}
+                type="button"
+              >
+                {isPaidTier ? 'Cambiar plan' : 'Mejorar plan'}
+              </button>
+              {isPaidTier && !pendingCancellation && !confirmCancel && (
+                <button
+                  className="set-sub-cancel-btn"
+                  onClick={() => setConfirmCancel(true)}
+                  disabled={subLoading}
+                  type="button"
+                >
+                  Anular suscripción
+                </button>
+              )}
+              {isPaidTier && pendingCancellation && (
+                <button
+                  className="auth-submit set-submit"
+                  onClick={handleResumeSubscription}
+                  disabled={subLoading}
+                  type="button"
+                >
+                  {subLoading ? 'Reactivando...' : 'Reactivar suscripción'}
+                </button>
+              )}
+              {isPaidTier && (
+                <button
+                  className="auth-submit set-submit"
+                  onClick={handleManageSubscription}
+                  disabled={subLoading}
+                  type="button"
+                >
+                  {subLoading ? 'Abriendo portal...' : 'Gestionar en Stripe'}
+                </button>
+              )}
+            </div>
+            {confirmCancel && (
+              <div className="set-form" style={{ marginTop: '0.75rem' }}>
+                <p className="set-note">
+                  ¿Seguro que quieres anular tu suscripción? Mantendrás el acceso hasta el{' '}
+                  <strong>{renewalDate}</strong> y no se te cobrará más.
+                </p>
+                <div className="set-danger-actions">
+                  <button
+                    className="set-sub-cancel-btn"
+                    onClick={handleCancelSubscription}
+                    disabled={subLoading}
+                    type="button"
+                  >
+                    {subLoading ? 'Anulando...' : 'Sí, anular suscripción'}
+                  </button>
+                  <button
+                    className="set-cancel-btn"
+                    onClick={() => setConfirmCancel(false)}
+                    type="button"
+                  >
+                    No, mantenerla
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

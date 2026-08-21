@@ -61,6 +61,9 @@ export interface UsageInfo {
 
 export interface PlanInfo {
   tier: string;
+  subscriptionStatus?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
   limits: PlanLimits;
   usage: { companyViews: number; favorites: number; portfolios: number };
   canViewCompany: boolean;

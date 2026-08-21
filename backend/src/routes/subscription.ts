@@ -2,6 +2,7 @@ import { Router, type Router as ExpressRouter } from 'express';
 import prisma from '../infrastructure/prisma/client';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import * as planService from '../services/planService';
+import * as stripeService from '../services/stripeService';
 
 const router: ExpressRouter = Router();
 
@@ -14,7 +15,9 @@ function currentMonth(): string {
 router.get('/plans', async (_req, res) => {
   try {
     const plans = await planService.getAllActivePlans();
-    res.json(plans.map((p) => ({
+    res.json({
+      paymentsEnabled: !!process.env.STRIPE_SECRET_KEY,
+      plans: plans.map((p) => ({
       slug: p.slug,
       name: p.name,
       priceMonthly: p.priceMonthly,
@@ -24,7 +27,8 @@ router.get('/plans', async (_req, res) => {
       screening: p.screening,
       compare: p.compare,
       exportData: p.exportData,
-    })));
+      })),
+    });
   } catch (error) {
     console.error('[Subscription] Plans error:', error);
     res.status(500).json({ error: 'Error fetching plans' });
@@ -185,11 +189,25 @@ router.post('/select-plan', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
+    // Paid tiers can only be activated through Stripe Checkout — unless payments
+    // are not configured yet (beta: everything free until Stripe keys exist)
+    if ((plan === 'pro' || plan === 'premium') && !!process.env.STRIPE_SECRET_KEY) {
+      res.status(400).json({ error: 'Este plan requiere pago. Usa el proceso de checkout.' });
+      return;
+    }
+
+    // Downgrading to free while a Stripe subscription is active → must cancel via portal
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user?.stripeSubscriptionId && ['active', 'trialing', 'past_due', 'unpaid'].includes(user.subscriptionStatus || '')) {
+      res.status(400).json({ error: 'Tienes una suscripción activa. Cancela primero desde Gestionar suscripción.' });
+      return;
+    }
+
     await prisma.planSelection.create({
       data: { userId, plan },
     });
 
-    const user = await prisma.user.update({
+    const updated = await prisma.user.update({
       where: { id: userId },
       data: {
         subscriptionTier: plan,
@@ -198,10 +216,91 @@ router.post('/select-plan', requireAuth, async (req: AuthRequest, res) => {
       select: { id: true, subscriptionTier: true },
     });
 
-    res.json({ user });
+    res.json({ user: updated });
   } catch (error) {
     console.error('[Subscription] Select plan error:', error);
     res.status(500).json({ error: 'Error selecting plan' });
+  }
+});
+
+// ── Stripe Checkout ──
+
+router.post('/create-checkout-session', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const { plan } = req.body;
+
+    if (plan !== 'pro' && plan !== 'premium') {
+      res.status(400).json({ error: 'Invalid plan for checkout' });
+      return;
+    }
+
+    const url = await stripeService.createCheckoutSession(userId, plan);
+    res.json({ url });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'ALREADY_SUBSCRIBED') {
+        res.status(409).json({ error: 'Ya tienes una suscripción activa. Gestiónala desde el portal.' });
+        return;
+      }
+      if (error.message === 'Plan has no Stripe price configured') {
+        res.status(503).json({ error: 'El pago no está configurado para este plan todavía' });
+        return;
+      }
+      if (error.message === 'STRIPE_SECRET_KEY is not configured') {
+        res.status(503).json({ error: 'Pagos no disponibles temporalmente' });
+        return;
+      }
+    }
+    console.error('[Subscription] Checkout session error:', error);
+    res.status(500).json({ error: 'Error creating checkout session' });
+  }
+});
+
+// ── Stripe Customer Portal ──
+
+router.post('/create-portal-session', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const url = await stripeService.createPortalSession(userId);
+    res.json({ url });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NO_CUSTOMER') {
+      res.status(400).json({ error: 'No tienes ninguna suscripción que gestionar' });
+      return;
+    }
+    console.error('[Subscription] Portal session error:', error);
+    res.status(500).json({ error: 'Error creating portal session' });
+  }
+});
+
+// ── Cancel / resume subscription ──
+
+router.post('/cancel', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    await stripeService.cancelSubscription(req.user!.id);
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NO_SUBSCRIPTION') {
+      res.status(400).json({ error: 'No tienes ninguna suscripción activa' });
+      return;
+    }
+    console.error('[Subscription] Cancel error:', error);
+    res.status(500).json({ error: 'Error cancelling subscription' });
+  }
+});
+
+router.post('/resume', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    await stripeService.resumeSubscription(req.user!.id);
+    res.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'NO_SUBSCRIPTION') {
+      res.status(400).json({ error: 'No tienes ninguna suscripción activa' });
+      return;
+    }
+    console.error('[Subscription] Resume error:', error);
+    res.status(500).json({ error: 'Error resuming subscription' });
   }
 });
 

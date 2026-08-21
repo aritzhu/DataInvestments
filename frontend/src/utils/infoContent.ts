@@ -386,6 +386,11 @@ export const INFO = {
     badges: [{ label: 'Irreversible', tone: 'neg' }],
   } as InfoContent,
 
+  'settings.subscription': {
+    title: 'Suscripción',
+    body: 'Tu **plan actual** y su estado.\n\nDesde **Gestionar suscripción** puedes actualizar tu método de pago, ver facturas o darte de baja. La baja se aplica al final del período ya pagado.',
+  } as InfoContent,
+
   'fundamental.header': {
     title: 'Análisis Fundamental',
     body: 'El análisis se organiza en **seis pilares**:\n\n**1. Crecimiento** — cómo evolucionan ingresos, beneficio y caja.\n**2. Solvencia** — capacidad de pagar las deudas.\n**3. Retorno** — cómo reparte valor a los accionistas.\n**4. DuPont** — de dónde viene la rentabilidad (ROE).\n**5. Sector** — comparación con la media del mercado.\n**6. Prospectivo** — estimaciones de analistas.\n\nCada pilar incluye una **guía** desplegable con más detalle.',

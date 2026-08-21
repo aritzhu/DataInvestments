@@ -40,6 +40,8 @@ services:
         condition: service_healthy
       yfinance-service:
         condition: service_started
+    env_file:
+      - ./backend/.env
     volumes:
       - uploads:/app/uploads
     environment:

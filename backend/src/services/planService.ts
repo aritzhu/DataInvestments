@@ -59,6 +59,9 @@ export async function getPlanInfo(userId: string) {
 
   return {
     tier: user.subscriptionTier,
+    subscriptionStatus: user.subscriptionStatus,
+    currentPeriodEnd: user.currentPeriodEnd,
+    cancelAtPeriodEnd: user.cancelAtPeriodEnd,
     limits: {
       companyViews: plan.companyViews,
       favorites: plan.favorites,

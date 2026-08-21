@@ -20,6 +20,7 @@ import portfolioRoutes from './routes/portfolio';
 import coursesRoutes from './routes/courses';
 import analyticsRoutes from './routes/analytics.routes';
 import subscriptionRoutes from './routes/subscription';
+import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
@@ -40,6 +41,11 @@ app.use(compression({
   },
 }));
 app.set('trust proxy', 2);
+
+// Stripe webhook — must receive the raw body, so it is registered
+// BEFORE the global express.json() parser.
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhookRoutes);
+
 app.use(express.json());
 
 // Health check

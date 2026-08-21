@@ -218,6 +218,12 @@ model User {
   subscriptionTier  String    @default("free")
   trialUsed         Boolean   @default(false)
   subscriptionStart DateTime?
+  stripeCustomerId      String?   @unique
+  stripeSubscriptionId  String?
+  subscriptionStatus    String?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  manualTierOverride    Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -437,6 +443,7 @@ model Plan {
   compare      Boolean  @default(false)
   exportData   Boolean  @default(false)
   active       Boolean  @default(true)
+  stripePriceId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

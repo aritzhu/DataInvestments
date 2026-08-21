@@ -14,6 +14,7 @@ import { parsePagination, paginate } from '../utils/pagination';
 import { getFieldByName, type FieldCategory } from '../data/fieldMappingCatalog';
 import { buildFieldTagsMap, SOURCE_KEYS, type SourceKey } from '../data/fieldTagHelper';
 import * as planService from '../services/planService';
+import * as stripeService from '../services/stripeService';
 
 const router: ExpressRouter = Router();
 
@@ -874,7 +875,7 @@ router.get('/plans', async (_req, res) => {
 router.put('/plans/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const { name, priceMonthly, companyViews, favorites, portfolios, screening, compare, exportData, active } = req.body;
+    const { name, priceMonthly, companyViews, favorites, portfolios, screening, compare, exportData, active, stripePriceId } = req.body;
 
     const existing = await prisma.plan.findUnique({ where: { slug } });
     if (!existing) {
@@ -894,6 +895,7 @@ router.put('/plans/:slug', async (req, res) => {
         ...(compare !== undefined && { compare }),
         ...(exportData !== undefined && { exportData }),
         ...(active !== undefined && { active }),
+        ...(stripePriceId !== undefined && { stripePriceId: stripePriceId || null }),
       },
     });
 
@@ -994,9 +996,30 @@ router.put('/users/:id/tier', async (req, res) => {
       return;
     }
 
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Downgrading to free with an active Stripe subscription → stop future charges
+    let stripeWarning: string | null = null;
+    if (
+      tier === 'free' &&
+      existing.stripeSubscriptionId &&
+      ['active', 'trialing', 'past_due', 'unpaid'].includes(existing.subscriptionStatus || '')
+    ) {
+      try {
+        await stripeService.cancelSubscription(existing.id);
+        stripeWarning = 'Suscripción de Stripe cancelada al final del período actual';
+      } catch (err) {
+        console.error('[Admin] Stripe cancel on tier change failed:', err);
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { subscriptionTier: tier, subscriptionStart: new Date() },
+      data: { subscriptionTier: tier, subscriptionStart: new Date(), manualTierOverride: true },
       select: { id: true, email: true, name: true, subscriptionTier: true },
     });
 
@@ -1004,7 +1027,7 @@ router.put('/users/:id/tier', async (req, res) => {
       data: { userId: user.id, plan: tier },
     });
 
-    res.json(user);
+    res.json({ ...user, stripeWarning });
   } catch (error) {
     console.error('[Admin] User tier update error:', error);
     res.status(500).json({ error: 'Error updating user tier' });

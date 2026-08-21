@@ -324,3 +324,86 @@
   line-height: 1.5;
   margin: 0 0 1.25rem;
 }
+
+/* ── Checkout result ── */
+.checkout-result-page {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.checkout-result-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.checkout-result-icon-wrap {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.checkout-result-icon-wrap--success {
+  background: rgba(72, 187, 120, 0.12);
+  color: #48bb78;
+}
+.checkout-result-icon-wrap--error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+.checkout-result-icon-wrap--pending {
+  background: rgba(126, 170, 212, 0.12);
+  color: var(--gold-light);
+}
+
+.checkout-result-title {
+  font-family: 'Fraunces', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
+}
+
+.checkout-result-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 1.25rem;
+}
+
+.checkout-result-plan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 1rem;
+  border-radius: 99px;
+  background: var(--surface-3);
+  border: 1px solid var(--gold);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.checkout-result-renewal {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin: -0.75rem 0 1.5rem;
+}
+
+.checkout-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}

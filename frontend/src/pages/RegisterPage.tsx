@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { trackEvent } from '../hooks/useAnalytics';
+import { getSafeRedirect, withRedirect } from '../utils/redirect';
 import '../styles/auth.css';
 
 export function RegisterPage() {
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,7 +42,7 @@ export function RegisterPage() {
     try {
       await register(email, name, password);
       trackEvent('register');
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar');
     } finally {
@@ -53,7 +56,7 @@ export function RegisterPage() {
     try {
       await loginWithGoogle(credentialResponse.credential);
       trackEvent('register', { method: 'google' });
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar con Google');
     }
@@ -163,7 +166,7 @@ export function RegisterPage() {
         <div className="auth-footer">
           <p className="auth-footer-text">
             ¿Ya tienes cuenta?{' '}
-            <Link to="/login" className="auth-link">Inicia sesión</Link>
+            <Link to={withRedirect('/login', redirectTo)} className="auth-link">Inicia sesión</Link>
           </p>
         </div>
       </div>

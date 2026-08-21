@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
+import { getSafeRedirect, withRedirect } from '../utils/redirect';
 import '../styles/auth.css';
 
 export function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +21,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {
@@ -31,7 +34,7 @@ export function LoginPage() {
     setError('');
     try {
       await loginWithGoogle(credentialResponse.credential);
-      navigate('/');
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión con Google');
     }
@@ -97,7 +100,7 @@ export function LoginPage() {
         <div className="auth-footer">
           <p className="auth-footer-text">
             ¿No tienes cuenta?{' '}
-            <Link to="/register" className="auth-link">Regístrate</Link>
+            <Link to={withRedirect('/register', redirectTo)} className="auth-link">Regístrate</Link>
           </p>
         </div>
       </div>

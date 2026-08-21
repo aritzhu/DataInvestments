@@ -14,6 +14,7 @@ interface Plan {
   compare: boolean;
   exportData: boolean;
   active: boolean;
+  stripePriceId: string | null;
 }
 
 export function PlansManager() {
@@ -51,6 +52,7 @@ export function PlansManager() {
           compare: plan.compare,
           exportData: plan.exportData,
           active: plan.active,
+          stripePriceId: plan.stripePriceId ?? '',
         }),
       });
       if (res.ok) {
@@ -176,6 +178,19 @@ export function PlansManager() {
                   onChange={(e) => updateField(plan.slug, 'portfolios', parseInt(e.target.value) || 0)}
                 />
               </div>
+
+              {plan.priceMonthly > 0 && (
+                <div className="admin-form-input-group">
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', display: 'block' }}>Stripe Price ID (price_...)</label>
+                  <input
+                    className="admin-form-input"
+                    type="text"
+                    placeholder="price_1AbC..."
+                    value={plan.stripePriceId ?? ''}
+                    onChange={(e) => updateField(plan.slug, 'stripePriceId', e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>

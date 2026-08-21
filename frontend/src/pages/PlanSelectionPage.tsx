@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, X, BarChart3, Heart, Briefcase, Download, GitCompare, Lock } from 'lucide-react';
+import { Check, X, BarChart3, Heart, Briefcase, Download, GitCompare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/plans.css';
 
@@ -51,19 +51,22 @@ export function PlanSelectionPage() {
   const { user, loadUsage, updateUserTier } = useAuth();
   const navigate = useNavigate();
   const [selecting, setSelecting] = useState<string | null>(null);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [msg, setMsg] = useState('');
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [features, setFeatures] = useState<PlanFeature[]>([]);
+  // Safe default: assume payments are live until the API explicitly says otherwise
+  const [paymentsEnabled, setPaymentsEnabled] = useState(true);
 
   const currentTier = user?.subscriptionTier || 'free';
 
   useEffect(() => {
     fetch('/api/subscription/plans')
-      .then((res) => res.ok ? res.json() : [])
-      .then((data: PlanData[]) => {
-        setPlans(data);
-        setFeatures(buildFeatures(data));
+      .then((res) => res.ok ? res.json() : null)
+      .then((data: { paymentsEnabled?: boolean; plans?: PlanData[] } | null) => {
+        if (!data) return;
+        setPaymentsEnabled(!!data.paymentsEnabled);
+        setPlans(data.plans ?? []);
+        setFeatures(buildFeatures(data.plans ?? []));
       })
       .catch(() => {
         setFeatures([
@@ -82,12 +85,40 @@ export function PlanSelectionPage() {
   const planName = (slug: string) => plans.find((p) => p.slug === slug)?.name ?? slug;
 
   const handleSelectPlan = async (plan: string) => {
-    if (plan === 'premium') {
-      setShowPremiumModal(true);
+    if (!user) {
+      navigate('/login?redirect=/plans');
       return;
     }
     if (plan === currentTier) return;
 
+    // Paid plans → Stripe Checkout (or free activation while payments are not configured)
+    if (plan === 'pro' || plan === 'premium') {
+      if (paymentsEnabled) {
+        setSelecting(plan);
+        setMsg('');
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/subscription/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ plan }),
+          });
+          const data = await res.json();
+          if (res.ok && data.url) {
+            window.location.href = data.url;
+            return;
+          }
+          setMsg(data.error || 'Error al iniciar el pago');
+        } catch {
+          setMsg('Error de conexión');
+        }
+        setSelecting(null);
+        return;
+      }
+      setMsg('Todos los planes son gratuitos durante la beta — activación directa');
+    }
+
+    // Free plan → direct switch (downgrade)
     setSelecting(plan);
     setMsg('');
     try {
@@ -97,10 +128,10 @@ export function PlanSelectionPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ plan }),
       });
-    if (res.ok) {
-      await loadUsage();
-      updateUserTier(plan);
-      setMsg(`Plan cambiado a ${planName(plan)} correctamente`);
+      if (res.ok) {
+        await loadUsage();
+        updateUserTier(plan);
+        setMsg(`Plan cambiado a ${planName(plan)} correctamente`);
       } else {
         const err = await res.json();
         setMsg(err.error || 'Error al cambiar plan');
@@ -109,6 +140,25 @@ export function PlanSelectionPage() {
       setMsg('Error de conexión');
     }
     setSelecting(null);
+  };
+
+  const handleManageSubscription = async () => {
+    setMsg('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/subscription/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      setMsg(data.error || 'Error al abrir el portal de suscripción');
+    } catch {
+      setMsg('Error de conexión');
+    }
   };
 
   const displayFeatures = features.length > 0 ? features : [
@@ -127,7 +177,9 @@ export function PlanSelectionPage() {
         <div className="plans-header">
           <h1 className="plans-title">Elige tu plan</h1>
           <p className="plans-subtitle">
-            Selecciona el plan que mejor se adapte a tu estilo de inversión
+            {paymentsEnabled
+              ? 'Selecciona el plan que mejor se adapte a tu estilo de inversión'
+              : 'Fase beta: todos los planes son gratuitos por tiempo limitado'}
           </p>
         </div>
 
@@ -185,7 +237,7 @@ export function PlanSelectionPage() {
               disabled={currentTier === 'pro' || selecting === 'pro'}
               onClick={() => handleSelectPlan('pro')}
             >
-              {currentTier === 'pro' ? 'Tu plan actual' : selecting === 'pro' ? 'Cambiando...' : 'Seleccionar Pro'}
+              {currentTier === 'pro' ? 'Tu plan actual' : selecting === 'pro' ? (paymentsEnabled ? 'Redirigiendo...' : 'Activando...') : (paymentsEnabled ? 'Contratar Pro' : 'Activar Pro — Gratis')}
             </button>
           </div>
 
@@ -214,7 +266,7 @@ export function PlanSelectionPage() {
               disabled={currentTier === 'premium' || selecting === 'premium'}
               onClick={() => handleSelectPlan('premium')}
             >
-              {currentTier === 'premium' ? 'Tu plan actual' : selecting === 'premium' ? 'Cambiando...' : 'Próximamente'}
+              {currentTier === 'premium' ? 'Tu plan actual' : selecting === 'premium' ? (paymentsEnabled ? 'Redirigiendo...' : 'Activando...') : (paymentsEnabled ? 'Contratar Premium' : 'Activar Premium — Gratis')}
             </button>
           </div>
         </div>
@@ -243,23 +295,18 @@ export function PlanSelectionPage() {
           </table>
         </div>
 
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+          {(currentTier === 'pro' || currentTier === 'premium') && paymentsEnabled && (
+            <button className="plan-btn plan-btn--outline" onClick={handleManageSubscription}>
+              Gestionar suscripción
+            </button>
+          )}
+        </div>
+
         <button className="plans-back" onClick={() => navigate(-1)}>
           ← Volver
         </button>
       </div>
-
-      {showPremiumModal && (
-        <div className="plans-premium-overlay" onClick={() => setShowPremiumModal(false)}>
-          <div className="plans-premium-modal" onClick={(e) => e.stopPropagation()}>
-            <Lock size={32} className="plans-premium-icon" />
-            <h3>Próximamente disponible</h3>
-            <p>El plan Premium estará disponible muy pronto. Estamos preparando la pasarela de pagos para ofrecerte la mejor experiencia.</p>
-            <button className="plan-btn plan-btn--primary" onClick={() => setShowPremiumModal(false)}>
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
