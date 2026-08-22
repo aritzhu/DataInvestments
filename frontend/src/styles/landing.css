@@ -1607,7 +1607,7 @@
 }
 
 .sector-filters-wrapper {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto 2rem;
   display: flex;
   flex-direction: column;
@@ -1618,11 +1618,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .companies-search-wrapper {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 280px;
+  min-width: 280px;
 }
 
 .country-filter-wrapper {
@@ -2246,7 +2247,7 @@
 
 /* --- Top pagination bar --- */
 .companies-pagination-top {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto 1rem;
   display: flex;
   align-items: center;
