@@ -23,9 +23,10 @@ interface ChartTooltipProps {
   label?: string;
   marketKey?: string;
   targetKey?: string;
+  targetLabel?: string;
 }
 
-export function ChartTooltip({ active, payload, label, marketKey = 'marketValue', targetKey = 'targetValue' }: ChartTooltipProps) {
+export function ChartTooltip({ active, payload, label, marketKey = 'marketValue', targetKey = 'targetValue', targetLabel = 'Objetivo' }: ChartTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   const tv = payload.find((p: any) => p.dataKey === targetKey)?.value as number | undefined;
   const mv = payload.find((p: any) => p.dataKey === marketKey)?.value as number | undefined;
@@ -34,7 +35,7 @@ export function ChartTooltip({ active, payload, label, marketKey = 'marketValue'
   return (
     <div className="pf-chart-tooltip">
       <p className="pf-chart-tooltip-date">{label}</p>
-      <p className="pf-chart-tooltip-row"><span className="pf-chart-tooltip-dot pf-chart-tooltip-dot--target" />Objetivo: <b>{fmtMoney(tv ?? null)}</b></p>
+      <p className="pf-chart-tooltip-row"><span className="pf-chart-tooltip-dot pf-chart-tooltip-dot--target" />{targetLabel}: <b>{fmtMoney(tv ?? null)}</b></p>
       <p className="pf-chart-tooltip-row"><span className="pf-chart-tooltip-dot pf-chart-tooltip-dot--market" />Mercado: <b>{fmtMoney(mv ?? null)}</b></p>
       <p className="pf-chart-tooltip-row">Gap: <b className={gap != null && gap >= 0 ? 'pf-chart-tooltip-positive' : 'pf-chart-tooltip-negative'}>
         {gap != null ? `${(gap * 100).toFixed(1)}%` : 'N/D'}

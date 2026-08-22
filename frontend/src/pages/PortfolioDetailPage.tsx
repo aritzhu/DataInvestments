@@ -201,6 +201,7 @@ export function PortfolioDetailPage() {
               }}
               allocation={allocation}
               excluded={excluded}
+              holdings={valuation.holdings}
             />
           </div>
           <div className="pf-section">
