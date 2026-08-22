@@ -672,7 +672,7 @@ async function main() {
     for (const year of [2024, 2023]) {
       await prisma.revenueSegment.createMany({
         data: tpl.segments.map((s) => ({
-          companyId, year, quarter: 0, segmentName: s.name, segmentType: s.type, revenue: round(latest.revenue * (s.pct / 100)), percentage: s.pct,
+          companyId, year, quarter: 0, segmentName: s.name, segmentType: s.type, revenue: round(latest.revenue * (s.pct / 100)), percentage: s.pct / 100,
         })),
       });
     }

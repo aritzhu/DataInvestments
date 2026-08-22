@@ -340,7 +340,9 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
                 <h4 className="rev-section-title">Por producto / servicio</h4>
                 <div className="rev-bars">
                   {productSegments.map((seg, i) => {
-                    const pct = seg.percentage ?? safeDiv(seg.revenue, f.revenue);
+                    const pct = seg.percentage != null
+                      ? (seg.percentage > 1 ? seg.percentage / 100 : seg.percentage)
+                      : safeDiv(seg.revenue, f.revenue);
                     const widthPct = pct != null ? pct * 100 : 0;
                     return (
                       <div key={seg.segmentName} className="rev-bar-row">
@@ -361,7 +363,9 @@ export function FinancialStatementsTab({ financial, balanceSheet, stock, segment
                 <h4 className="rev-section-title">Por geografía</h4>
                 <div className="rev-bars">
                   {geoSegments.map((seg, i) => {
-                    const pct = seg.percentage ?? safeDiv(seg.revenue, f.revenue);
+                    const pct = seg.percentage != null
+                      ? (seg.percentage > 1 ? seg.percentage / 100 : seg.percentage)
+                      : safeDiv(seg.revenue, f.revenue);
                     const widthPct = pct != null ? pct * 100 : 0;
                     return (
                       <div key={seg.segmentName} className="rev-bar-row">

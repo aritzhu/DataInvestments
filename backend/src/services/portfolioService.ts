@@ -238,7 +238,9 @@ export async function getPortfolioValuation(portfolioId: string, userId: string)
       const list = segs.filter((s) => s.year === latestYear && s.segmentType === type);
       const totalRev = list.reduce((acc, s) => acc + s.revenue, 0);
       for (const s of list) {
-        const pct = s.percentage ?? (totalRev > 0 ? s.revenue / totalRev : 0);
+        const pct = s.percentage != null
+        ? (s.percentage > 1 ? s.percentage / 100 : s.percentage)
+        : (totalRev > 0 ? s.revenue / totalRev : 0);
         const contrib = h.totalValue * pct;
         const cur = map.get(s.segmentName);
         if (cur) cur.value += contrib;
