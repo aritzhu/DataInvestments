@@ -180,6 +180,7 @@ export function Landing() {
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
   const [isLoading, setIsLoading] = useState(() => initialCache == null);
   const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
+  const hasActiveFilters = searchTerm.trim() !== '' || selectedSector !== null || selectedCountry !== '' || showFavoritesOnly || showVisitedOnly || screeningActive;
   const [suggestions, setSuggestions] = useState<{ id: string; ticker: string; name: string }[]>([]);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const suggestionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -747,8 +748,7 @@ export function Landing() {
             </div>
           </SectionReveal>
 
-          {companies.length > 0 && (
-            <div className="sector-filters-wrapper">
+          <div className="sector-filters-wrapper">
               <div className="search-row">
                 <div className="companies-search-wrapper" ref={searchWrapperRef} style={{ position: 'relative' }}>
                   <input
@@ -899,7 +899,6 @@ export function Landing() {
                 </div>
               )}
             </div>
-          )}
 
           {total > 0 && (
             <div className="companies-pagination-top">
@@ -942,6 +941,16 @@ export function Landing() {
                   </div>
                 ))
               )
+            ) : companies.length === 0 && hasActiveFilters ? (
+              <div className="companies-empty" style={viewMode === 'grid' ? { gridColumn: '1 / -1' } : undefined}>
+                <Database size={48} className="companies-empty-icon" />
+                <h3 className="companies-empty-title">Sin resultados</h3>
+                <p className="companies-empty-desc">
+                  {searchTerm.trim() !== ''
+                    ? `No se encontraron empresas para "${searchTerm}"`
+                    : 'No se encontraron empresas con los filtros aplicados'}
+                </p>
+              </div>
             ) : companies.length === 0 ? (
               <SectionReveal delay={80}>
                 <div className="companies-empty">
@@ -954,12 +963,6 @@ export function Landing() {
                   </Link>
                 </div>
               </SectionReveal>
-            ) : companies.length === 0 ? (
-              <div className="companies-empty" style={viewMode === 'grid' ? { gridColumn: '1 / -1' } : undefined}>
-                <Database size={48} className="companies-empty-icon" />
-                <h3 className="companies-empty-title">Sin resultados</h3>
-                <p className="companies-empty-desc">No se encontraron empresas para "{searchTerm}"</p>
-              </div>
             ) : viewMode === 'grid' ? (
               paginatedCompanies.map((company, i) => {
                 const color = colorNames[i % colorNames.length];
