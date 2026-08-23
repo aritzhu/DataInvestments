@@ -768,7 +768,11 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
     const yfInfo = await fetchYFinanceInfo(ticker);
     const info = yfInfo?.info;
     if (yahooQuote && yahooQuote.currentPrice > 0) {
-      const shares = sharesOutstanding ?? resolveShares(ticker, info?.sharesOutstanding, yahooQuote.sharesOutstanding, yahooQuote.marketCap, yahooQuote.currentPrice, null);
+      // SEC share counts can cover a single share class on multi-class
+      // companies (e.g. BRK.B), so they are the last-resort fallback, not the
+      // primary source. resolveShares prefers candidates consistent with the
+      // quoted market cap.
+      const shares = resolveShares(ticker, info?.sharesOutstanding, yahooQuote.sharesOutstanding, yahooQuote.marketCap, yahooQuote.currentPrice, sharesOutstanding);
       const mcap = shares && yahooQuote.currentPrice > 0
         ? yahooQuote.currentPrice * shares
         : (yahooQuote.marketCap && yahooQuote.marketCap > 0 ? yahooQuote.marketCap : null);

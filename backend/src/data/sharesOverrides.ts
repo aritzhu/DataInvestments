@@ -10,4 +10,6 @@ export const SHARES_OVERRIDES: Record<string, number> = {
   'AIR.PA': 795000000,
   'MC.PA': 501000000,
   'ITX.MC': 3116115505,
+  // Berkshire Hathaway Class B (~2.16B shares; XBRL reports a single-class count)
+  'BRK.B': 2160000000,
 };
