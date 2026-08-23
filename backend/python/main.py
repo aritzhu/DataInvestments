@@ -29,9 +29,23 @@ SYMBOL_OVERRIDES = {
     "STM.MI": "STMMI.MI",
 }
 
+# European exchange suffixes keep the dot in Yahoo symbols. A dot elsewhere
+# means a US class share (BRK.B) and must become a hyphen for Yahoo.
+_EUROPEAN_SUFFIXES = {
+    "DE", "F", "D", "PA", "L", "MC", "AS", "BR", "HE", "ST",
+    "CO", "MI", "LS", "VI", "SW", "OL", "IR", "LU",
+}
+
 
 def _resolve_symbol(ticker: str) -> str:
-    return SYMBOL_OVERRIDES.get(ticker.upper(), ticker)
+    upper = ticker.upper()
+    if upper in SYMBOL_OVERRIDES:
+        return SYMBOL_OVERRIDES[upper]
+    if "." in upper:
+        suffix = upper.split(".")[-1]
+        if suffix not in _EUROPEAN_SUFFIXES:
+            return upper.replace(".", "-")
+    return ticker
 
 
 def _ensure_crumb():

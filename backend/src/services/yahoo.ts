@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toUsHyphenTicker } from './companyMeta';
 
 export interface YahooQuote {
   symbol: string;
@@ -29,7 +30,7 @@ interface YahooChartMeta {
 
 async function fetchYahooChartMeta(ticker: string): Promise<YahooChartMeta | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${toUsHyphenTicker(ticker)}`;
     const response = await axios.get(url, {
       params: {
         interval: '1d',
@@ -85,7 +86,7 @@ export async function fetchYahooQuote(ticker: string): Promise<YahooQuote | null
 
 async function fetchYahooQuoteFallback(ticker: string): Promise<YahooQuote | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
+    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${toUsHyphenTicker(ticker)}`;
     const response = await axios.get(url, {
       params: { modules: 'defaultKeyStatistics,summaryDetail,assetProfile' },
       headers: {
@@ -134,7 +135,7 @@ export interface YahooProfile {
 
 export async function fetchYahooProfile(ticker: string): Promise<YahooProfile | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
+    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${toUsHyphenTicker(ticker)}`;
     const response = await axios.get(url, {
       params: { modules: 'assetProfile' },
       headers: {

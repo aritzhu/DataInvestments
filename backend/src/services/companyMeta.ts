@@ -20,6 +20,15 @@ export function isEuropeanTicker(ticker: string): boolean {
   return !!suffix && EUROPEAN_SUFFIXES.includes(suffix);
 }
 
+// US class-share tickers are stored canonically with a dot (BRK.B) but SEC
+// and Yahoo list them with a hyphen (BRK-B). European suffixes (SANT.DE)
+// must keep the dot.
+export function toUsHyphenTicker(ticker: string): string {
+  const upper = ticker.toUpperCase();
+  if (!upper.includes('.') || isEuropeanTicker(upper)) return upper;
+  return upper.replace(/\./g, '-');
+}
+
 export interface ResolvedCompanyMeta {
   name?: string;
   sector?: string;

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { isEuropeanTicker } from './companyMeta';
+import { isEuropeanTicker, toUsHyphenTicker } from './companyMeta';
 
 const SEC_BASE = 'https://data.sec.gov';
 const USER_AGENT = process.env.SEC_USER_AGENT || 'DataInvestments admin@datainvestments.com';
@@ -38,11 +38,15 @@ export async function getCikForTicker(ticker: string): Promise<string | null> {
   if (isEuropeanTicker(ticker)) return null;
 
   const map = await getTickerToCikMap();
-  const cik = map[ticker.toUpperCase()];
-  if (cik) return cik;
-  const baseTicker = ticker.split('.')[0];
-  if (baseTicker !== ticker) {
-    return map[baseTicker.toUpperCase()] || null;
+  const upper = ticker.toUpperCase();
+  // Exact form first, then the hyphenated US class-share form (BRK.B → BRK-B),
+  // then the base ticker without suffix.
+  const candidates = [upper, toUsHyphenTicker(upper)];
+  const baseTicker = upper.split('.')[0];
+  if (baseTicker !== upper) candidates.push(baseTicker);
+  for (const candidate of candidates) {
+    const cik = map[candidate];
+    if (cik) return cik;
   }
   return null;
 }
