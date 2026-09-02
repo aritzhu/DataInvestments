@@ -570,6 +570,15 @@ export function CompanyPage() {
     }, { replace: true });
   };
 
+  const goToMetricVariations = () => {
+    handleTabChange('fundamental');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.getElementById('metric-variations-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  };
+
   if (showHookModal && ticker) {
     return <RegistrationHookModal ticker={ticker} />;
   }
@@ -867,13 +876,13 @@ export function CompanyPage() {
           </div>
         )}
         {stock?.pbRatio != null && (
-          <div className="cp-quick-item">
+          <div className="cp-quick-item cp-quick-item--nav" role="button" tabIndex={0} onClick={goToMetricVariations} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToMetricVariations(); } }} aria-label="Ver evolución histórica del P/B">
             <span className="cp-quick-label"><span className="info-label-row">P/B <InfoButton content={INFO['company.pb']} /></span></span>
             <span className="cp-quick-value">{stock.pbRatio.toFixed(1)}</span>
           </div>
         )}
         {stock?.roe != null && (
-          <div className="cp-quick-item">
+          <div className="cp-quick-item cp-quick-item--nav" role="button" tabIndex={0} onClick={goToMetricVariations} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goToMetricVariations(); } }} aria-label="Ver evolución histórica del ROE">
             <span className="cp-quick-label"><span className="info-label-row">ROE <InfoButton content={INFO['company.roe']} /></span></span>
             <span className="cp-quick-value">{formatPct(stock.roe)}</span>
           </div>

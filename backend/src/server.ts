@@ -4,6 +4,8 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import cron from 'node-cron';
 import multer from 'multer';
 import path from 'path';
@@ -23,6 +25,7 @@ import subscriptionRoutes from './routes/subscription';
 import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
+import { getMetricVariations } from './services/metricVariations';
 import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
 import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
 import { parsePagination, paginate } from './utils/pagination';
@@ -30,10 +33,66 @@ import { parsePagination, paginate } from './utils/pagination';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const ALLOWED_ORIGINS = [
+  process.env.CLIENT_URL || 'http://localhost:5173',
+  'https://datainvestments.dionestudio.es',
+];
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://www.googletagmanager.com", "https://www.google-analytics.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://www.google-analytics.com", "https://www.googletagmanager.com"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// ── Rate Limiters ──────────────────────────────────────────────────────────
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas peticiones, intenta de nuevo más tarde' },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de autenticación' },
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req: any) => req.user?.id || req.ip,
+  message: { error: 'Límite de subidas alcanzado' },
+});
+
+const settingsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req: any) => req.user?.id || req.ip,
+  message: { error: 'Límite de actualizaciones alcanzado' },
+});
+
+app.use(globalLimiter);
 app.use(compression({
   filter: (req, res) => {
     if (res.getHeader('Content-Type') === 'text/event-stream') return false;
@@ -82,7 +141,7 @@ const upload = multer({
 const uploadsDir = path.join(__dirname, '../uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
-app.post('/api/admin/upload', requireAdmin, (req: AuthRequest, res: any) => {
+app.post('/api/admin/upload', requireAdmin, uploadLimiter, (req: AuthRequest, res: any) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       return res.status(400).json({ error: err.message });
@@ -326,6 +385,22 @@ app.get('/api/companies/:ticker/profile', async (req, res) => {
   }
 });
 
+app.get('/api/companies/:ticker/metric-variations', async (req, res) => {
+  try {
+    const { ticker } = req.params;
+    const company = await prisma.company.findUnique({ where: { ticker: ticker.toUpperCase() } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+    const variations = await getMetricVariations(company.id, company.ticker);
+    res.json({ ticker: company.ticker, variations });
+  } catch (error) {
+    console.error('[Companies] Error fetching metric variations:', error);
+    res.status(500).json({ error: 'Error fetching metric variations' });
+  }
+});
+
 // ── Sector companies ──────────────────────────────────────────────────────
 
 interface RecommendedValuation {
@@ -523,7 +598,7 @@ app.get('/api/market/sector-averages', async (req, res) => {
 
 // ── Mount routes ──────────────────────────────────────────────────────────
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/alarms', alarmsRoutes);
 app.use('/api/admin', adminRoutes);
@@ -547,7 +622,7 @@ app.get('/api/settings', async (_req, res) => {
   }
 });
 
-app.put('/api/settings', requireAdmin, async (req: AuthRequest, res) => {
+app.put('/api/settings', requireAdmin, settingsLimiter, async (req: AuthRequest, res) => {
   try {
     const entries = Object.entries(req.body as Record<string, string>) as [string, string][];
     for (const [key, value] of entries) {
@@ -563,11 +638,51 @@ app.put('/api/settings', requireAdmin, async (req: AuthRequest, res) => {
   }
 });
 
+// ── Sitemap ────────────────────────────────────────────────────────────────
+
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    res.header('Content-Type', 'application/xml');
+    const companies = await prisma.company.findMany({
+      where: { active: true },
+      select: { ticker: true },
+      orderBy: { ticker: 'asc' },
+    });
+
+    const urls = [
+      { loc: '/', priority: '1.0', changefreq: 'daily' },
+      { loc: '/formacion', priority: '0.8', changefreq: 'weekly' },
+      { loc: '/plans', priority: '0.7', changefreq: 'monthly' },
+      { loc: '/legal/terminos', priority: '0.3', changefreq: 'monthly' },
+      { loc: '/legal/privacidad', priority: '0.3', changefreq: 'monthly' },
+      { loc: '/legal/cookies', priority: '0.3', changefreq: 'monthly' },
+      { loc: '/legal/riesgos', priority: '0.3', changefreq: 'monthly' },
+      ...companies.map(c => ({
+        loc: `/empresa/${c.ticker}`,
+        priority: '0.7',
+        changefreq: 'weekly' as const,
+      })),
+    ];
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url><loc>https://datainvestments.dionestudio.es${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
+</urlset>`;
+
+    res.send(xml);
+  } catch (error) {
+    console.error('[Sitemap] Error:', error);
+    res.status(500).send('<?xml version="1.0"?><urlset/>');
+  }
+});
+
 // ── Error handler ─────────────────────────────────────────────────────────
 
 app.use((err: any, _req: any, res: any, _next: any) => {
   console.error('[FATAL]', err);
-  res.status(500).json({ error: err.message || 'Error interno del servidor' });
+  const requestId = crypto.randomUUID();
+  console.error(`[FATAL] Request ID: ${requestId}`);
+  res.status(500).json({ error: 'Error interno del servidor', requestId });
 });
 
 app.listen(PORT, () => {

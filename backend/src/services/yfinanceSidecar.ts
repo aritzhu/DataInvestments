@@ -52,6 +52,31 @@ export async function fetchYFinanceInfo(ticker: string): Promise<YFinanceInfo | 
   }
 }
 
+export interface YFinanceHistoryPoint {
+  date: string;
+  close: number;
+}
+
+export interface YFinanceHistory {
+  ticker: string;
+  history: YFinanceHistoryPoint[];
+}
+
+export async function fetchYFinanceHistory(ticker: string, period1?: number, period2?: number): Promise<YFinanceHistoryPoint[]> {
+  try {
+    const qs: string[] = [];
+    if (period1 != null) qs.push(`period1=${period1}`);
+    if (period2 != null) qs.push(`period2=${period2}`);
+    const suffix = qs.length > 0 ? `?${qs.join('&')}` : '';
+    const res = await fetch(`${YFINANCE_URL}/api/yfinance/${encodeURIComponent(ticker)}/history${suffix}`);
+    if (!res.ok) return [];
+    const data = (await res.json()) as YFinanceHistory;
+    return data?.history ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // --- Field mapping helpers ---
 
 function num(val: unknown): number | null {

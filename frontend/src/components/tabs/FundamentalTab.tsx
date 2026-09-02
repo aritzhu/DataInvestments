@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { TrendingUp, ShieldCheck, HandCoins, Gauge, Users, Target, BookOpen } from 'lucide-react';
+import { TrendingUp, ShieldCheck, HandCoins, Gauge, Users, Target, BookOpen, Activity } from 'lucide-react';
 import type { CompanyProfile } from '../CompanyPage';
 import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { CompareTab } from './CompareTab';
+import { MetricVariationsCard } from './MetricVariationsCard';
 import { fmtCurrencyShort, formatPct } from '../../utils/format';
 import { computeGrowth, computeSolvency, computeShareholderReturns, computeEfficiency } from '../../utils/fundamental';
 import { getMetricConfidence, parseWarningFields, type MetricConfidence } from '../../utils/metricConfidence';
@@ -283,8 +284,22 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         </section>
       </SectionReveal>
 
-      {/* Pilar 5 — Comparación con pares */}
-      <SectionReveal delay={160}>
+      {/* Pilar 5 — Evolución histórica */}
+      <SectionReveal delay={140}>
+        <section className="fund-section" id="metric-variations-section">
+          <header className="fund-section-header">
+            <span className="fund-section-icon fund-section-icon--teal"><Activity size={18} /></span>
+            <h3 className="fund-section-title"><span className="info-label-row">Evolución histórica del ROE y P/B</span></h3>
+          </header>
+          <MetricVariationsCard ticker={company.ticker} />
+          <p className="fund-note">
+            ROE calculado como beneficio neto / patrimonio neto del periodo (trimestral o anual). P/B usa el precio de cierre más cercano al cierre del periodo y el nº de acciones actual, por lo que en empresas con recompras o emisiones el P/B histórico es una aproximación.
+          </p>
+        </section>
+      </SectionReveal>
+
+      {/* Pilar 6 — Comparación con pares */}
+      <SectionReveal delay={180}>
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--indigo"><Users size={18} /></span>
@@ -295,8 +310,8 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         </section>
       </SectionReveal>
 
-      {/* Pilar 6 — Prospectivo y riesgo */}
-      <SectionReveal delay={200}>
+      {/* Pilar 7 — Prospectivo y riesgo */}
+      <SectionReveal delay={220}>
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--slate"><Target size={18} /></span>
