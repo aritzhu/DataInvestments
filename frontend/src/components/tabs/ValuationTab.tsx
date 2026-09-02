@@ -59,7 +59,13 @@ const METHOD_NAMES: Record<string, string> = {
 export function ValuationTab({ company, financials, balanceSheets, stock }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
-  const [configs, setConfigs] = useState(() => getSectorConfigs(company.sector, company.industry));
+  const [configs, setConfigs] = useState(() => {
+    const sectorConfigs = getSectorConfigs(company.sector, company.industry);
+    if (stock?.pbRatio && stock.pbRatio > 0) {
+      return { ...sectorConfigs, pb: { targetPB: stock.pbRatio } };
+    }
+    return sectorConfigs;
+  });
   const [showAlarmModal, setShowAlarmModal] = useState(false);
   const [existingAlarm, setExistingAlarm] = useState<AlarmData | null>(null);
   const [alarmTarget, setAlarmTarget] = useState<'buy' | 'hold' | 'sell'>('buy');
@@ -412,9 +418,9 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <div className="val-config-grid">
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Target P/B <InfoButton content={INFO['valuation.targetPB']} /></span></label>
-                    <input type="range" min={0.5} max={10} step={0.5} value={configs.pb.targetPB}
+                    <input type="range" min={0.1} max={10} step={0.1} value={configs.pb.targetPB}
                       onChange={(e) => updateConfig('pb', 'targetPB', parseFloat(e.target.value))} className="val-config-slider" />
-                    <span className="val-config-value">{configs.pb.targetPB}x</span>
+                    <span className="val-config-value">{configs.pb.targetPB.toFixed(1)}x</span>
                   </div>
                 </div>
               </div>
@@ -582,7 +588,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
           <div className="val-alarm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="val-alarm-modal-header">
               <h3>{existingAlarm ? 'Editar' : 'Crear'} alarma — {company.ticker}</h3>
-              <button className="val-alarm-modal-close" onClick={() => setShowAlarmModal(false)}>
+              <button className="val-alarm-modal-close" onClick={() => setShowAlarmModal(false)} aria-label="Cerrar modal de alarma">
                 <X size={20} />
               </button>
             </div>
