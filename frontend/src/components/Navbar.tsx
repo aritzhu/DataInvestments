@@ -146,8 +146,8 @@ export function Navbar() {
 
           {/* Desktop links */}
           <div className="navbar-links">
-            <Link to="/" className="navbar-link">Inicio</Link>
-            <Link to="/formacion" className="navbar-link">
+            <Link to="/" className="navbar-link" aria-current={location.pathname === '/' ? 'page' : undefined}>Inicio</Link>
+            <Link to="/formacion" className="navbar-link" aria-current={location.pathname === '/formacion' ? 'page' : undefined}>
               <GraduationCap size={14} />
               Formación
             </Link>
@@ -163,34 +163,34 @@ export function Navbar() {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             {user && (
-              <Link to="/favorites" className="navbar-icon-btn navbar-favorites-btn" title="Favoritos y Alarmas">
+              <Link to="/favorites" className="navbar-icon-btn navbar-favorites-btn" title="Favoritos y Alarmas" aria-label="Favoritos y Alarmas">
                 <Heart size={18} />
                 <Clock size={12} className="navbar-favorites-clock" />
               </Link>
             )}
             {user && (
-              <Link to="/portfolios" className="navbar-icon-btn" title="Portfolios">
+              <Link to="/portfolios" className="navbar-icon-btn" title="Portfolios" aria-label="Portfolios">
                 <Briefcase size={18} />
               </Link>
             )}
             {user?.role === 'admin' && (
-              <Link to="/admin" className="navbar-icon-btn" title="Panel de Admin">
+              <Link to="/admin" className="navbar-icon-btn" title="Panel de Admin" aria-label="Panel de administración">
                 <Settings size={20} />
               </Link>
             )}
             {user && <UsageIndicator />}
             {user ? (
               <div className="navbar-user">
-                <Link to="/settings" className="navbar-user-name" title="Configuración">
+                <Link to="/settings" className="navbar-user-name" title="Configuración" aria-label="Configuración de cuenta">
                   <User size={14} />
                   {user.name}
                 </Link>
-                <button onClick={handleLogout} className="navbar-logout-btn" title="Cerrar sesión">
+                <button onClick={handleLogout} className="navbar-logout-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
                   <LogOut size={16} />
                 </button>
               </div>
             ) : (
-              <Link to="/login" className="navbar-icon-btn" title="Iniciar sesión">
+              <Link to="/login" className="navbar-icon-btn" title="Iniciar sesión" aria-label="Iniciar sesión">
                 <User size={20} />
               </Link>
             )}
@@ -263,11 +263,11 @@ export function Navbar() {
           )}
 
           <nav className="navbar-mobile-nav">
-            <Link to="/" className="navbar-mobile-link">
+            <Link to="/" className="navbar-mobile-link" aria-current={location.pathname === '/' ? 'page' : undefined}>
               <Home size={20} />
               Inicio
             </Link>
-            <Link to="/formacion" className="navbar-mobile-link">
+            <Link to="/formacion" className="navbar-mobile-link" aria-current={location.pathname === '/formacion' ? 'page' : undefined}>
               <GraduationCap size={20} />
               Formación
             </Link>

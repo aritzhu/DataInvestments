@@ -1,11 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './contexts/AuthContext';
 import { useInitAnalytics, usePageTracking } from './hooks/useAnalytics';
 import { Navbar } from './components/Navbar';
 import { AdminRoute } from './components/AdminRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 
 const Landing = lazy(() => import('./components/Landing').then(m => ({ default: m.Landing })));
 const CompanyPage = lazy(() => import('./components/CompanyPage').then(m => ({ default: m.CompanyPage })));
@@ -26,13 +28,15 @@ function App() {
   useInitAnalytics();
 
   return (
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
-      <AuthProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
-      </AuthProvider>
-    </GoogleOAuthProvider>
+    <HelmetProvider>
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+        <AuthProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </AuthProvider>
+      </GoogleOAuthProvider>
+    </HelmetProvider>
   );
 }
 
@@ -41,7 +45,14 @@ function AppRoutes() {
 
   return (
     <div className="min-h-screen flex flex-col app-shell">
-      <Suspense>
+      <a href="#main-content" className="skip-to-content">
+        Saltar al contenido principal
+      </a>
+      <Suspense fallback={
+        <div style={{ padding: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <div className="ui-skeleton" style={{ width: '200px', height: '24px', borderRadius: '8px' }} />
+        </div>
+      }>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -51,7 +62,7 @@ function AppRoutes() {
           element={
             <>
               <Navbar />
-              <main className="flex-1 flex flex-col">
+              <main id="main-content" className="flex-1 flex flex-col">
                 <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/empresa/:ticker" element={<CompanyPage />} />
@@ -74,6 +85,7 @@ function AppRoutes() {
         />
       </Routes>
       </Suspense>
+      <CookieConsentBanner />
     </div>
   );
 }

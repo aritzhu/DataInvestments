@@ -5,9 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>DataInvestments - Visor de Datos de Inversión</title>
     <meta name="description" content="Consulta y visualiza información financiera de empresas con fines informativos y educativos. No constituye asesoramiento financiero ni recomendación de inversión." />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <!-- Open Graph -->
+    <meta property="og:title" content="DataInvestments - Visor de Datos de Inversión" />
+    <meta property="og:description" content="Consulta y visualiza información financiera de empresas con fines informativos y educativos." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://datainvestments.dionestudio.es" />
+    <meta property="og:image" content="https://datainvestments.dionestudio.es/og-image.png" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content="DataInvestments" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DataInvestments - Visor de Datos de Inversión" />
+    <meta name="twitter:description" content="Consulta y visualiza información financiera de empresas." />
+    <meta name="twitter:image" content="https://datainvestments.dionestudio.es/og-image.png" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "DataInvestments",
+      "url": "https://datainvestments.dionestudio.es",
+      "description": "Visor de datos financieros para análisis fundamental de empresas",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://datainvestments.dionestudio.es/?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/instrument-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
     <script>
       (function () {
         try {

@@ -49,6 +49,9 @@ export function usePageTracking() {
 
 export function useInitAnalytics() {
   useEffect(() => {
+    const consent = localStorage.getItem('di-analytics-consent');
+    if (consent === 'denied') return;
+
     fetch(`${API_BASE}/settings`)
       .then((res) => res.json())
       .then((data) => {

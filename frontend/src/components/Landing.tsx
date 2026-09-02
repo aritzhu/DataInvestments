@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
 import { BookCarousel, type Book } from './BookCarousel';
@@ -454,6 +455,13 @@ export function Landing() {
 
   return (
     <div className="landing-root">
+      <Helmet>
+        <title>DataInvestments - Análisis Fundamental de Empresas</title>
+        <meta name="description" content="Analiza empresas con datos financieros, valoración intrínseca y screeners. Herramienta gratuita para inversores de valor." />
+        <link rel="canonical" href="https://datainvestments.dionestudio.es" />
+        <meta property="og:title" content="DataInvestments - Análisis Fundamental" />
+        <meta property="og:url" content="https://datainvestments.dionestudio.es" />
+      </Helmet>
       <WelcomeModal />
       {/* Hero */}
       <section className={`hero${heroSettings.hero_bg_url ? ' hero--has-bg' : ''}`} style={heroSettings.hero_bg_url ? { backgroundImage: `url(${heroSettings.hero_bg_url})` } : undefined}>

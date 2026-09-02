@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2, Globe } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
@@ -576,6 +577,13 @@ export function CompanyPage() {
 
   return (
     <div className="cp-page">
+      <Helmet>
+        <title>{ticker} - {company.name} | DataInvestments</title>
+        <meta name="description" content={`Análisis financiero de ${company.name} (${ticker}): valoración, ratios, estados financieros y más.`} />
+        <link rel="canonical" href={`https://datainvestments.dionestudio.es/empresa/${ticker}`} />
+        <meta property="og:title" content={`${ticker} - ${company.name}`} />
+        <meta property="og:url" content={`https://datainvestments.dionestudio.es/empresa/${ticker}`} />
+      </Helmet>
       {/* Header */}
       <div className="cp-header" ref={headerRef}>
         <button className="cp-back" onClick={() => navigate(-1)}>
@@ -623,9 +631,9 @@ export function CompanyPage() {
                   <Briefcase size={16} />
                 </button>
                 {showPortfolioModal && (
-                  <div className="cp-portfolio-modal">
+                  <div className="cp-portfolio-modal" role="dialog" aria-modal="true" aria-labelledby="portfolio-modal-title">
                     <div className="cp-portfolio-modal-header">
-                      <span>Añadir {portfolioCompany?.ticker} a portfolio</span>
+                      <span id="portfolio-modal-title">Añadir {portfolioCompany?.ticker} a portfolio</span>
                       <button className="cp-portfolio-modal-close" onClick={() => setShowPortfolioModal(false)}>
                         <X size={14} />
                       </button>
@@ -720,9 +728,9 @@ export function CompanyPage() {
                   <Bell size={16} fill={existingAlarm ? 'currentColor' : 'none'} />
                 </button>
                 {showAlarmModal && (
-                  <div className="cp-alarm-modal">
+                  <div className="cp-alarm-modal" role="dialog" aria-modal="true" aria-labelledby="alarm-modal-title">
                     <div className="cp-alarm-modal-header">
-                      <span>{existingAlarm ? 'Editar alarma' : 'Crear alarma'}</span>
+                      <span id="alarm-modal-title">{existingAlarm ? 'Editar alarma' : 'Crear alarma'}</span>
                       <button className="cp-alarm-modal-close" onClick={() => setShowAlarmModal(false)}>
                         <X size={14} />
                       </button>
