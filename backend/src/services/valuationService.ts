@@ -241,7 +241,97 @@ function capConfidence(conf: ValuationResult['confidence'], annualFields: string
 const PARTIAL_DATA_WARNING = 'Datos trimestrales incompletos: este cálculo usa el último ejercicio anual en lugar de los 4 trimestres.';
 const DEBT_FALLBACK_WARNING = 'Balance incompleto: la deuda se estimó como pasivos no corrientes menos tesorería (no hay desglose de deuda).';
 
-function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }): ValuationResult {
+const CC_RF = 3; // tasa libre de riesgo %
+const CC_MARKET_PREMIUM = 5; // prima de mercado %
+const CC_KD_FALLBACK = 5; // % cuando no hay deuda o interés real
+const CC_TAX_FALLBACK = 25; // %
+const CC_GROWTH_WEIGHTS = { cagr5: 0.5, cagr10: 0.3, recent: 0.2 };
+
+function isConsumerCyclical(sector: string | null | undefined, industry?: string | null): boolean {
+  const s = (sector || '').toLowerCase();
+  return s === 'consumer cyclical' || s === 'consumer discretionary';
+}
+
+interface BackendGrowthResult {
+  growthRate: number | null;
+  details: { cagr5: number | null; cagr10: number | null; recent: number | null };
+}
+function computeWeightedGrowth(financials: Financial[]): BackendGrowthResult {
+  const annual = financials
+    .filter((x) => x.quarter == null || x.quarter === 0)
+    .filter((x) => x.revenue != null && x.revenue > 0)
+    .sort((a, b) => a.year - b.year);
+  const details = { cagr5: null as number | null, cagr10: null as number | null, recent: null as number | null };
+  if (annual.length < 2) return { growthRate: null, details };
+
+  const last = annual[annual.length - 1];
+  const lastRev = last.revenue!;
+  const prev = annual[annual.length - 2];
+  details.recent = lastRev / prev.revenue! - 1;
+
+  const atYear = (yearsBack: number): number | null => {
+    const target = last.year - yearsBack;
+    const row = annual.find((x) => x.year === target);
+    return row ? row.revenue! : null;
+  };
+  const cagr = (startRev: number | null, yearsBack: number): number | null => {
+    if (startRev == null || startRev <= 0 || yearsBack <= 0) return null;
+    return Math.pow(lastRev / startRev, 1 / yearsBack) - 1;
+  };
+  details.cagr5 = cagr(atYear(5), 5);
+  details.cagr10 = cagr(atYear(10), 10);
+
+  const parts: Array<{ value: number; weight: number }> = [];
+  if (details.cagr5 != null) parts.push({ value: details.cagr5, weight: CC_GROWTH_WEIGHTS.cagr5 });
+  if (details.cagr10 != null) parts.push({ value: details.cagr10, weight: CC_GROWTH_WEIGHTS.cagr10 });
+  if (details.recent != null) parts.push({ value: details.recent, weight: CC_GROWTH_WEIGHTS.recent });
+  if (parts.length === 0) return { growthRate: null, details };
+
+  const wSum = parts.reduce((a, p) => a + p.weight, 0);
+  const growthRate = parts.reduce((a, p) => a + p.value * p.weight, 0) / wSum;
+  return { growthRate, details };
+}
+
+interface BackendDCFRates {
+  g: number; // decimal
+  r: number; // decimal
+  growthDetails: BackendGrowthResult['details'];
+  growthApplied: boolean;
+}
+function consumerCyclicalRates(input: ValuationInput, config: { growthRate: number; discountRate: number }, sector: string | null | undefined, industry?: string | null): BackendDCFRates {
+  if (!isConsumerCyclical(sector, industry)) {
+    return { g: config.growthRate / 100, r: config.discountRate / 100, growthDetails: { cagr5: null, cagr10: null, recent: null }, growthApplied: false };
+  }
+
+  const growth = computeWeightedGrowth(input.financials);
+  const growthApplied = growth.growthRate != null;
+  const g = growthApplied ? growth.growthRate! : config.growthRate / 100;
+
+  const bs = latest(input.balanceSheets);
+  const beta = input.stock?.beta != null ? input.stock.beta : null;
+  const equity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
+  const debtRaw = (bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0);
+  const debt = debtRaw > 0 ? debtRaw : null;
+  const lastFin = latest(input.financials);
+  const interest = lastFin?.interestExpense != null ? Math.abs(lastFin.interestExpense) : null;
+  const taxExpense = lastFin?.taxExpense != null ? Math.abs(lastFin.taxExpense) : null;
+  const netIncome = lastFin?.netIncome != null ? Math.abs(lastFin.netIncome) : null;
+  const pretax = taxExpense != null && netIncome != null ? taxExpense + netIncome : null;
+
+  let r = config.discountRate / 100;
+  if (beta != null && equity != null && debt != null) {
+    const Ke = CC_RF + beta * CC_MARKET_PREMIUM; // %
+    const Kd = interest != null && interest > 0 ? (interest / debt) * 100 : CC_KD_FALLBACK; // %
+    const tax = pretax != null && pretax > 0 && taxExpense != null ? taxExpense / pretax : CC_TAX_FALLBACK / 100; // decimal
+    const total = equity + debt;
+    const waccPct = Ke * (equity / total) + Kd * (1 - tax) * (debt / total);
+    if (isFinite(waccPct) && waccPct > 0) r = waccPct / 100;
+  }
+
+  return { g, r, growthDetails: growth.details, growthApplied };
+}
+
+function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }, sector?: string | null, industry?: string | null): ValuationResult {
   const f = latest(input.financials);
   const shares = sharesOf(input.stock);
   if (!f || shares <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
@@ -280,8 +370,9 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
   }
   if (fcf <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
-  const g = config.growthRate / 100;
-  const r = config.discountRate / 100;
+  const cc = consumerCyclicalRates(input, { growthRate: config.growthRate, discountRate: config.discountRate }, sector, industry);
+  const g = cc.g >= cc.r ? cc.r - 0.005 : cc.g; // cap g below r to avoid divergent terminal value
+  const r = cc.r;
   const tg = 0.03;
 
   let totalPV = 0;
@@ -568,7 +659,7 @@ export function computeAll(input: ValuationInput, configs: ValuationConfigs, sec
   const currentPrice = input.stock?.currentPrice ?? 0;
   const financial = isFinancial(sector, industry);
   const results = [
-    computeDCF(input, configs.dcf),
+    computeDCF(input, configs.dcf, sector, industry),
     computePER(input, configs.per),
     computePB(input, configs.pb),
     financial ? { id: 'ps', name: 'P/S', fairValue: null, confidence: 'na' as const, confidenceReason: 'P/S no aplica a banca/seguros' } : computePS(input, configs.ps),

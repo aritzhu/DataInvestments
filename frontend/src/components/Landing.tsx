@@ -259,6 +259,8 @@ export function Landing() {
       setCompanies(cached.companies);
       setTotal(cached.total);
       setIsLoading(false);
+    } else {
+      setIsLoading(true);
     }
 
     const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
@@ -880,7 +882,7 @@ export function Landing() {
                 )}
               </div>
               {availableSectors.length > 0 && (
-                <div className="sector-pills">
+                <div className={`sector-pills${isLoading ? ' sector-pills--loading' : ''}`}>
                   <button
                     className={`sector-pill ${selectedSector === null ? 'sector-pill--active' : ''}`}
                     onClick={() => setSelectedSector(null)}

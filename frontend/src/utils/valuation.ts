@@ -265,8 +265,129 @@ function capConfidence(conf: ValuationResult['confidence'], annualFields: string
 
 const PARTIAL_DATA_WARNING = 'Datos trimestrales incompletos: este cálculo usa el último ejercicio anual en lugar de los 4 trimestres.';
 
+// ── Consumer Cyclical enhanced DCF ──
+// Params de sector para Consumer Cyclical (CAPM Ke, Kd fallback, tax fallback).
+const CC_RF = 3; // tasa libre de riesgo %
+const CC_MARKET_PREMIUM = 5; // prima de mercado %
+const CC_KD_FALLBACK = 5; // % cuando no hay deuda o interés real
+const CC_TAX_FALLBACK = 25; // %
+const CC_GROWTH_WEIGHTS = { cagr5: 0.5, cagr10: 0.3, recent: 0.2 };
+
+export function isConsumerCyclical(sector: string | null | undefined, _industry?: string | null): boolean {
+  const s = (sector || '').toLowerCase();
+  return s === 'consumer cyclical' || s === 'consumer discretionary';
+}
+
+// Media ponderada de crecimiento de ingresos: CAGR 5 años, CAGR 10 años y crecimiento reciente.
+interface GrowthResult {
+  growthRate: number | null;
+  details: { cagr5: number | null; cagr10: number | null; recent: number | null };
+}
+function computeWeightedGrowth(financials: Financial[]): GrowthResult {
+  const annual = financials
+    .filter((x) => x.quarter == null || x.quarter === 0)
+    .filter((x) => typeof x.revenue === 'number' && x.revenue > 0)
+    .sort((a, b) => a.year - b.year);
+  const details = { cagr5: null as number | null, cagr10: null as number | null, recent: null as number | null };
+  if (annual.length < 2) return { growthRate: null, details };
+
+  const last = annual[annual.length - 1];
+  const lastRev = last.revenue;
+  const prev = annual[annual.length - 2];
+  details.recent = lastRev / prev.revenue - 1;
+
+  const spanFor = (startRow: Financial): number => last.year - startRow.year;
+
+  const cagr = (startRev: number | null, startRow: Financial): number | null => {
+    if (startRev == null || startRev <= 0 || lastRev <= 0) return null;
+    const span = spanFor(startRow);
+    if (span <= 0) return null;
+    return Math.pow(lastRev / startRev, 1 / span) - 1;
+  };
+  const growthFrom = (yearsBack: number): number | null => {
+    const target = last.year - yearsBack;
+    const start = annual.find((x) => x.year === target) ?? annual[0];
+    return cagr(start?.revenue ?? null, start);
+  };
+  details.cagr5 = growthFrom(5);
+  details.cagr10 = growthFrom(10);
+
+  // Combinar solo los componentes disponibles, re-ponderando.
+  const parts: Array<{ value: number; weight: number }> = [];
+  if (details.cagr5 != null) parts.push({ value: details.cagr5, weight: CC_GROWTH_WEIGHTS.cagr5 });
+  if (details.cagr10 != null) parts.push({ value: details.cagr10, weight: CC_GROWTH_WEIGHTS.cagr10 });
+  if (details.recent != null) parts.push({ value: details.recent, weight: CC_GROWTH_WEIGHTS.recent });
+  if (parts.length === 0) return { growthRate: null, details };
+
+  const wSum = parts.reduce((a, p) => a + p.weight, 0);
+  const growthRate = parts.reduce((a, p) => a + p.value * p.weight, 0) / wSum;
+  return { growthRate, details };
+}
+
+// Aplica la nueva lógica g (crecimiento) y r (WACC) cuando aplica al sector Consumer Cyclical.
+// Devuelve null cuando no debe aplicarse o faltan datos (el caller debe usar la config).
+interface DCFRates {
+  g: number; // decimal
+  r: number; // decimal
+  growthDetails: GrowthResult['details'];
+  growthApplied: boolean;
+  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number } | null;
+}
+function consumerCyclicalRates(input: ValuationInput, config: { growthRate: number; discountRate: number }, sector: string | null | undefined, industry?: string | null, ccOverride?: { growth?: boolean; discount?: boolean }): DCFRates {
+  // Solo aplica a Consumer Cyclical.
+  if (!isConsumerCyclical(sector, industry)) {
+    return { g: config.growthRate / 100, r: config.discountRate / 100, growthDetails: { cagr5: null, cagr10: null, recent: null }, growthApplied: false, wacc: null };
+  }
+
+  // Crecimiento ponderado (con fallback a config). growth.growthRate ya es decimal (ratio).
+  const growth = computeWeightedGrowth(input.financials);
+  const growthApplied = growth.growthRate != null;
+  // g: si hay override manual, la config del slider manda; si no, usa el ponderado (fallback a config).
+  const g = ccOverride?.growth ? config.growthRate / 100 : (growthApplied ? growth.growthRate! : config.growthRate / 100);
+
+  // WACC = Ke×E/(D+E) + Kd×(1−tax)×D/(D+E). Si falta algún dato → fallback a discountRate de config.
+  const bs = latest(input.balanceSheets);
+  const beta = input.stock?.beta != null ? input.stock.beta : null;
+  const equity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
+  const debtTotal = bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0;
+  const debt = debtTotal > 0 ? debtTotal : null;
+  const interest = latest(input.financials)?.interestExpense != null ? Math.abs(latest(input.financials)!.interestExpense!) : null;
+  const lastFin = latest(input.financials);
+  const taxExpense = lastFin?.taxExpense != null ? Math.abs(lastFin.taxExpense) : null;
+  const netIncome = lastFin?.netIncome != null ? Math.abs(lastFin.netIncome) : null;
+  const pretax = taxExpense != null && netIncome != null ? taxExpense + netIncome : null;
+
+  let wacc: DCFRates['wacc'] = null;
+  let r = config.discountRate / 100;
+  if (!ccOverride?.discount && beta != null && equity != null && debt != null) {
+    const Ke = CC_RF + beta * CC_MARKET_PREMIUM; // %
+    const Kd = interest != null && interest > 0 && debt > 0 ? (interest / debt) * 100 : CC_KD_FALLBACK; // %
+    const tax = pretax != null && pretax > 0 && taxExpense != null ? taxExpense / pretax : CC_TAX_FALLBACK / 100; // decimal
+    const taxPct = pretax != null && pretax > 0 && taxExpense != null ? (taxExpense / pretax) * 100 : CC_TAX_FALLBACK;
+    const total = equity + debt;
+    const eW = equity / total;
+    const dW = debt / total;
+    const waccPct = Ke * eW + Kd * (1 - tax) * dW;
+    if (isFinite(waccPct) && waccPct > 0) {
+      r = waccPct / 100;
+      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct };
+    }
+  }
+
+  return { g, r, growthDetails: growth.details, growthApplied, wacc };
+}
+
+// Devuelve los valores de crecimiento/descuento que el DCF Consumer usaría de forma
+// automática (media ponderada + WACC), para poder inicializar los sliders con ellos.
+// growthApplied: false si no hay datos (usaría la config).
+export function dcfSeedRates(input: ValuationInput, config: { growthRate: number; discountRate: number }, sector: string | null | undefined, industry?: string | null): { growthRate: number; discountRate: number; growthApplied: boolean } {
+  const cc = consumerCyclicalRates(input, config, sector, industry);
+  const cappedG = cc.g >= cc.r ? cc.r - 0.005 : cc.g;
+  return { growthRate: +(cappedG * 100).toFixed(2), discountRate: +(cc.r * 100).toFixed(2), growthApplied: cc.growthApplied };
+}
+
 // ── DCF ──
-export function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }): ValuationResult {
+export function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }, sector?: string | null, industry?: string | null, ccOverride?: { growth?: boolean; discount?: boolean }): ValuationResult {
   const f = latest(input.financials);
   const { stock } = input;
   const shares = sharesOf(stock);
@@ -321,8 +442,9 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'FCF no positivo', configurable: true, inputs: [] };
   }
 
-  const g = config.growthRate / 100;
-  const r = config.discountRate / 100;
+  const cc = consumerCyclicalRates(input, { growthRate: config.growthRate, discountRate: config.discountRate }, sector, industry, ccOverride);
+  const g = cc.g >= cc.r ? cc.r - 0.005 : cc.g; // cap g below r to avoid divergent terminal value
+  const r = cc.r;
   const tg = 0.03;
 
   let totalPV = 0;
@@ -352,8 +474,23 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     ...(dataWarning ? { dataWarning } : {}),
     inputs: [
       { label: `FCF ${fcfSource}`, value: fmtB(fcf, input.currency), rawValue: fcf },
-      { label: 'Crecimiento anual', value: `${config.growthRate}%`, rawValue: config.growthRate },
-      { label: 'Tasa de descuento', value: `${config.discountRate}%`, rawValue: config.discountRate },
+      { label: 'Crecimiento anual', value: `${(g * 100).toFixed(2)}%`, rawValue: g * 100 },
+      ...(cc.growthApplied ? [
+        { label: 'CAGR ingresos 5 años', value: cc.growthDetails.cagr5 != null ? `${(cc.growthDetails.cagr5 * 100).toFixed(2)}%` : '—', rawValue: cc.growthDetails.cagr5 ?? 0 },
+        { label: 'CAGR ingresos 10 años', value: cc.growthDetails.cagr10 != null ? `${(cc.growthDetails.cagr10 * 100).toFixed(2)}%` : '—', rawValue: cc.growthDetails.cagr10 ?? 0 },
+        { label: 'Crecimiento reciente', value: cc.growthDetails.recent != null ? `${(cc.growthDetails.recent * 100).toFixed(2)}%` : '—', rawValue: cc.growthDetails.recent ?? 0 },
+        { label: 'Peso ponderado (5a/10a/reciente)', value: `${CC_GROWTH_WEIGHTS.cagr5}/${CC_GROWTH_WEIGHTS.cagr10}/${CC_GROWTH_WEIGHTS.recent}`, rawValue: CC_GROWTH_WEIGHTS.cagr5 },
+      ] : []),
+      { label: cc.wacc ? 'Tasa de descuento (WACC)' : 'Tasa de descuento', value: `${(r * 100).toFixed(2)}%`, rawValue: r * 100 },
+      ...(cc.wacc ? [
+        { label: 'Ke (CAPM: rf 3% + β×5%)', value: `${cc.wacc.Ke.toFixed(2)}%`, rawValue: cc.wacc.Ke },
+        { label: 'Kd (interés/deuda)', value: `${cc.wacc.Kd.toFixed(2)}%`, rawValue: cc.wacc.Kd },
+        { label: 'Impuesto efectivo', value: `${cc.wacc.tax.toFixed(1)}%`, rawValue: cc.wacc.tax },
+        { label: 'Equity', value: fmtB(cc.wacc.equity, input.currency), rawValue: cc.wacc.equity },
+        { label: 'Deuda', value: fmtB(cc.wacc.debt, input.currency), rawValue: cc.wacc.debt },
+        { label: 'Peso Equity / Deuda', value: `${(cc.wacc.equityWeight * 100).toFixed(0)}% / ${(cc.wacc.debtWeight * 100).toFixed(0)}%`, rawValue: cc.wacc.equityWeight },
+        { label: 'WACC = Ke×E/(D+E) + Kd×(1−t)×D/(D+E)', value: `${cc.wacc.wacc.toFixed(2)}%`, rawValue: cc.wacc.wacc },
+      ] : []),
       { label: 'Horizonte', value: `${config.horizonYears} años`, rawValue: config.horizonYears },
       { label: 'Terminal growth', value: `${(tg * 100).toFixed(0)}%`, rawValue: tg * 100 },
       { label: 'Valor presente FCF', value: fmtB(totalPV, input.currency), rawValue: totalPV },
@@ -720,10 +857,10 @@ export function computeAll(input: ValuationInput, configs: {
   evEbit: { targetMultiple: number };
   ddm: { growthRate: number; requiredReturn: number };
   fcfYield: { targetYield: number };
-}): ValuationResult[] {
+}, sector?: string | null, industry?: string | null, ccOverride?: { growth?: boolean; discount?: boolean }): ValuationResult[] {
   const currentPrice = input.stock?.currentPrice ?? 0;
   const results = [
-    computeDCF(input, configs.dcf),
+    computeDCF(input, configs.dcf, sector, industry, ccOverride),
     computePER(input, configs.per),
     computePB(input, configs.pb),
     computePS(input, configs.ps),

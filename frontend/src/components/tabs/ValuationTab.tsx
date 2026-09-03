@@ -6,9 +6,9 @@ import { SectionReveal } from '../ui/SectionReveal';
 import { ValuationChart } from '../ui/ValuationChart';
 import { CommoditySensitivityChart } from '../ui/CommoditySensitivityChart';
 import { formatPct } from '../../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, getRecommendedFairValue, latestFinancialPeriod, getCommodityMapping, type ValuationInput } from '../../utils/valuation';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, getRecommendedFairValue, latestFinancialPeriod, getCommodityMapping, dcfSeedRates, isConsumerCyclical, type ValuationInput } from '../../utils/valuation';
 import { useAuth } from '../../contexts/AuthContext';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, ChevronDown } from 'lucide-react';
 import { DisclaimerBanner } from '../DisclaimerBanner';
 import { InfoButton } from '../ui/InfoButton';
 import { INFO } from '../../utils/infoContent';
@@ -60,8 +60,23 @@ const METHOD_NAMES: Record<string, string> = {
 export function ValuationTab({ company, financials, balanceSheets, stock }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
+  const [expandedGrowth, setExpandedGrowth] = useState(false);
+  const [expandedWacc, setExpandedWacc] = useState(false);
+  const [ccOverride, setCcOverride] = useState(() => ({ growth: false, discount: false }));
   const [configs, setConfigs] = useState(() => {
     const sectorConfigs = getSectorConfigs(company.sector, company.industry);
+    if (stock && isConsumerCyclical(company.sector, company.industry)) {
+      const seed = dcfSeedRates(
+        { financials, balanceSheets, stock, currency: company.currency || 'USD' },
+        { growthRate: sectorConfigs.dcf.growthRate, discountRate: sectorConfigs.dcf.discountRate },
+        company.sector,
+        company.industry,
+      );
+      if (seed.growthApplied) {
+        sectorConfigs.dcf.growthRate = seed.growthRate;
+        sectorConfigs.dcf.discountRate = seed.discountRate;
+      }
+    }
     if (stock?.pbRatio && stock.pbRatio > 0) {
       return { ...sectorConfigs, pb: { targetPB: stock.pbRatio } };
     }
@@ -104,8 +119,8 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
 
   const results = useMemo(() => {
     if (!stock) return [];
-    return computeAll(input, configs);
-  }, [input, configs]);
+    return computeAll(input, configs, company.sector, company.industry, ccOverride);
+  }, [input, configs, ccOverride]);
 
   const cogs = useMemo(() => {
     const annual = [...financials]
@@ -208,6 +223,18 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   const periodLabel = periodInfo.isTTM
     ? `TTM — ${periodInfo.quarter != null ? `Q${periodInfo.quarter} ` : ''}${periodInfo.year ?? '—'}`
     : `Ejercicio ${periodInfo.year ?? '—'}`;
+
+  const dcfGrowthLabels = ['CAGR ingresos', 'Crecimiento reciente', 'Peso ponderado'];
+  const dcfWaccLabels = ['Ke (CAPM', 'Kd (interés', 'Impuesto efectivo', 'Peso Equity', 'WACC = Ke×E'];
+  // Para 'Equity' y 'Deuda' solo clasificamos como WACC si el método es DCF y hay inputs de WACC presentes.
+  const dcfInputs = active?.id === 'dcf' ? (active.inputs ?? []) : [];
+  const hasWacc = dcfInputs.some((i) => i.label.startsWith('Ke (CAPM'));
+  const isWaccInput = (label: string) =>
+    dcfWaccLabels.some((p) => label.startsWith(p)) ||
+    (hasWacc && (label === 'Equity' || label === 'Deuda'));
+  const dcfGrowthItems = dcfInputs.filter((i) => dcfGrowthLabels.some((p) => i.label.startsWith(p)));
+  const dcfWaccItems = dcfInputs.filter((i) => isWaccInput(i.label));
+  const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
 
   const barPct = (() => {
     if (!recommendedFair || !stock.currentPrice || stock.currentPrice <= 0) return 50;
@@ -346,7 +373,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                 <h3 className="val-hero-title">{active.name}</h3>
                 <p className="val-hero-desc">{active.description}</p>
                 <span className="val-formula">{active.formula}</span>
-                {active.inputs.length > 0 && (
+                {active.id !== 'dcf' && active.inputs.length > 0 && (
                   <div className="val-inputs">
                     <h4 className="val-inputs-title">Datos utilizados</h4>
                     <div className="val-inputs-grid">
@@ -417,14 +444,50 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
                     <input type="range" min={0} max={15} step={0.5} value={configs.dcf.growthRate}
-                      onChange={(e) => updateConfig('dcf', 'growthRate', parseFloat(e.target.value))} className="val-config-slider" />
+                      onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setCcOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.growthRate}%</span>
+                    {dcfGrowthItems.length > 0 && (
+                      <>
+                        <button type="button" className="val-config-toggle" onClick={() => setExpandedGrowth(!expandedGrowth)} aria-expanded={expandedGrowth}>
+                          <ChevronDown size={14} className={`val-config-toggle-icon ${expandedGrowth ? 'val-config-toggle-icon--open' : ''}`} />
+                          <span>Valores utilizados</span>
+                        </button>
+                        {expandedGrowth && (
+                          <div className="val-config-detail">
+                            {dcfGrowthItems.map((inp, i) => (
+                              <div key={i} className="val-config-detail-row">
+                                <span className="val-config-detail-label">{inp.label}</span>
+                                <span className="val-config-detail-value">{inp.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Tasa de descuento <InfoButton content={INFO['valuation.discountRate']} /></span></label>
                     <input type="range" min={5} max={20} step={0.5} value={configs.dcf.discountRate}
-                      onChange={(e) => updateConfig('dcf', 'discountRate', parseFloat(e.target.value))} className="val-config-slider" />
+                      onChange={(e) => { updateConfig('dcf', 'discountRate', parseFloat(e.target.value)); setCcOverride((prev) => ({ ...prev, discount: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.discountRate}%</span>
+                    {dcfWaccItems.length > 0 && (
+                      <>
+                        <button type="button" className="val-config-toggle" onClick={() => setExpandedWacc(!expandedWacc)} aria-expanded={expandedWacc}>
+                          <ChevronDown size={14} className={`val-config-toggle-icon ${expandedWacc ? 'val-config-toggle-icon--open' : ''}`} />
+                          <span>Valores utilizados</span>
+                        </button>
+                        {expandedWacc && (
+                          <div className="val-config-detail">
+                            {dcfWaccItems.map((inp, i) => (
+                              <div key={i} className="val-config-detail-row">
+                                <span className="val-config-detail-label">{inp.label}</span>
+                                <span className="val-config-detail-value">{inp.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Horizonte (años) <InfoButton content={INFO['valuation.horizon']} /></span></label>
@@ -433,6 +496,19 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                     <span className="val-config-value">{configs.dcf.horizonYears}</span>
                   </div>
                 </div>
+                {dcfOtherItems.length > 0 && (
+                  <div className="val-inputs">
+                    <h4 className="val-inputs-title">Datos utilizados</h4>
+                    <div className="val-inputs-grid">
+                      {dcfOtherItems.map((inp, i) => (
+                        <div key={i} className="val-inputs-item">
+                          <span className="val-inputs-label">{inp.label}</span>
+                          <span className="val-inputs-value">{inp.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

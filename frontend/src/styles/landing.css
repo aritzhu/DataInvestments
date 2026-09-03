@@ -2030,6 +2030,13 @@
   gap: 0.35rem;
 }
 
+.sector-pills--loading {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: wait;
+  transition: opacity 0.15s ease;
+}
+
 .sector-pill {
   padding: 0.4rem 0.85rem;
   border-radius: 9999px;

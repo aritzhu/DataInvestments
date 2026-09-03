@@ -575,7 +575,7 @@ export function CompanyPage() {
   const ebitdaMargin = currentFinancial ? safeDiv(currentFinancial.ebitda ?? 0, currentFinancial.revenue) : null;
 
   const valInput: ValuationInput = { financials, balanceSheets, stock: stock!, currency: company.currency || 'USD' };
-  const valResults = stock ? computeAll(valInput, getSectorConfigs(company.sector, company.industry)) : [];
+  const valResults = stock ? computeAll(valInput, getSectorConfigs(company.sector, company.industry), company.sector, company.industry) : [];
   const avgFair = weightedAverage(valResults);
   const { verdict, upside, label: verdictLabel } = getVerdict(avgFair, stock?.currentPrice ?? 0);
 
