@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2, Globe } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
 import { formatPct, safeDiv } from '../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, trailing12Months, type ValuationInput } from '../utils/valuation';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, trailing12Months, getCommodityMapping, type ValuationInput } from '../utils/valuation';
 import { InfoButton } from './ui/InfoButton';
 import { INFO } from '../utils/infoContent';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
@@ -315,6 +315,23 @@ export function CompanyPage() {
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
+  const commodityMapping = useMemo(() => (data ? getCommodityMapping(data.company.ticker, data.company.industry, data.company.sector) : null), [data]);
+  const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(null);
+
+  useEffect(() => {
+    if (!commodityMapping) return;
+    let cancelled = false;
+    fetch(`/api/commodities/prices?symbols=${encodeURIComponent(commodityMapping.commoditySymbol)}`)
+      .then((res) => res.json())
+      .then((d: { prices?: Record<string, { price: number; name: string; currency: string }> }) => {
+        if (cancelled) return;
+        const entry = d?.prices?.[commodityMapping.commoditySymbol];
+        if (entry) setCommodityData({ price: entry.price, name: entry.name, currency: entry.currency });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [commodityMapping]);
+
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
   const [portfolioCompany, setPortfolioCompany] = useState<{ id: string; ticker: string } | null>(null);
@@ -613,6 +630,16 @@ export function CompanyPage() {
                 <span className="cp-price-value">
                   {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}<AnimatedNumber value={stock.currentPrice} format={(n) => n.toFixed(2)} />
                 </span>
+              </div>
+            )}
+            {commodityMapping && commodityData && (
+              <div className="cp-commodity-badge" title={`Afectada por el precio de ${commodityMapping.commodityName}`}>
+                <span className="cp-commodity-name">Afectada por: {commodityMapping.commodityName}</span>
+                <span className="cp-commodity-price">
+                  {commodityData.currency === 'USD' ? '$' : commodityData.currency === 'EUR' ? '€' : commodityData.currency === 'GBP' ? '£' : ''}
+                  {commodityData.price.toLocaleString('es-ES', { maximumFractionDigits: 3 })}
+                </span>
+                <span className="cp-commodity-elasticity">Elasticidad {commodityMapping.elasticity.toFixed(1)}</span>
               </div>
             )}
             <div className="cp-actions">

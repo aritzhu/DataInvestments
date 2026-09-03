@@ -172,6 +172,36 @@
   color: var(--color-success);
 }
 
+.cp-commodity-badge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin-top: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  width: fit-content;
+}
+
+.cp-commodity-name {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cp-commodity-price {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.cp-commodity-elasticity {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
 .cp-name {
   font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.9rem;

@@ -1080,3 +1080,150 @@
 .val-price-value--negative {
   color: var(--red);
 }
+
+/* ── Commodity sensitivity (Basic Materials) ── */
+.val-commodity-section {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--surface-1);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+}
+
+.val-commodity-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+}
+
+.val-commodity-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.val-commodity-meta {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.9rem;
+}
+
+.val-commodity-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+}
+
+.val-commodity-meta-label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.val-commodity-meta-value {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.val-commodity-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.val-commodity-item {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.val-commodity-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.vodc-wrap {
+  width: 100%;
+}
+
+.vodc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.vodc-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vodc-current {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.vodc-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.vodc-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.vodc-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.vodc-tooltip {
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.vodc-tooltip-label {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.vodc-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.15rem 0;
+  color: var(--text-primary);
+}
+
+.vodc-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}

@@ -245,11 +245,11 @@ function fmtB(n: number, currency: string): string {
 }
 
 // Sanity bound: if fair value is more than MAX_MULTIPLE × current price, demote confidence
-const SANITY_MULTIPLE = 10;
+const SANITY_MULTIPLE = 6;
 function applySanityBound(result: ValuationResult, currentPrice: number): ValuationResult {
   if (result.fairValue == null || currentPrice <= 0) return result;
   if (result.fairValue > SANITY_MULTIPLE * currentPrice || result.fairValue < 0) {
-    return { ...result, confidence: 'low', confidenceReason: `Valor (${result.fairValue.toFixed(0)}) > ${SANITY_MULTIPLE}x precio actual — resultado poco fiable` };
+    return { ...result, confidence: 'na', confidenceReason: `Valor (${result.fairValue.toFixed(0)}) > ${SANITY_MULTIPLE}x precio actual — método excluido del promedio (no fiable)` };
   }
   return result;
 }
@@ -274,28 +274,48 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Datos insuficientes', configurable: true, inputs: [] };
   }
 
-  // Use TTM FCF when quarterly data exists, otherwise average annual FCF
+  // Use TTM FCF when quarterly data exists, otherwise average annual FCF.
+  // If the TTM FCF is not positive (e.g. cyclical firms), fall back to the
+  // average of complete-year (Q0) FCFs so that valuation still computes.
   const isQuarterly = hasQuarterlyData(input.financials);
+  const annualFCFs = input.financials
+    .filter((x) => x.quarter == null || x.quarter === 0)
+    .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null))
+    .filter((v): v is number => v != null && v !== 0)
+    .filter((v) => v > 0);
+  const avgAnnualFCF = annualFCFs.length > 0 ? annualFCFs.reduce((a, b) => a + b, 0) / annualFCFs.length : 0;
+
   let fcf: number;
   let fcfSource: string;
   let fcfValues: number[] = [];
   let ttmAnnualFields: string[] | undefined;
+  let usedAnnualFallback = false;
   if (isQuarterly) {
     const ttm = trailing12Months(input.financials, input.balanceSheets);
     ttmAnnualFields = ttm?.annualFields;
     const ttmFCF = ttm?.freeCashFlow ?? ttm?.operatingCashFlow;
-    if (ttmFCF == null || ttmFCF === 0) {
-      return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre (TTM)', configurable: true, inputs: [] };
+    if (ttmFCF != null && ttmFCF > 0) {
+      fcf = ttmFCF;
+      fcfSource = 'TTM';
+    } else if (avgAnnualFCF > 0) {
+      fcf = avgAnnualFCF;
+      fcfSource = `promedio de ${annualFCFs.length} años`;
+      usedAnnualFallback = true;
+    } else {
+      return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin flujo de caja libre positivo (TTM ni anual)', configurable: true, inputs: [] };
     }
-    fcf = ttmFCF;
-    fcfSource = 'TTM';
   } else {
     fcfValues = input.financials.map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null ? x.operatingCashFlow - x.capex : null)).filter((v): v is number => v != null && v !== 0);
     if (fcfValues.length === 0) {
       return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'Sin datos de flujo de caja libre', configurable: true, inputs: [] };
     }
-    fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
-    fcfSource = `${fcfValues.length} años`;
+    if (avgAnnualFCF > 0) {
+      fcf = avgAnnualFCF;
+      fcfSource = `promedio de ${annualFCFs.length} años`;
+    } else {
+      fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
+      fcfSource = `${fcfValues.length} años`;
+    }
   }
   if (fcf <= 0) {
     return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'FCF no positivo', configurable: true, inputs: [] };
@@ -320,9 +340,11 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   return {
     id: 'dcf', name: 'DCF (Flujo de Caja Descontado)',
     description: 'Valor intrínseco calculado con flujos de caja futuros descontados',
-    explanation: isQuarterly
-      ? 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF TTM (últimos 4 trimestres) como base de proyección.'
-      : 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF promedio de los últimos años para suavizar la volatilidad cíclica.',
+    explanation: usedAnnualFallback
+      ? 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. El FCF TTM (últimos 4 trimestres) no fue positivo, así que usa el FCF promedio de los ejercicios completos para suavizar la volatilidad cíclica.'
+      : (isQuarterly
+          ? 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF TTM (últimos 4 trimestres) como base de proyección.'
+          : 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF promedio de los últimos años para suavizar la volatilidad cíclica.'),
     formula: `Σ(FCF_${fcfSource === 'TTM' ? 'TTM' : 'prom'}×(1+${config.growthRate}%)ⁿ/(1+${config.discountRate}%)ⁿ) + TV`,
     fairValue, confidence: conf,
     confidenceReason: `FCF ${fcfSource}: ${fmtB(fcf, input.currency)}`,
@@ -498,8 +520,8 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   const { stock } = input;
   const shares = sharesOf(stock);
   const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - ttm.operatingExpenses) : null) ?? latest(input.financials)?.ebit ?? null;
-  if (!ttm || !stock || shares <= 0 || ebit == null || ebit === 0) {
-    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit === 0 ? 'EBIT es cero' : 'Sin EBIT', configurable: true, inputs: [], negativeInputWarning: undefined };
+  if (!ttm || !stock || shares <= 0 || ebit == null || ebit <= 0) {
+    return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: ebit == null ? 'Sin EBIT' : ebit < 0 ? 'EBIT no positivo (pérdidas): el múltiplo EV/EBIT no es representativo' : 'EBIT es cero', configurable: true, inputs: [], negativeInputWarning: undefined };
   }
   if (stock.enterpriseValue != null && stock.enterpriseValue < 0) {
     return { id: 'ev_ebit', name: 'EV/EBIT', description: 'Múltiplo de empresa sobre EBIT', explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.', formula: '(EBIT × Múltiplo − Net Debt) / Shares', fairValue: null, confidence: 'na', confidenceReason: 'EV negativo: no aplica a empresas con tesorería neta (banca/financieras)', configurable: true, inputs: [] };
@@ -1103,4 +1125,121 @@ export function getRecommendedModel(sector: string | null | undefined, industry?
     if (key !== 'default' && text.includes(key)) return modelId;
   }
   return SECTOR_RECOMMENDED_MODEL.default;
+}
+
+const RECOMMENDED_FALLBACK = ['ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
+
+export function getRecommendedFairValue(results: ValuationResult[], sector: string | null | undefined, industry?: string | null): { model: string; fairValue: number | null } {
+  const model = getRecommendedModel(sector, industry);
+  const fv = results.find((r) => r.id === model)?.fairValue ?? null;
+  if (fv != null) return { model, fairValue: fv };
+  for (const alt of RECOMMENDED_FALLBACK) {
+    if (alt === model) continue;
+    const altFv = results.find((r) => r.id === alt)?.fairValue ?? null;
+    if (altFv != null) return { model: alt, fairValue: altFv };
+  }
+  return { model, fairValue: null };
+}
+
+export type CommodityRole = 'producer' | 'consumer';
+
+export interface CommodityMapping {
+  companyTicker: string;
+  commoditySymbol: string;
+  commodityName: string;
+  elasticity: number;
+  defaultOptimisticPct: number;
+  defaultPessimisticPct: number;
+  pctMP?: number;
+  taxRate?: number;
+  role?: CommodityRole;
+}
+
+const COMMODITY_MAP: CommodityMapping[] = [
+  { companyTicker: 'BAS.DE', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.6, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'LIN.DE', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.3, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: '1COV.DE', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.6, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SZU.DE', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'BNR.DE', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.3, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'KCO.DE', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'TKA.DE', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SDF.DE', commoditySymbol: 'HG=F', commodityName: 'Potasa', elasticity: 0.7, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SGO.PA', commoditySymbol: 'CL=F', commodityName: 'Energía', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'CRDA.L', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'GLEN.L', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.65, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'RIO.L', commoditySymbol: 'HRC=F', commodityName: 'Mineral de hierro', elasticity: 0.7, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'ACX.MC', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.75, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'MTS.MC', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'STEEL.AS', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'AKZA.AS', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.5, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'DSM.AS', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.3, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'BZU.MI', commoditySymbol: 'CL=F', commodityName: 'Energía', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SIKA.SW', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'CLN.SW', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.5, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'GIVN.SW', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.3, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SOL.BR', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.5, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'UMP.BR', commoditySymbol: 'SI=F', commodityName: 'Plata', elasticity: 0.6, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'VOE.VI', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'WIE.VI', commoditySymbol: 'CL=F', commodityName: 'Energía', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'BOL.ST', commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.7, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SSAB-A.ST', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SSAB.HE', commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'YAR.OL', commoditySymbol: 'HG=F', commodityName: 'Fertilizantes', elasticity: 0.7, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'UPM.HE', commoditySymbol: 'LBS=F', commodityName: 'Madera', elasticity: 0.5, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'CRH.IR', commoditySymbol: 'CL=F', commodityName: 'Energía', elasticity: 0.4, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+  { companyTicker: 'SMDS.IR', commoditySymbol: 'LBS=F', commodityName: 'Pulpa', elasticity: 0.5, defaultOptimisticPct: 20, defaultPessimisticPct: 20 },
+];
+
+interface CommodityByIndustryRule {
+  match: RegExp;
+  commoditySymbol: string;
+  commodityName: string;
+  elasticity: number;
+  pctMP: number;
+}
+
+const COMMODITY_BY_INDUSTRY: CommodityByIndustryRule[] = [
+  { match: /steel|iron|ferro/i, commoditySymbol: 'HRC=F', commodityName: 'Acero', elasticity: 0.8, pctMP: 0.7 },
+  { match: /copper|red metal/i, commoditySymbol: 'HG=F', commodityName: 'Cobre', elasticity: 0.6, pctMP: 0.6 },
+  { match: /alumin/i, commoditySymbol: 'ALI=F', commodityName: 'Aluminio', elasticity: 0.6, pctMP: 0.6 },
+  { match: /gold|precious/i, commoditySymbol: 'GC=F', commodityName: 'Oro', elasticity: 0.7, pctMP: 0.6 },
+  { match: /silver/i, commoditySymbol: 'SI=F', commodityName: 'Plata', elasticity: 0.6, pctMP: 0.6 },
+  { match: /paper|pulp|forest|lumber|packaging/i, commoditySymbol: 'LBS=F', commodityName: 'Pulpa/Madera', elasticity: 0.5, pctMP: 0.5 },
+  { match: /oil ?[&and] ?gas|petroleum|energy/i, commoditySymbol: 'CL=F', commodityName: 'Energía', elasticity: 0.4, pctMP: 0.5 },
+];
+
+const DEFAULT_PCT_MP_BY_SYMBOL: Record<string, number> = {
+  'HRC=F': 0.7,
+  'HG=F': 0.6,
+  'ALI=F': 0.6,
+  'GC=F': 0.6,
+  'SI=F': 0.6,
+  'LBS=F': 0.5,
+  'CL=F': 0.5,
+};
+
+export function getCommodityMapping(ticker: string, industry?: string | null, sector?: string | null): CommodityMapping | null {
+  const normalized = ticker.toUpperCase();
+  const explicit = COMMODITY_MAP.find((m) => m.companyTicker.toUpperCase() === normalized);
+  if (explicit) {
+    return {
+      ...explicit,
+      pctMP: explicit.pctMP ?? DEFAULT_PCT_MP_BY_SYMBOL[explicit.commoditySymbol] ?? 0.5,
+      taxRate: explicit.taxRate ?? 0.25,
+    };
+  }
+  if (sector && sector.toLowerCase() !== 'basic materials') return null;
+  if (!industry) return null;
+  const rule = COMMODITY_BY_INDUSTRY.find((r) => r.match.test(industry));
+  if (!rule) return null;
+  return {
+    companyTicker: normalized,
+    commoditySymbol: rule.commoditySymbol,
+    commodityName: rule.commodityName,
+    elasticity: rule.elasticity,
+    defaultOptimisticPct: 20,
+    defaultPessimisticPct: 20,
+    pctMP: rule.pctMP,
+    taxRate: 0.25,
+  };
 }

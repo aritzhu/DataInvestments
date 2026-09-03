@@ -4,8 +4,9 @@ import { AnimatedNumber } from '../ui/AnimatedNumber';
 import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { ValuationChart } from '../ui/ValuationChart';
+import { CommoditySensitivityChart } from '../ui/CommoditySensitivityChart';
 import { formatPct } from '../../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, latestFinancialPeriod, type ValuationInput } from '../../utils/valuation';
+import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, getRecommendedFairValue, latestFinancialPeriod, getCommodityMapping, type ValuationInput } from '../../utils/valuation';
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X } from 'lucide-react';
 import { DisclaimerBanner } from '../DisclaimerBanner';
@@ -71,6 +72,29 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   const [alarmTarget, setAlarmTarget] = useState<'buy' | 'hold' | 'sell'>('buy');
   const [alarmLoading, setAlarmLoading] = useState(false);
 
+  const commodityMapping = useMemo(() => getCommodityMapping(company.ticker, company.industry, company.sector), [company.ticker, company.industry, company.sector]);
+  const isBasicMaterials = !!commodityMapping;
+  const isBasicMaterialsSector = company.sector?.toLowerCase() === 'basic materials';
+  const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(null);
+  const [optimisticPct, setOptimisticPct] = useState(commodityMapping?.defaultOptimisticPct ?? 20);
+  const [pessimisticPct, setPessimisticPct] = useState(commodityMapping?.defaultPessimisticPct ?? 20);
+  const [manualPctMP, setManualPctMP] = useState(0.5);
+
+  // Fetch current commodity price for Basic Materials companies
+  useEffect(() => {
+    if (!isBasicMaterials || !commodityMapping) return;
+    let cancelled = false;
+    fetch(`/api/commodities/prices?symbols=${encodeURIComponent(commodityMapping.commoditySymbol)}`)
+      .then((res) => res.json())
+      .then((data: { prices?: Record<string, { price: number; name: string; currency: string }> }) => {
+        if (cancelled) return;
+        const entry = data?.prices?.[commodityMapping.commoditySymbol];
+        if (entry) setCommodityData({ price: entry.price, name: entry.name, currency: entry.currency });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isBasicMaterials, commodityMapping]);
+
   const input: ValuationInput = useMemo(() => ({
     financials,
     balanceSheets,
@@ -82,6 +106,17 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     if (!stock) return [];
     return computeAll(input, configs);
   }, [input, configs]);
+
+  const cogs = useMemo(() => {
+    const annual = [...financials]
+      .filter((x) => (x.quarter == null || x.quarter === 0) && x.costOfRevenue != null && x.costOfRevenue > 0)
+      .sort((a, b) => b.year - a.year)[0];
+    if (annual) return annual.costOfRevenue;
+    const anyRow = [...financials]
+      .filter((x) => x.costOfRevenue != null && x.costOfRevenue > 0)
+      .sort((a, b) => (b.year - a.year) || (b.quarter ?? 0) - (a.quarter ?? 0))[0];
+    return anyRow?.costOfRevenue ?? 0;
+  }, [financials]);
 
   // Fetch existing alarm for this company
   useEffect(() => {
@@ -161,8 +196,9 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   }
 
   const validValues = applicable.map(r => r.fairValue!);
-  const heroResult = applicable.find(r => r.id === recommendedModel) ?? applicable[0] ?? null;
-  const heroModel = heroResult?.id ?? recommendedModel;
+  const resolved = getRecommendedFairValue(results, company.sector, company.industry);
+  const heroModel = resolved.model;
+  const heroResult = results.find(r => r.id === heroModel) ?? applicable[0] ?? null;
   const heroRecommended = heroResult?.id === recommendedModel;
   const recommendedFair = heroResult?.fairValue ?? null;
   const avgFair = weightedAverage(results);
@@ -397,6 +433,108 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                     <span className="val-config-value">{configs.dcf.horizonYears}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Commodity sensitivity for Basic Materials */}
+            {active.id === 'dcf' && cogs > 0 && isBasicMaterials && commodityMapping && commodityData && (
+              <div className="val-commodity-section">
+                <h4 className="val-commodity-title">
+                  Sensibilidad al precio de {commodityMapping.commodityName}
+                </h4>
+                <p className="val-commodity-desc">
+                  El precio de {commodityMapping.commodityName} afecta directamente al coste de ventas (COGS). Ajustando su variación, el FCF cambia solo por esa partida.
+                </p>
+                <div className="val-commodity-meta">
+                  <span className="val-commodity-meta-item">
+                    <span className="val-commodity-meta-label">Precio actual</span>
+                    <span className="val-commodity-meta-value">
+                      {commodityData.currency === 'USD' ? '$' : commodityData.currency === 'EUR' ? '€' : commodityData.currency === 'GBP' ? '£' : ''}
+                      {commodityData.price.toLocaleString('es-ES', { maximumFractionDigits: 3 })}
+                    </span>
+                  </span>
+                  <span className="val-commodity-meta-item">
+                    <span className="val-commodity-meta-label">% COGS = materia prima</span>
+                    <span className="val-commodity-meta-value">{(commodityMapping.pctMP ?? 0.5) * 100}%</span>
+                  </span>
+                </div>
+                <div className="val-commodity-controls">
+                  <div className="val-commodity-item">
+                    <label className="val-commodity-label">Optimista (+%)</label>
+                    <input type="range" min={5} max={60} step={5} value={optimisticPct}
+                      onChange={(e) => setOptimisticPct(parseInt(e.target.value))} className="val-config-slider" />
+                    <span className="val-config-value">+{optimisticPct}%</span>
+                  </div>
+                  <div className="val-commodity-item">
+                    <label className="val-commodity-label">Pesimista (−%)</label>
+                    <input type="range" min={5} max={60} step={5} value={pessimisticPct}
+                      onChange={(e) => setPessimisticPct(parseInt(e.target.value))} className="val-config-slider" />
+                    <span className="val-config-value">−{pessimisticPct}%</span>
+                  </div>
+                </div>
+                <CommoditySensitivityChart
+                  baseFCF={active.inputs.find((i) => i.label.startsWith('FCF'))?.rawValue ?? 0}
+                  shares={active.inputs.find((i) => i.label === 'Acciones')?.rawValue ?? 0}
+                  growthRate={configs.dcf.growthRate}
+                  discountRate={configs.dcf.discountRate}
+                  horizonYears={configs.dcf.horizonYears}
+                  commodityPrice={commodityData.price}
+                  commodityName={commodityMapping.commodityName}
+                  commodityCurrency={commodityData.currency}
+                  currency={company.currency || 'USD'}
+                  optimisticPct={optimisticPct}
+                  pessimisticPct={pessimisticPct}
+                  cogs={cogs}
+                  pctMP={commodityMapping.pctMP ?? 0.5}
+                  taxRate={commodityMapping.taxRate ?? 0.25}
+                />
+              </div>
+            )}
+            {/* Manual raw-material sensitivity for Basic Materials without a real commodity quote */}
+            {active.id === 'dcf' && cogs > 0 && isBasicMaterialsSector && !(commodityMapping && commodityData) && (
+              <div className="val-commodity-section">
+                <h4 className="val-commodity-title">
+                  Sensibilidad a materias primas
+                </h4>
+                <p className="val-commodity-desc">
+                  Esta empresa no tiene una cotización directa de su materia prima. Ajusta manualmente el % del coste de ventas (COGS) que es materia prima y cómo varía su precio; el impacto se limita a esa partida.
+                </p>
+                <div className="val-commodity-controls">
+                  <div className="val-commodity-item">
+                    <label className="val-commodity-label">Variación optimista (+%)</label>
+                    <input type="range" min={5} max={60} step={5} value={optimisticPct}
+                      onChange={(e) => setOptimisticPct(parseInt(e.target.value))} className="val-config-slider" />
+                    <span className="val-config-value">+{optimisticPct}%</span>
+                  </div>
+                  <div className="val-commodity-item">
+                    <label className="val-commodity-label">Variación pesimista (−%)</label>
+                    <input type="range" min={5} max={60} step={5} value={pessimisticPct}
+                      onChange={(e) => setPessimisticPct(parseInt(e.target.value))} className="val-config-slider" />
+                    <span className="val-config-value">−{pessimisticPct}%</span>
+                  </div>
+                  <div className="val-commodity-item">
+                    <label className="val-commodity-label">% COGS = materia prima</label>
+                    <input type="range" min={10} max={90} step={5} value={Math.round(manualPctMP * 100)}
+                      onChange={(e) => setManualPctMP(parseInt(e.target.value) / 100)} className="val-config-slider" />
+                    <span className="val-config-value">{Math.round(manualPctMP * 100)}%</span>
+                  </div>
+                </div>
+                <CommoditySensitivityChart
+                  baseFCF={active.inputs.find((i) => i.label.startsWith('FCF'))?.rawValue ?? 0}
+                  shares={active.inputs.find((i) => i.label === 'Acciones')?.rawValue ?? 0}
+                  growthRate={configs.dcf.growthRate}
+                  discountRate={configs.dcf.discountRate}
+                  horizonYears={configs.dcf.horizonYears}
+                  commodityPrice={0}
+                  commodityName="materia prima"
+                  commodityCurrency={company.currency || 'USD'}
+                  currency={company.currency || 'USD'}
+                  optimisticPct={optimisticPct}
+                  pessimisticPct={pessimisticPct}
+                  cogs={cogs}
+                  pctMP={manualPctMP}
+                  taxRate={0.25}
+                />
               </div>
             )}
             {active.configurable && active.id === 'per' && (

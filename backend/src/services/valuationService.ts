@@ -224,7 +224,7 @@ const SANITY_MULTIPLE = 6;
 function applySanityBound(result: ValuationResult, currentPrice: number): ValuationResult {
   if (result.fairValue == null || currentPrice <= 0) return result;
   if (result.fairValue > SANITY_MULTIPLE * currentPrice || result.fairValue < 0) {
-    return { ...result, confidence: 'low' };
+    return { ...result, confidence: 'na' as const };
   }
   return result;
 }
@@ -247,6 +247,12 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
   if (!f || shares <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
   const quarterly = input.financials.some((x) => x.quarter != null && x.quarter > 0);
+  const annualFCFs = input.financials
+    .filter((x) => x.quarter == null || x.quarter === 0)
+    .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null && x.capex != null ? x.operatingCashFlow - x.capex : null))
+    .filter((v): v is number => v != null && v !== 0)
+    .filter((v) => v > 0);
+  const avgAnnualFCF = annualFCFs.length > 0 ? annualFCFs.reduce((a, b) => a + b, 0) / annualFCFs.length : 0;
   let fcf: number;
   let fcfValues: number[] = [];
   let ttmAnnualFields: string[] | undefined;
@@ -254,17 +260,23 @@ function computeDCF(input: ValuationInput, config: { growthRate: number; discoun
     const ttm = trailing12Months(input.financials, input.balanceSheets);
     ttmAnnualFields = ttm?.annualFields;
     const ttmFCF = ttm?.freeCashFlow ?? ttm?.operatingCashFlow;
-    if (ttmFCF == null || ttmFCF === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
-    fcf = ttmFCF;
+    if (ttmFCF != null && ttmFCF > 0) {
+      fcf = ttmFCF;
+    } else if (avgAnnualFCF > 0) {
+      fcf = avgAnnualFCF;
+    } else {
+      return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
+    }
   } else {
     fcfValues = input.financials
       .map((x) => x.freeCashFlow ?? (x.operatingCashFlow != null && x.capex != null ? x.operatingCashFlow - x.capex : null))
       .filter((v): v is number => v != null && v !== 0);
     if (fcfValues.length === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
-    const latestRow = latest(input.financials);
-    const latestFcf = latestRow?.freeCashFlow ?? (latestRow?.operatingCashFlow != null && latestRow?.capex != null ? latestRow.operatingCashFlow - latestRow.capex : null);
-    if (latestFcf == null || latestFcf === 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
-    fcf = latestFcf;
+    if (avgAnnualFCF > 0) {
+      fcf = avgAnnualFCF;
+    } else {
+      fcf = fcfValues.reduce((a, b) => a + b, 0) / fcfValues.length;
+    }
   }
   if (fcf <= 0) return { id: 'dcf', name: 'DCF', fairValue: null, confidence: 'na' };
 
@@ -348,7 +360,7 @@ function computeEVEBIT(input: ValuationInput, config: { targetMultiple: number }
   const bs = ttm?.balanceSheet ?? latest(input.balanceSheets);
   const shares = sharesOf(input.stock);
   const ebit = ttm?.ebit ?? (ttm ? (ttm.grossProfit - ttm.operatingExpenses) : null) ?? latest(input.financials)?.ebit ?? null;
-  if (!ttm || shares <= 0 || ebit == null || ebit === 0) return { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na' };
+  if (!ttm || shares <= 0 || ebit == null || ebit <= 0) return { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na', ...(ebit != null && ebit < 0 ? { confidenceReason: 'EBIT no positivo (pérdidas): el múltiplo EV/EBIT no es representativo' } : {}) };
   if (input.stock.enterpriseValue != null && input.stock.enterpriseValue < 0) {
     return { id: 'ev_ebit', name: 'EV/EBIT', fairValue: null, confidence: 'na', confidenceReason: 'EV negativo: no aplica a empresas con tesorería neta (banca/financieras)' };
   }
@@ -539,10 +551,17 @@ export function getRecommendedModel(sector: string | null | undefined, industry?
   return SECTOR_RECOMMENDED_MODEL.default;
 }
 
+const RECOMMENDED_FALLBACK = ['ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
+
 export function getRecommendedFairValue(results: ValuationResult[], sector: string | null | undefined, industry?: string | null): { model: string; fairValue: number | null } {
   const model = getRecommendedModel(sector, industry);
-  const fairValue = results.find(r => r.id === model)?.fairValue ?? null;
-  return { model, fairValue };
+  if (results.find((r) => r.id === model)?.fairValue != null) return { model, fairValue: results.find((r) => r.id === model)?.fairValue ?? null };
+  for (const alt of RECOMMENDED_FALLBACK) {
+    if (alt === model) continue;
+    const fv = results.find((r) => r.id === alt)?.fairValue ?? null;
+    if (fv != null) return { model: alt, fairValue: fv };
+  }
+  return { model, fairValue: null };
 }
 
 export function computeAll(input: ValuationInput, configs: ValuationConfigs, sector?: string | null, industry?: string | null): ValuationResult[] {
