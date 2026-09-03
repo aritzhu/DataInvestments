@@ -62,6 +62,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   const [activeMethod, setActiveMethod] = useState('dcf');
   const [expandedGrowth, setExpandedGrowth] = useState(false);
   const [expandedWacc, setExpandedWacc] = useState(false);
+  const [expandedPERBreakdown, setExpandedPERBreakdown] = useState(false);
   const [ccOverride, setCcOverride] = useState(() => ({ growth: false, discount: false }));
   const [configs, setConfigs] = useState(() => {
     const sectorConfigs = getSectorConfigs(company.sector, company.industry);
@@ -735,6 +736,110 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
               </span>
               <span className="val-confidence-reason">{active.confidenceReason}</span>
             </div>
+            {active.id === 'per_norm' && (
+              <div className="val-pernorm">
+                <h4 className="val-pernorm-title">Escenarios y sensibilidad</h4>
+                {active.scenarios && (
+                  <div className="val-pernorm-scenarios">
+                    {([
+                      { key: 'bear' as const, label: 'Bear', price: active.scenarios.bear, tone: 'warn' },
+                      { key: 'base' as const, label: 'Base', price: active.scenarios.base, tone: 'base' },
+                      { key: 'bull' as const, label: 'Bull', price: active.scenarios.bull, tone: 'pos' },
+                    ]).map((s) => (
+                      <div key={s.key} className={`val-pernorm-scenario val-pernorm-scenario--${s.tone}`}>
+                        <span className="val-pernorm-scenario-label">{s.label}</span>
+                        <span className="val-pernorm-scenario-value">
+                          {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}
+                          {s.price.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {active.sensitivityTable && active.sensitivityTable.length > 0 && (
+                  <div className="val-pernorm-sensitivity">
+                    <span className="val-pernorm-subtitle">Precio objetivo según el múltiplo utilizado</span>
+                    <table className="val-pernorm-table">
+                      <thead>
+                        <tr>
+                          <th>P/E</th>
+                          <th>Precio objetivo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {active.sensitivityTable.map((row) => (
+                          <tr key={row.pe} className={row.isTarget ? 'is-target' : undefined}>
+                            <td>{row.pe}x{row.isTarget ? ' ← usado' : ''}</td>
+                            <td>
+                              {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}
+                              {row.price.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {active.perPEBreakdown && (
+                  <div className="val-config">
+                    <button
+                      className="val-config-toggle"
+                      onClick={() => setExpandedPERBreakdown((v) => !v)}
+                      aria-expanded={expandedPERBreakdown}
+                    >
+                      Cómo se eligió el P/E objetivo
+                      <ChevronDown className={expandedPERBreakdown ? 'val-config-chevron open' : 'val-config-chevron'} />
+                    </button>
+                    {expandedPERBreakdown && (
+                      <div className="val-config-detail">
+                        {(() => {
+                          const b = active.perPEBreakdown!;
+                          const fmtPct = (v: number) => `${(v * 100).toFixed(0)}%`;
+                          return (
+                            <div className="val-pernorm-breakdown">
+                              <div className="val-pernorm-break-row">
+                                <span className="val-pernorm-break-label">Peso P/E fundamental</span>
+                                <span className="val-pernorm-break-value">
+                                  {b.weights.fundamental > 0 ? fmtPct(b.weights.fundamental) : '—'}
+                                  {b.weights.fundamental > 0 && b.fundamental && (
+                                    <span className="val-pernorm-break-detail"> = payout/(Ke−g): {b.fundamental.payout.toFixed(2)} / ({b.fundamental.ke.toFixed(2)} − {b.fundamental.g.toFixed(3)})</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="val-pernorm-break-row">
+                                <span className="val-pernorm-break-label">Peso P/E forward</span>
+                                <span className="val-pernorm-break-value">
+                                  {b.weights.forward > 0 ? fmtPct(b.weights.forward) : '—'}
+                                  {b.weights.forward > 0 && b.forward != null && <span className="val-pernorm-break-detail"> = {b.forward.toFixed(1)}x</span>}
+                                </span>
+                              </div>
+                              <div className="val-pernorm-break-row">
+                                <span className="val-pernorm-break-label">Peso P/E actual</span>
+                                <span className="val-pernorm-break-value">
+                                  {b.weights.current > 0 ? fmtPct(b.weights.current) : '—'}
+                                  {b.weights.current > 0 && b.current != null && <span className="val-pernorm-break-detail"> = {b.current.toFixed(1)}x</span>}
+                                </span>
+                              </div>
+                              {b.usedFallback && (
+                                <div className="val-pernorm-break-row val-pernorm-break-row--warn">
+                                  <span className="val-pernorm-break-label">Ajuste (fallback)</span>
+                                  <span className="val-pernorm-break-value">{b.fallbackReason ?? 'Sin referencias de mercado'}</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="val-pernorm-note">
+                  P/E histórico y P/E de comparables no están disponibles en este modelo de datos.
+                  El objetivo combina P/E fundamental (coste de equity, payout y crecimiento) con el
+                  P/E forward y el P/E actual como referencias de mercado.
+                </p>
+              </div>
+            )}
           </div>
         </SectionReveal>
       )}

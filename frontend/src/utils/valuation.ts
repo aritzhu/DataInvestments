@@ -24,6 +24,18 @@ export interface ValuationResult {
   inputs: ValuationInputData[];
   negativeInputWarning?: string;
   dataWarning?: string;
+  // P/E normalizado: escenarios de precio objetivo y tabla de sensibilidad P/E -> precio.
+  scenarios?: { bear: number; base: number; bull: number };
+  sensitivityTable?: { pe: number; price: number; isTarget?: boolean }[];
+  // P/E normalizado: desglose de cómo se eligió el P/E objetivo.
+  perPEBreakdown?: {
+    fundamental: { pe: number; payout: number; ke: number; g: number } | null;
+    forward: number | null;
+    current: number | null;
+    weights: { fundamental: number; forward: number; current: number };
+    usedFallback: boolean;
+    fallbackReason: string | null;
+  };
 }
 
 export interface ValuationInput {
@@ -384,6 +396,253 @@ export function dcfSeedRates(input: ValuationInput, config: { growthRate: number
   const cc = consumerCyclicalRates(input, config, sector, industry);
   const cappedG = cc.g >= cc.r ? cc.r - 0.005 : cc.g;
   return { growthRate: +(cappedG * 100).toFixed(2), discountRate: +(cc.r * 100).toFixed(2), growthApplied: cc.growthApplied };
+}
+
+// ── P/E normalizado (Consumer Defensive) ──
+// Valoración por EPS normalizado × P/E objetivo derivado de datos fundamentales.
+// Componentes histórico/comparables no están disponibles en el modelo de datos;
+// se marcan como "no disponible" (rebajan la confianza) y se usan P/E actual +
+// forwardPE como únicos proxies de mercado.
+
+interface EPSYear { year: number; eps: number; }
+
+// EPS por ejercicio (anual) usando las acciones actuales. Devuelve serie ordenada desc.
+function annualEpsSeries(input: ValuationInput): EPSYear[] {
+  const shares = sharesOf(input.stock);
+  if (shares <= 0) return [];
+  return input.financials
+    .filter((x) => (x.quarter == null || x.quarter === 0) && typeof x.netIncome === 'number')
+    .map((x) => ({ year: x.year, eps: x.netIncome / shares }))
+    .filter((e) => e.eps > 0)
+    .sort((a, b) => b.year - a.year);
+}
+
+// CAGR de una serie de valores con span real (fallback al más antiguo disponible).
+function epsCagr(rows: EPSYear[], yearsBack: number): { value: number | null; span: number } {
+  if (rows.length < 2) return { value: null, span: 0 };
+  const last = rows[0];
+  const target = rows.find((r) => r.year === last.year - yearsBack) ?? rows[rows.length - 1];
+  const span = last.year - target.year;
+  if (span <= 0 || target.eps <= 0 || last.eps <= 0) return { value: null, span };
+  return { value: Math.pow(last.eps / target.eps, 1 / span) - 1, span };
+}
+
+// EPS representativo del beneficio sostenible: media truncada de los últimos hasta 5
+// ejercicios (descarta el extremo superior e inferior cuando hay suficientes puntos).
+function normalizeEPS(input: ValuationInput): { eps: number | null; years: number; volatile: boolean } {
+  const series = annualEpsSeries(input);
+  if (series.length === 0) return { eps: null, years: 0, volatile: false };
+  const recent = series.slice(0, 5).map((e) => e.eps);
+  let eps: number;
+  if (recent.length >= 5) {
+    const sorted = [...recent].sort((a, b) => a - b);
+    const core = sorted.slice(1, -1);
+    eps = core.reduce((a, b) => a + b, 0) / core.length;
+  } else {
+    eps = recent.reduce((a, b) => a + b, 0) / recent.length;
+  }
+  const max = Math.max(...recent);
+  const min = Math.min(...recent);
+  const volatile = max > 0 && min > 0 && (max - min) / max > 0.5;
+  return { eps: Math.max(eps, 0), years: series.length, volatile };
+}
+
+// Crecimiento esperado del EPS: CAGR 5/10 + YoY reciente + crecimiento de ingresos,
+// normalizado (se evita extrapolar picos). Devuelve escenarios bear/base/bull (decimales).
+function expectedEPSGrowth(input: ValuationInput): { bear: number; base: number; bull: number } {
+  const series = annualEpsSeries(input);
+  const cagr5 = epsCagr(series, 5).value;
+  const cagr10 = epsCagr(series, 10).value;
+  const recent = series.length >= 2 ? series[0].eps / series[1].eps - 1 : null;
+
+  const annual = input.financials
+    .filter((x) => (x.quarter == null || x.quarter === 0) && x.revenue > 0)
+    .sort((a, b) => a.year - b.year);
+  let revCagr5: number | null = null;
+  if (annual.length >= 2) {
+    const last = annual[annual.length - 1];
+    const target = annual.find((x) => x.year === last.year - 5) ?? annual[0];
+    const span = last.year - target.year;
+    if (span > 0 && target.revenue > 0) revCagr5 = Math.pow(last.revenue / target.revenue, 1 / span) - 1;
+  }
+
+  const parts: Array<{ value: number; weight: number }> = [];
+  if (cagr5 != null) parts.push({ value: cagr5, weight: 0.5 });
+  if (cagr10 != null) parts.push({ value: cagr10, weight: 0.3 });
+  if (recent != null) parts.push({ value: recent, weight: 0.2 });
+  if (revCagr5 != null && parts.length > 0) {
+    parts.push({ value: revCagr5, weight: 0.1 });
+  }
+  if (parts.length === 0) return { bear: 0.02, base: 0.04, bull: 0.06 };
+
+  const wSum = parts.reduce((a, p) => a + p.weight, 0);
+  let base = parts.reduce((a, p) => a + p.value * p.weight, 0) / wSum;
+  base = Math.min(Math.max(base, 0), 0.2);
+  const spread = Math.max(base * 0.4, 0.01);
+  return {
+    bear: Math.max(base - spread, 0.005),
+    base,
+    bull: Math.min(base + spread, 0.25),
+  };
+}
+
+// P/E fundamental = payout / (Ke − g). Devuelve null (no disponible) si no es fiable.
+function fundamentalPE(input: ValuationInput, g: number): { pe: number; payout: number; ke: number; g: number } | null {
+  const beta = input.stock?.beta;
+  const last = latest(input.financials);
+  if (beta == null || !last || last.netIncome <= 0) return null;
+  const Ke = (CC_RF + beta * CC_MARKET_PREMIUM) / 100; // decimal
+  if (Ke <= g) return null;
+  const dividends = last.dividendsPaid != null ? Math.abs(last.dividendsPaid) : null;
+  let payout: number | null = null;
+  if (dividends != null && last.netIncome > 0) payout = dividends / last.netIncome;
+  if (payout == null || payout <= 0) payout = input.stock?.payoutRatio;
+  if (payout == null || payout <= 0 || payout > 1.5) return null;
+  const pe = payout / (Ke - g);
+  if (!isFinite(pe) || pe <= 0 || pe > 60) return null;
+  return { pe, payout, ke: Ke, g };
+}
+
+// P/E objetivo combinando fundamental (peso mayor), forwardPE y P/E actual como proxies,
+// con re-ponderación cuando falta algún componente. Sin P/E histórico/comparables reales.
+function computeTargetPE(input: ValuationInput, growth: { bear: number; base: number; bull: number }): { target: number; rangeLow: number; rangeHigh: number; sources: { fundamental: { pe: number; payout: number; ke: number; g: number } | null; forward: number | null; current: number | null }; weights: { fundamental: number; forward: number; current: number }; usedFallback: boolean; fallbackReason: string | null } {
+  const fundamental = fundamentalPE(input, growth.base);
+  const forward = input.stock?.forwardPE != null && input.stock.forwardPE > 0 ? input.stock.forwardPE : null;
+  const current = input.stock?.peRatio != null && input.stock.peRatio > 0 ? input.stock.peRatio : null;
+
+  // Pesos nominales. Si falta un componente se re-ponderan los presentes al total.
+  const nominal = { fundamental: 0.5, forward: 0.3, current: 0.2 };
+  const parts: Array<{ value: number; nominal: number; weightNominal: number }> = [];
+  if (fundamental) parts.push({ value: fundamental.pe, nominal: nominal.fundamental, weightNominal: nominal.fundamental });
+  if (forward != null) parts.push({ value: forward, nominal: nominal.forward, weightNominal: nominal.forward });
+  if (current != null) parts.push({ value: current, nominal: nominal.current, weightNominal: nominal.current });
+
+  let usedFallback = false;
+  let fallbackReason: string | null = null;
+  let target: number;
+
+  if (parts.length === 0) {
+    usedFallback = true;
+    fallbackReason = 'Sin P/E fundamental (Ke o payout no fiables), sin P/E forward ni P/E actual';
+    target = 15;
+  } else {
+    const wSum = parts.reduce((a, p) => a + p.nominal, 0);
+    target = parts.reduce((a, p) => a + p.value * p.nominal, 0) / wSum;
+    if (parts.length < 3) {
+      fallbackReason = `Algunas referencias no disponibles (${parts.length} de 3); se re-ponderaron los presentes.`;
+    }
+  }
+
+  // Clamp de seguridad para evitar múltiplos absurdos.
+  target = Math.min(Math.max(target, 5), 40);
+  const spread = Math.max(target * 0.18, 1);
+  const weights = {
+    fundamental: fundamental ? nominal.fundamental : 0,
+    forward: forward != null ? nominal.forward : 0,
+    current: current != null ? nominal.current : 0,
+  };
+  return { target, rangeLow: Math.max(target - spread, 4), rangeHigh: target + spread, sources: { fundamental, forward, current }, weights, usedFallback, fallbackReason };
+}
+
+// Confianza de la valoración P/E normalizada (independiente del precio objetivo).
+function perConfidence(input: ValuationInput, normalized: { years: number; volatile: boolean }, growth: { bear: number; base: number; bull: number }, pe: { target: number; rangeLow: number; rangeHigh: number }): { level: 'high' | 'medium' | 'low' | 'na'; reason: string } {
+  const beta = input.stock?.beta;
+  const payout = input.stock?.payoutRatio;
+  const reasons: string[] = [];
+  let score = 0;
+  if (normalized.years >= 8) score += 2; else if (normalized.years >= 5) score += 1; else { score -= 1; reasons.push('pocos años de datos'); }
+  if (normalized.volatile) { score -= 1; reasons.push('EPS volátil'); }
+  if (beta == null) { score -= 1; reasons.push('sin beta/Ke'); }
+  if (payout == null || payout <= 0) { score -= 1; reasons.push('sin payout fiable'); }
+  const rangeRatio = pe.target > 0 ? (pe.rangeHigh - pe.rangeLow) / pe.target : 0;
+  if (rangeRatio > 0.5) { score -= 1; reasons.push('múltiplos extremos o componentes muy dispares'); }
+  if (growth.base > 0.15) { score -= 1; reasons.push('crecimiento extremadamente elevado'); }
+  const level = score >= 2 ? 'high' : score >= 0 ? 'medium' : 'low';
+  return { level, reason: reasons.length ? reasons.join('; ') : 'Datos razonablemente completos' };
+}
+
+// Sectores donde el P/E no es un múltiplo apropiado (valoración por activos/flujos).
+const PER_INAPPROPRIATE = ['bank', 'insurance', 'utility', 'telecom', 'mining', 'materials', 'reit', 'real estate', 'oil', 'gas', 'energy', 'commodity'];
+function isPERInappropriate(sector: string | null | undefined, industry?: string | null): boolean {
+  const text = `${sector || ''} ${industry || ''}`.toLowerCase();
+  return PER_INAPPROPRIATE.some((k) => text.includes(k));
+}
+
+export function computePENormalized(input: ValuationInput, sector?: string | null, industry?: string | null, _config?: { weightFundamental?: number; weightForward?: number; weightCurrent?: number }): ValuationResult {
+  const { stock } = input;
+  const shares = sharesOf(stock);
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  if (isPERInappropriate(sector, industry)) {
+    return { id: 'per_norm', name: 'P/E Normalizado', description: 'Valor basado en el beneficio sostenible por acción (EPS normalizado) y un P/E objetivo', explanation: 'Proyecta el beneficio sostenible de la empresa y lo multiplica por un múltiplo P/E razonable derivado de sus fundamentales (coste de equity, payout y crecimiento).', formula: 'EPS normalizado × P/E objetivo', fairValue: null, confidence: 'na', confidenceReason: `El P/E no es apropiado para ${sector || 'este sector'} — se valora mejor por activos o flujos`, configurable: true, inputs: [] };
+  }
+  if (!stock || shares <= 0 || !ttm || ttm.netIncome <= 0) {
+    return { id: 'per_norm', name: 'P/E Normalizado', description: 'Valor basado en el beneficio sostenible por acción (EPS normalizado) y un P/E objetivo', explanation: 'Proyecta el beneficio sostenible de la empresa y lo multiplica por un múltiplo P/E razonable derivado de sus fundamentales (coste de equity, payout y crecimiento).', formula: 'EPS normalizado × P/E objetivo', fairValue: null, confidence: 'na', confidenceReason: 'Beneficio neto no positivo', configurable: true, inputs: [] };
+  }
+
+  const normalized = normalizeEPS(input);
+  if (normalized.eps == null || normalized.eps <= 0) {
+    return { id: 'per_norm', name: 'P/E Normalizado', description: 'Valor basado en el beneficio sostenible por acción (EPS normalizado) y un P/E objetivo', explanation: 'Proyecta el beneficio sostenible de la empresa y lo multiplica por un múltiplo P/E razonable derivado de sus fundamentales (coste de equity, payout y crecimiento).', formula: 'EPS normalizado × P/E objetivo', fairValue: null, confidence: 'na', confidenceReason: 'No hay un EPS sostenible positivo', configurable: true, inputs: [], dataWarning: 'Datos históricos insuficientes para normalizar el EPS (se necesita al menos un ejercicio con beneficio positivo).' };
+  }
+
+  const growth = expectedEPSGrowth(input);
+  const pe = computeTargetPE(input, growth);
+  const conf = perConfidence(input, normalized, growth, pe);
+
+  const targetPrice = normalized.eps * pe.target;
+  const bearPrice = normalized.eps * pe.rangeLow;
+  const bullPrice = normalized.eps * pe.rangeHigh;
+
+  const basePrice = targetPrice;
+  const currentPE = stock.peRatio ?? null;
+  const upside = stock.currentPrice > 0 ? basePrice / stock.currentPrice - 1 : null;
+
+  // Tabla de sensibilidad dinámica: se genera alrededor del P/E objetivo (que ya se
+  // adecua a las ganancias de la empresa) en vez de múltiplos fijos arbitrarios.
+  const sensitivityTable = [-0.2, -0.1, 0, 0.1, 0.2].map((f) => {
+    const peCalc = Math.round(pe.target * (1 + f) * 10) / 10;
+    return { pe: peCalc, price: normalized.eps! * peCalc, isTarget: Math.abs(peCalc - pe.target) < 0.01 };
+  });
+
+  const sources = pe.sources;
+  const growthRaw = { bear: growth.bear * 100, base: growth.base * 100, bull: growth.bull * 100 };
+  const cagr5v = epsCagr(annualEpsSeries(input), 5).value;
+  const cagr5Pct = cagr5v != null ? `${(cagr5v * 100).toFixed(1)}%` : '—';
+
+  return {
+    id: 'per_norm',
+    name: 'P/E Normalizado',
+    description: 'Valor basado en el beneficio sostenible por acción (EPS normalizado) y un P/E objetivo',
+    explanation: `Proyecta el beneficio sostenible (EPS normalizado de ${normalized.years} ejercicios) y lo multiplica por un P/E objetivo ${pe.target.toFixed(1)}x derivado de fundamentales. CAGR EPS 5A ≈ ${cagr5Pct}. P/E histórico y de comparables no disponibles en el modelo de datos.`,
+    formula: `EPS(${fmtVal(normalized.eps, input.currency)}) × P/E(${pe.target.toFixed(1)})`,
+    fairValue: basePrice,
+    confidence: conf.level,
+    confidenceReason: conf.reason,
+    configurable: true,
+    inputs: [
+      { label: 'EPS normalizado', value: fmtVal(normalized.eps, input.currency), rawValue: normalized.eps },
+      { label: 'Años usados', value: `${normalized.years}`, rawValue: normalized.years },
+      { label: 'P/E actual', value: currentPE != null && currentPE > 0 ? `${currentPE.toFixed(1)}x` : 'N/D', rawValue: currentPE ?? 0 },
+      { label: 'P/E forward', value: sources.forward != null ? `${sources.forward.toFixed(1)}x` : '—', rawValue: sources.forward ?? 0 },
+      { label: 'P/E fundamental', value: sources.fundamental != null ? `${sources.fundamental.pe.toFixed(1)}x` : 'No disponible', rawValue: sources.fundamental?.pe ?? 0 },
+      { label: 'Peso P/E fundamental', value: pe.weights.fundamental > 0 ? `${(pe.weights.fundamental * 100).toFixed(0)}%` : '—', rawValue: pe.weights.fundamental },
+      { label: 'Peso P/E forward', value: pe.weights.forward > 0 ? `${(pe.weights.forward * 100).toFixed(0)}%` : '—', rawValue: pe.weights.forward },
+      { label: 'Peso P/E actual', value: pe.weights.current > 0 ? `${(pe.weights.current * 100).toFixed(0)}%` : '—', rawValue: pe.weights.current },
+      { label: 'Crecimiento EPS (base)', value: `${growthRaw.base.toFixed(1)}%`, rawValue: growthRaw.base },
+      { label: 'P/E objetivo', value: `${pe.target.toFixed(1)}x`, rawValue: pe.target },
+      { label: 'Precio objetivo', value: fmtVal(basePrice, input.currency), rawValue: basePrice },
+      { label: 'Upside/downside', value: upside != null ? `${(upside * 100).toFixed(1)}%` : '—', rawValue: upside ?? 0 },
+    ],
+    scenarios: { bear: bearPrice, base: basePrice, bull: bullPrice },
+    sensitivityTable,
+    perPEBreakdown: {
+      fundamental: sources.fundamental,
+      forward: sources.forward,
+      current: sources.current,
+      weights: pe.weights,
+      usedFallback: pe.usedFallback,
+      fallbackReason: pe.fallbackReason,
+    },
+  };
 }
 
 // ── DCF ──
@@ -870,6 +1129,7 @@ export function computeAll(input: ValuationInput, configs: {
     computeGrahamNumber(input),
     computeFCFYield(input, configs.fcfYield),
     computeNetNet(input),
+    computePENormalized(input, sector, industry),
   ];
   return results.map((r) => applySanityBound(r, currentPrice));
 }
@@ -1252,7 +1512,7 @@ export const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   'telecom services': 'ev_ebitda',
   telecoms: 'ev_ebitda',
   software: 'dcf',
-  'consumer defensive': 'per',
+  'consumer defensive': 'per_norm',
   default: 'dcf',
 };
 
@@ -1264,7 +1524,7 @@ export function getRecommendedModel(sector: string | null | undefined, industry?
   return SECTOR_RECOMMENDED_MODEL.default;
 }
 
-const RECOMMENDED_FALLBACK = ['ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
+const RECOMMENDED_FALLBACK = ['per_norm', 'ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
 
 export function getRecommendedFairValue(results: ValuationResult[], sector: string | null | undefined, industry?: string | null): { model: string; fairValue: number | null } {
   const model = getRecommendedModel(sector, industry);

@@ -1291,3 +1291,155 @@
   border-radius: 50%;
   display: inline-block;
 }
+
+/* --- P/E Normalizado: escenarios y sensibilidad --- */
+.val-pernorm {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.val-pernorm-title {
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.9rem;
+}
+
+.val-pernorm-scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
+}
+
+.val-pernorm-scenario {
+  background: var(--surface-1);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  text-align: center;
+  border: 1px solid var(--border-light);
+}
+
+.val-pernorm-scenario--warn { border-top: 2px solid var(--color-warning); }
+.val-pernorm-scenario--base { border-top: 2px solid var(--color-primary); }
+.val-pernorm-scenario--pos { border-top: 2px solid var(--color-success); }
+
+.val-pernorm-scenario-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.3rem;
+}
+
+.val-pernorm-scenario-value {
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.val-pernorm-subtitle {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.val-pernorm-sensitivity {
+  margin-bottom: 0.9rem;
+}
+
+.val-pernorm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.val-pernorm-table th,
+.val-pernorm-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: right;
+}
+
+.val-pernorm-table th {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.val-pernorm-table td:first-child,
+.val-pernorm-table th:first-child {
+  text-align: left;
+  font-family: 'Instrument Sans', monospace;
+}
+
+.val-pernorm-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.val-pernorm-table tr.is-target td {
+  background: var(--surface-3);
+  font-weight: 600;
+  color: var(--accent, var(--text-primary));
+  box-shadow: inset 3px 0 0 var(--accent, var(--text-primary));
+}
+
+.val-pernorm-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.val-pernorm-break-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.val-pernorm-break-label {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.val-pernorm-break-value {
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.val-pernorm-break-detail {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.val-pernorm-break-row--warn {
+  background: var(--surface-2);
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  color: #c9883a;
+}
+
+.val-pernorm-note {
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 60ch;
+}
+
+@media (max-width: 640px) {
+  .val-pernorm-scenarios { grid-template-columns: 1fr; }
+}
