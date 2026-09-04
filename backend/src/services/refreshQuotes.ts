@@ -37,8 +37,9 @@ export async function recomputeIntrinsic(companyId: string, ticker: string, sect
   if (!stock || financials.length === 0) return;
 
   const configs = getSectorConfigs(sector, industry);
-  const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs, sector, industry);
-  const { fairValue } = getRecommendedFairValue(results, sector, industry);
+  const valInput = { financials: financials as any, balanceSheets: balanceSheets as any, stock };
+  const results = computeAll(valInput, configs, sector, industry);
+  const { fairValue } = getRecommendedFairValue(results, valInput, sector, industry);
 
   const intrinsicValue = fairValue != null && fairValue > 0 ? fairValue : null;
   const marginOfSafety =

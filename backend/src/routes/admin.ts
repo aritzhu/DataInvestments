@@ -796,7 +796,11 @@ router.get('/data-stats', async (_req, res) => {
       }
 
       // Valuation readiness for the recommended model
-      const recommendedModel = getRecommendedModel(c.sector, c.industry);
+      const recommendedModel = getRecommendedModel(
+        { financials: c.financialData as any, balanceSheets: c.balanceSheets as any, stock: latestSm as any },
+        c.sector,
+        c.industry,
+      ).id;
       const readyInputs: Record<string, string[]> = {
         dcf: ['freeCashFlow'],
         per: ['netIncome', 'sharesOutstanding'],

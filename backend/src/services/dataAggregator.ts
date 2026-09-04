@@ -1612,8 +1612,9 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         });
         if (allFinancials.length > 0) {
           const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
-          const results = computeAll({ financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation }, configs, companyForVal.sector, companyForVal.industry);
-          const fairValue = getRecommendedFairValue(results, companyForVal.sector, companyForVal.industry).fairValue;
+          const valInput = { financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation };
+          const results = computeAll(valInput, configs, companyForVal.sector, companyForVal.industry);
+          const fairValue = getRecommendedFairValue(results, valInput, companyForVal.sector, companyForVal.industry).fairValue;
           if (fairValue != null && fairValue > 0) {
             const marginOfSafety = stockForValuation.currentPrice > 0
               ? (fairValue - stockForValuation.currentPrice) / stockForValuation.currentPrice

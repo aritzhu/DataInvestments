@@ -469,17 +469,18 @@ async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
       const companyFinancials = financialByCompany.get(c.id) ?? [];
       const latestYear = companyFinancials.reduce((m, f) => Math.max(m, f.year), 0);
       if (latestYear < new Date().getFullYear() - MAX_FINANCIAL_AGE_YEARS) continue;
+      const valInput = {
+        financials: companyFinancials,
+        balanceSheets: balanceByCompany.get(c.id) ?? [],
+        stock,
+      } as any;
       const results = computeAll(
-        {
-          financials: companyFinancials,
-          balanceSheets: balanceByCompany.get(c.id) ?? [],
-          stock,
-        } as any,
+        valInput,
         getSectorConfigs(c.sector, c.industry),
         c.sector,
         c.industry,
       );
-      const recommended = results.find((r) => r.id === getRecommendedModel(c.sector, c.industry));
+      const recommended = results.find((r) => r.id === getRecommendedModel(valInput, c.sector, c.industry).id);
       if (!recommended || recommended.fairValue == null || recommended.fairValue <= 0) continue;
       if (recommended.confidence !== 'high' && recommended.confidence !== 'medium') continue;
       out.push({

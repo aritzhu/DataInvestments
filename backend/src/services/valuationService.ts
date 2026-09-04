@@ -603,6 +603,132 @@ export function getSectorConfigs(sector: string | null | undefined, industry?: s
   return DEFAULT_CONFIGS;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Modelo de negocio: se infiere de las métricas financieras de la empresa para
+// elegir el método de valoración, usando el sector como refuerzo/fallback.
+// NOTA: este archivo replica la lógica de frontend/src/utils/valuation.ts.
+// La valoración está duplicada entre frontend y backend y debe unificarse
+// (moverla a backend o a un paquete compartido) para evitar divergencias.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type BusinessModel =
+  | 'brand'
+  | 'asset_light'
+  | 'asset_heavy'
+  | 'growth'
+  | 'stable'
+  | 'commodity'
+  | 'financial';
+
+export interface BusinessModelInference {
+  model: BusinessModel | null;
+  label: string;
+  reason: string;
+}
+
+const BUSINESS_MODEL_RECOMMENDED: Record<BusinessModel, string> = {
+  brand: 'per',
+  asset_light: 'dcf',
+  asset_heavy: 'ev_ebitda',
+  growth: 'dcf',
+  stable: 'ddm',
+  commodity: 'fcf_yield',
+  financial: 'pb',
+};
+
+const BUSINESS_MODEL_LABEL: Record<BusinessModel, string> = {
+  brand: 'Negocio de marca / intangibles',
+  asset_light: 'Negocio ligero en activos (servicios/software)',
+  asset_heavy: 'Negocio intensivo en capital',
+  growth: 'Negocio de alto crecimiento',
+  stable: 'Negocio maduro / generador de efectivo',
+  commodity: 'Negocio cíclico / commodity',
+  financial: 'Entidad financiera',
+};
+
+/** CAGR sobre los ingresos/beneficio anuales entre el último y `spanYears` antes. */
+function incomeCagr(rows: Financial[], spanYears: number): number | null {
+  const annual = rows
+    .filter((x) => (x.quarter ?? 0) === 0 && x.netIncome != null && x.netIncome > 0)
+    .sort((a, b) => a.year - b.year);
+  if (annual.length < 2) return null;
+  const last = annual[annual.length - 1];
+  const target = annual.find((x) => x.year === last.year - spanYears) ?? annual[0];
+  const span = last.year - target.year;
+  const targetNi = target.netIncome;
+  const lastNi = last.netIncome;
+  if (span <= 0 || targetNi == null || targetNi <= 0 || lastNi == null || lastNi <= 0) return null;
+  return Math.pow(lastNi / targetNi, 1 / span) - 1;
+}
+
+export function inferBusinessModel(input: ValuationInput, sector?: string | null, industry?: string | null): BusinessModelInference {
+  const { stock } = input;
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  const bs = ttm?.balanceSheet;
+
+  // 1) Financiero: por sector/industria (regla dura, reutiliza isFinancial).
+  if (isFinancial(sector, industry)) {
+    return { model: 'financial', label: BUSINESS_MODEL_LABEL.financial, reason: `Sector/industria ${sector || ''} ${industry || ''}: se valora por múltiplos de balance (P/B).` };
+  }
+
+  const revenue = ttm?.revenue ?? 0;
+  if (!ttm || revenue <= 0 || !stock) {
+    return { model: null, label: 'No determinado', reason: 'Datos financieros insuficientes para inferir el modelo de negocio.' };
+  }
+
+  const netIncome = ttm.netIncome ?? 0;
+  const grossProfit = ttm.grossProfit ?? 0;
+  const capex = ttm.capex ?? 0;
+  const fcf = ttm.freeCashFlow ?? null;
+
+  const grossMargin = revenue > 0 ? grossProfit / revenue : null;
+  const netMargin = revenue > 0 ? netIncome / revenue : null;
+  const capexIntensity = revenue > 0 ? capex / revenue : null;
+  const roic = stock.roic ?? null;
+  const assetTurnover = bs?.totalAssets != null && bs.totalAssets > 0 ? revenue / bs.totalAssets : null;
+  const ps = stock.psRatio ?? null;
+  const payout = stock.payoutRatio ?? null;
+  const divYield = stock.dividendYield ?? null;
+  const beta = stock.beta ?? null;
+  const growthCagr = incomeCagr(input.financials, 5);
+
+  const highMargin = grossMargin != null && grossMargin > 0.5;
+  const highNetMargin = netMargin != null && netMargin > 0.15;
+  const highRoic = roic != null && roic > 0.15;
+  const highCapex = capexIntensity != null && capexIntensity > 0.12;
+  const lowAssetTurnover = assetTurnover != null && assetTurnover < 0.5;
+  const highPs = ps != null && ps > 2;
+  const highPayout = payout != null && payout > 0.5;
+  const highDiv = divYield != null && divYield > 0.04;
+  const lowBeta = beta != null && beta < 1;
+  const highCagr = growthCagr != null && growthCagr > 0.15;
+  const netDebtToEbitda = ttm.ebitda != null && ttm.ebitda > 0 && bs != null
+    ? (netDebt(bs).value / ttm.ebitda)
+    : null;
+  const leveraged = netDebtToEbitda != null && netDebtToEbitda > 2;
+
+  if (highCapex && (lowAssetTurnover || leveraged)) {
+    return { model: 'asset_heavy', label: BUSINESS_MODEL_LABEL.asset_heavy, reason: `Intensidad de capital alta (capex/revenue ${(capexIntensity! * 100).toFixed(1)}%), rotación de activos ${assetTurnover != null ? assetTurnover.toFixed(2) : 'n/d'} ${leveraged ? 'y deuda neta/EBITDA relevante.' : '.'}` };
+  }
+  if (highMargin && highRoic && highPs) {
+    return { model: 'brand', label: BUSINESS_MODEL_LABEL.brand, reason: `Margen bruto ${(grossMargin! * 100).toFixed(0)}%, ROIC ${(roic! * 100).toFixed(0)}% y P/S ${ps!.toFixed(1)}x: valor concentrado en marca/intangibles.` };
+  }
+  if (highCagr && !highCapex) {
+    return { model: 'growth', label: BUSINESS_MODEL_LABEL.growth, reason: `Crecimiento beneficio CAGR 5A ≈ ${(growthCagr! * 100).toFixed(1)}%` };
+  }
+  if (highPayout && highDiv && lowBeta) {
+    return { model: 'stable', label: BUSINESS_MODEL_LABEL.stable, reason: `Payout ${(payout! * 100).toFixed(0)}%, rentabilidad por dividendo ${(divYield! * 100).toFixed(2)}% y beta ${beta!.toFixed(2)}: negocio maduro.` };
+  }
+  if (highMargin && !highCapex && highNetMargin) {
+    return { model: 'asset_light', label: BUSINESS_MODEL_LABEL.asset_light, reason: `Bajo capex (${capexIntensity != null ? (capexIntensity * 100).toFixed(1) : 'n/d'}% de ventas) con margen neto ${(netMargin! * 100).toFixed(0)}%: modelo ligero en activos.` };
+  }
+  if (fcf != null && netMargin != null && netMargin > 0.02 && netMargin < 0.1 && lowAssetTurnover) {
+    return { model: 'commodity', label: BUSINESS_MODEL_LABEL.commodity, reason: `Margen neto reducido (${(netMargin * 100).toFixed(0)}%) con alta rotación/activos: perfil cíclico.` };
+  }
+
+  return { model: null, label: 'No determinado', reason: 'No se detecta un perfil dominante; se usa el criterio por sector.' };
+}
+
 const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   banking: 'pb',
   'financial services': 'pb',
@@ -634,25 +760,29 @@ const SECTOR_RECOMMENDED_MODEL: Record<string, string> = {
   default: 'dcf',
 };
 
-export function getRecommendedModel(sector: string | null | undefined, industry?: string | null): string {
+export function getRecommendedModel(input: ValuationInput, sector?: string | null, industry?: string | null): { id: string; businessModel?: BusinessModelInference } {
+  const bm = inferBusinessModel(input, sector, industry);
+  if (bm.model != null) {
+    return { id: BUSINESS_MODEL_RECOMMENDED[bm.model], businessModel: bm };
+  }
   const text = `${sector || ''} ${industry || ''}`.toLowerCase();
   for (const [key, modelId] of Object.entries(SECTOR_RECOMMENDED_MODEL)) {
-    if (key !== 'default' && text.includes(key)) return modelId;
+    if (key !== 'default' && text.includes(key)) return { id: modelId, businessModel: bm };
   }
-  return SECTOR_RECOMMENDED_MODEL.default;
+  return { id: SECTOR_RECOMMENDED_MODEL.default, businessModel: bm };
 }
 
 const RECOMMENDED_FALLBACK = ['ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
 
-export function getRecommendedFairValue(results: ValuationResult[], sector: string | null | undefined, industry?: string | null): { model: string; fairValue: number | null } {
-  const model = getRecommendedModel(sector, industry);
-  if (results.find((r) => r.id === model)?.fairValue != null) return { model, fairValue: results.find((r) => r.id === model)?.fairValue ?? null };
+export function getRecommendedFairValue(results: ValuationResult[], input: ValuationInput, sector?: string | null, industry?: string | null): { model: string; fairValue: number | null; businessModel?: BusinessModelInference } {
+  const { id: model, businessModel } = getRecommendedModel(input, sector, industry);
+  if (results.find((r) => r.id === model)?.fairValue != null) return { model, fairValue: results.find((r) => r.id === model)?.fairValue ?? null, businessModel };
   for (const alt of RECOMMENDED_FALLBACK) {
     if (alt === model) continue;
     const fv = results.find((r) => r.id === alt)?.fairValue ?? null;
-    if (fv != null) return { model: alt, fairValue: fv };
+    if (fv != null) return { model: alt, fairValue: fv, businessModel };
   }
-  return { model, fairValue: null };
+  return { model, fairValue: null, businessModel };
 }
 
 export function computeAll(input: ValuationInput, configs: ValuationConfigs, sector?: string | null, industry?: string | null): ValuationResult[] {

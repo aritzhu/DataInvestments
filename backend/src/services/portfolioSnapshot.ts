@@ -9,8 +9,9 @@ async function recomputeRecommendedFairValue(company: { id: string; sector: stri
   ]);
   if (!stock || financials.length === 0) return null;
   const configs = getSectorConfigs(company.sector, company.industry);
-  const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock: stock as any }, configs, company.sector, company.industry);
-  const recommended = getRecommendedFairValue(results, company.sector, company.industry);
+  const valInput = { financials: financials as any, balanceSheets: balanceSheets as any, stock: stock as any };
+  const results = computeAll(valInput, configs, company.sector, company.industry);
+  const recommended = getRecommendedFairValue(results, valInput, company.sector, company.industry);
   return recommended.fairValue ?? weightedAverage(results);
 }
 

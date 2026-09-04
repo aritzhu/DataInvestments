@@ -144,9 +144,10 @@ export async function getPortfolioValuation(portfolioId: string, userId: string)
 
           if (financialData.length > 0) {
             const configs = getSectorConfigs(h.company.sector, h.company.industry);
-            const results = computeAll({ financials: financialData as any, balanceSheets, stock }, configs, h.company.sector, h.company.industry);
+            const valInput = { financials: financialData as any, balanceSheets, stock };
+            const results = computeAll(valInput, configs, h.company.sector, h.company.industry);
             const fairValue = weightedAverage(results);
-            const recommended = getRecommendedFairValue(results, h.company.sector, h.company.industry);
+            const recommended = getRecommendedFairValue(results, valInput, h.company.sector, h.company.industry);
             const recommendedFairValue = recommended.fairValue ?? fairValue;
             const currentPrice = stock.currentPrice;
             const verdict = getVerdict(recommendedFairValue, currentPrice);

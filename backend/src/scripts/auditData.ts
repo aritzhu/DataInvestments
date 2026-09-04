@@ -63,7 +63,7 @@ async function main() {
     const fd = latest(financials);
     const bs = latest(balanceSheets);
     const sm = stockMetrics[0];
-    const model = getRecommendedModel(c.sector, c.industry);
+    const model = getRecommendedModel({ financials: financials as any, balanceSheets: balanceSheets as any, stock: sm }, c.sector, c.industry).id;
     const issues: string[] = [];
 
     if (!sm) {

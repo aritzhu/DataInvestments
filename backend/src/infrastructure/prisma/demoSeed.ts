@@ -480,8 +480,9 @@ function computeValuation(tpl: DemoCompany, financials: any[], balanceSheets: an
     dividendYield: 0,
   } as any;
 
-  const results0 = computeAll({ financials, balanceSheets, stock: provisional }, getSectorConfigs(tpl.sector, tpl.industry), tpl.sector, tpl.industry);
-  const model = getRecommendedModel(tpl.sector, tpl.industry);
+  const valInput = { financials, balanceSheets, stock: provisional };
+  const results0 = computeAll(valInput, getSectorConfigs(tpl.sector, tpl.industry), tpl.sector, tpl.industry);
+  const model = getRecommendedModel(valInput, tpl.sector, tpl.industry).id;
   const rec0 = results0.find((r) => r.id === model);
   if (!rec0 || rec0.fairValue == null) {
     throw new Error(`${tpl.ticker}: no recommended valuation for model ${model}`);

@@ -98,8 +98,9 @@ async function buildCompanyTarget(companyId: string, ticker: string, sector: str
     const finAsOf = financials.filter((f) => f.year < p.year || (f.year === p.year && (f.quarter ?? 0) <= p.quarter));
     const bsAsOf = balanceSheets.filter((b) => b.year < p.year || (b.year === p.year && (b.quarter ?? 0) <= p.quarter));
     if (finAsOf.length === 0) continue;
-    const results = computeAll({ financials: finAsOf as any, balanceSheets: bsAsOf as any, stock: baseStock }, configs, sector, industry);
-    const recommended = getRecommendedFairValue(results, sector, industry);
+    const valInput = { financials: finAsOf as any, balanceSheets: bsAsOf as any, stock: baseStock };
+    const results = computeAll(valInput, configs, sector, industry);
+    const recommended = getRecommendedFairValue(results, valInput, sector, industry);
     entries.push({ date: p.end, fairValue: recommended.fairValue });
   }
   return entries;

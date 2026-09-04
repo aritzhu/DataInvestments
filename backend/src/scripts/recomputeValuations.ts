@@ -30,8 +30,9 @@ async function main() {
       }
 
       const configs = getSectorConfigs(c.sector, c.industry);
-      const results = computeAll({ financials: financials as any, balanceSheets: balanceSheets as any, stock }, configs, c.sector, c.industry);
-      const { fairValue: avg } = getRecommendedFairValue(results, c.sector, c.industry);
+      const valInput = { financials: financials as any, balanceSheets: balanceSheets as any, stock };
+      const results = computeAll(valInput, configs, c.sector, c.industry);
+      const { fairValue: avg } = getRecommendedFairValue(results, valInput, c.sector, c.industry);
 
       const intrinsicValue = avg != null && avg > 0 ? avg : null;
       const marginOfSafety =

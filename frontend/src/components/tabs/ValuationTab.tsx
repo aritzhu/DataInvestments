@@ -200,7 +200,9 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     }
   };
 
-  const recommendedModel = getRecommendedModel(company.sector, company.industry);
+  const rec = getRecommendedModel(input, company.sector, company.industry);
+  const recommendedModel = rec.id;
+  const recommendedBm = rec.businessModel;
   const applicable = results.filter(r => r.fairValue != null && r.fairValue > 0);
   const activeId = applicable.some(r => r.id === activeMethod)
     ? activeMethod
@@ -212,7 +214,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
   }
 
   const validValues = applicable.map(r => r.fairValue!);
-  const resolved = getRecommendedFairValue(results, company.sector, company.industry);
+  const resolved = getRecommendedFairValue(results, input, company.sector, company.industry);
   const heroModel = resolved.model;
   const heroResult = results.find(r => r.id === heroModel) ?? applicable[0] ?? null;
   const heroRecommended = heroResult?.id === recommendedModel;
@@ -314,7 +316,11 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         )}
         <p className="verdict-explanation">
           {heroRecommended ? (
-            <>La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+            recommendedBm?.model != null ? (
+              <>La valoración se basa en el <strong>{recommendedBm.label.toLowerCase()}</strong> (modelo inferido de sus métricas), que se valora con el método <strong>{METHOD_NAMES[heroModel] || heroModel}</strong>. {recommendedBm.reason} Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+            ) : (
+              <>La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+            )
           ) : (
             <>La valoración se basa en el <strong>método con datos disponibles</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), el mejor ajuste para esta empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
           )}{' '}
@@ -345,7 +351,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
                   >
                     <div className="val-method-card-header">
                       <span className="val-method-card-name">{r.name}</span>
-                      {isRecommended && <span className="val-recommended-badge">Método sugerido por sector</span>}
+                      {isRecommended && <span className="val-recommended-badge">{recommendedBm?.model != null ? 'Método por modelo de negocio' : 'Método sugerido por sector'}</span>}
                       <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
                     </div>
                     <span className="val-method-card-value">
