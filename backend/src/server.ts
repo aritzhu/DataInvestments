@@ -504,7 +504,7 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
         configs.dcf.discountRate = seed.discountRate;
       }
     }
-    if (stock.pbRatio && stock.pbRatio > 0) {
+    if (stock.pbRatio && stock.pbRatio >= 0.2 && stock.pbRatio <= 20) {
       configs.pb.targetPB = stock.pbRatio;
     }
 

@@ -867,7 +867,7 @@ export function computePB(input: ValuationInput, config: { targetPB: number }): 
   const bvps = equity / shares;
   const fairValue = bvps * config.targetPB;
   const currentPB = stock.pbRatio ?? 0;
-  const conf = currentPB > 0 && currentPB < 10 ? 'high' : currentPB > 0 ? 'medium' : 'low';
+  const conf = currentPB >= 0.2 && currentPB < 10 ? 'high' : currentPB > 0 ? 'medium' : 'low';
   const currency = input.currency;
   return {
     id: 'pb', name: 'P/B (Precio/Valor en Libro)',

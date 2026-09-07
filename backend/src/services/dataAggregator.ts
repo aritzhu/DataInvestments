@@ -54,9 +54,10 @@ export function sanitizeEnterpriseValue(
 
 // Ratio sanity: absurd multiples (1000x PE) are data errors, not real values.
 // Negative ratios are kept for loss-making companies within a sane bound.
-export function sanitizeRatio(value: number | null | undefined, maxAbs: number): number | null {
+export function sanitizeRatio(value: number | null | undefined, maxAbs: number, minAbs = 0): number | null {
   if (value == null || !Number.isFinite(value)) return null;
   if (Math.abs(value) > maxAbs) return null;
+  if (Math.abs(value) < minAbs) return null;
   return value;
 }
 
@@ -787,7 +788,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         date: new Date(),
         currentPrice: yahooQuote.currentPrice,
         peRatio: sanitizeRatio(info?.trailingPE ?? (latestNetIncome > 0 && mcap ? mcap / latestNetIncome : null), RATIO_CAPS.pe),
-        pbRatio: sanitizeRatio(info?.priceToBook ?? (latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null), RATIO_CAPS.pb),
+        pbRatio: sanitizeRatio(sanitizeRatio(info?.priceToBook, RATIO_CAPS.pb, 0.1) ?? (latestEquity && latestEquity > 0 && mcap ? mcap / latestEquity : null), RATIO_CAPS.pb),
         psRatio: sanitizeRatio(info?.priceToSalesTrailing12Months ?? (latestRevenue > 0 && mcap ? mcap / latestRevenue : null), RATIO_CAPS.ps),
         dividendYield: info?.dividendYield ?? null,
         marketCap: mcap,
@@ -1179,7 +1180,7 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               marketCap: yfShares > 0 && currentPrice > 0 ? currentPrice * yfShares : (yfInfo.info.marketCap ?? null),
               enterpriseValue: sanitizeEnterpriseValue(yfInfo.info.enterpriseValue, yfShares > 0 && currentPrice > 0 ? currentPrice * yfShares : (yfInfo.info.marketCap ?? null)),
               peRatio: sanitizeRatio(yfInfo.info.trailingPE ?? null, RATIO_CAPS.pe),
-              pbRatio: sanitizeRatio(yfInfo.info.priceToBook ?? null, RATIO_CAPS.pb),
+              pbRatio: sanitizeRatio(yfInfo.info.priceToBook ?? null, RATIO_CAPS.pb, 0.1),
               psRatio: sanitizeRatio(yfInfo.info.priceToSalesTrailing12Months ?? null, RATIO_CAPS.ps),
               dividendYield: yfInfo.info.dividendYield ?? null,
               roe: yfInfo.info.returnOnEquity != null ? yfInfo.info.returnOnEquity : null,

@@ -94,7 +94,7 @@ export async function refreshAllQuotes(): Promise<{ refreshed: number; skipped: 
         sharesOutstanding: shares,
         marketCap: mcap,
         peRatio: sanitizeRatio(info?.trailingPE ?? existing?.peRatio ?? null, 150),
-        pbRatio: sanitizeRatio(info?.priceToBook ?? existing?.pbRatio ?? null, 50),
+        pbRatio: sanitizeRatio(info?.priceToBook, 50, 0.1) ?? existing?.pbRatio ?? null,
         psRatio: sanitizeRatio(info?.priceToSalesTrailing12Months ?? existing?.psRatio ?? null, 50),
         dividendYield: info?.dividendYield ?? existing?.dividendYield ?? null,
         enterpriseValue: sanitizeEnterpriseValue(info?.enterpriseValue, mcap, existing?.enterpriseValue ?? null),
