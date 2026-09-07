@@ -1,7 +1,7 @@
 import { Router, type Router as ExpressRouter } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/jwt';
 import { fetchYahooQuote } from '../services/yahoo';
-import { computeAll, weightedAverage, getVerdict, getSectorConfigs } from '../services/valuationService';
+import { computeAll, getRecommendedFairValue, getVerdict, getSectorConfigs } from '../services/valuationService';
 import prisma from '../infrastructure/prisma/client';
 
 const router: ExpressRouter = Router();
@@ -70,8 +70,8 @@ router.post('/', async (req: AuthRequest, res) => {
         const configs = getSectorConfigs(company.sector, company.industry);
         const input = { financials, balanceSheets, stock };
         const results = computeAll(input, configs, company.sector, company.industry);
-        const avg = weightedAverage(results);
-        lastVerdict = getVerdict(avg, stock.currentPrice);
+        const { fairValue } = getRecommendedFairValue(results, input, company.sector, company.industry);
+        lastVerdict = getVerdict(fairValue, stock.currentPrice);
         lastPrice = stock.currentPrice;
         triggered = lastVerdict === targetVerdict;
       }
@@ -206,8 +206,8 @@ export async function checkAllAlarms() {
       const configs = getSectorConfigs(alarm.company.sector, alarm.company.industry);
       const input = { financials, balanceSheets, stock: { ...stock, currentPrice } };
       const results = computeAll(input, configs, alarm.company.sector, alarm.company.industry);
-      const avg = weightedAverage(results);
-      const verdict = getVerdict(avg, currentPrice);
+      const { fairValue } = getRecommendedFairValue(results, input, alarm.company.sector, alarm.company.industry);
+      const verdict = getVerdict(fairValue, currentPrice);
 
       const isTriggered = verdict === alarm.targetVerdict;
 

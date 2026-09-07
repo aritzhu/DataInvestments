@@ -13,6 +13,11 @@ export interface CompanyFromAPI {
     fcfYield: number | null;
     ndEbitda: number | null;
   } | null;
+  businessModel?: {
+    model: string | null;
+    label: string;
+    reason: string;
+  } | null;
 }
 
 export interface LandingCacheEntry {

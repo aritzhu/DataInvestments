@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, Users, MapPin, Calendar, AlertTriangle, Heart, Briefcase, Bell, Plus, X, Trash2, Globe } from 'lucide-react';
 import '../styles/company.css';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { Skeleton, SkeletonCard, SkeletonStats } from './ui/Skeleton';
 import { formatPct, safeDiv } from '../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, getSectorConfigs, trailing12Months, getCommodityMapping, type ValuationInput } from '../utils/valuation';
+import { getVerdict, VERDICT_COLORS, trailing12Months, type CommodityMapping } from '../utils/valuation';
+import { fetchValuation, fetchCommodityMapping, type ValuationApiResponse } from '../utils/valuationApi';
 import { InfoButton } from './ui/InfoButton';
 import { INFO } from '../utils/infoContent';
 import { FinancialStatementsTab } from './tabs/FinancialStatementsTab';
@@ -19,6 +20,20 @@ import { PaywallModal } from './PaywallModal';
 import { listPortfolios, addHolding, createPortfolio } from '../services/portfolioService';
 import type { Portfolio } from '../types/portfolio';
 import { companyLogoUrl } from '../utils/companyLogoUrl';
+
+const METHOD_NAMES: Record<string, string> = {
+  dcf: 'DCF',
+  per: 'P/E',
+  pb: 'P/B',
+  ps: 'P/S',
+  ev_ebitda: 'EV/EBITDA',
+  ev_ebit: 'EV/EBIT',
+  ddm: 'DDM',
+  graham: 'Nº de Graham',
+  fcf_yield: 'FCF Yield',
+  net_net: 'Net-Net',
+  per_norm: 'P/E Normalizado',
+};
 
 export interface CompanyProfile {
   company: {
@@ -315,8 +330,27 @@ export function CompanyPage() {
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
 
-  const commodityMapping = useMemo(() => (data ? getCommodityMapping(data.company.ticker, data.company.industry, data.company.sector) : null), [data]);
+  const [commodityMapping, setCommodityMapping] = useState<CommodityMapping | null>(null);
   const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    let cancelled = false;
+    fetchCommodityMapping(data.company.ticker, data.company.industry, data.company.sector)
+      .then((m) => { if (!cancelled) setCommodityMapping(m); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [data]);
+
+  const [valuationData, setValuationData] = useState<ValuationApiResponse | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    let cancelled = false;
+    fetchValuation(data.company.ticker)
+      .then((d) => { if (!cancelled) setValuationData(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [data]);
 
   useEffect(() => {
     if (!commodityMapping) return;
@@ -574,10 +608,9 @@ export function CompanyPage() {
   const netMargin = currentFinancial ? safeDiv(currentFinancial.netIncome, currentFinancial.revenue) : null;
   const ebitdaMargin = currentFinancial ? safeDiv(currentFinancial.ebitda ?? 0, currentFinancial.revenue) : null;
 
-  const valInput: ValuationInput = { financials, balanceSheets, stock: stock!, currency: company.currency || 'USD' };
-  const valResults = stock ? computeAll(valInput, getSectorConfigs(company.sector, company.industry), company.sector, company.industry) : [];
-  const avgFair = weightedAverage(valResults);
-  const { verdict, upside, label: verdictLabel } = getVerdict(avgFair, stock?.currentPrice ?? 0);
+  const recFair = valuationData?.recommended?.fairValue ?? null;
+  const recModel = valuationData?.recommended?.model ?? null;
+  const { verdict, upside, label: verdictLabel } = getVerdict(recFair, stock?.currentPrice ?? 0);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -845,9 +878,9 @@ export function CompanyPage() {
 
       {/* Quick stats — key metrics for evaluating the company */}
       <div className="cp-quick">
-        {avgFair != null && stock && (
+        {recFair != null && stock && (
           <div className="cp-quick-item cp-quick-verdict">
-            <span className="cp-quick-label"><span className="info-label-row">Valoración <InfoButton content={INFO['valuation.hero']} /></span></span>
+            <span className="cp-quick-label"><span className="info-label-row">Valoración {recModel ? `(${METHOD_NAMES[recModel] || recModel})` : ''} <InfoButton content={INFO['valuation.hero']} /></span></span>
             <span className="cp-quick-value">
               <span className="cp-quick-verdict-dot" style={{ background: VERDICT_COLORS[verdict] }} />
               <span className="cp-quick-verdict-label" style={{ color: VERDICT_COLORS[verdict] }}>{verdictLabel}</span>
@@ -857,7 +890,7 @@ export function CompanyPage() {
                 </span>
               )}
               <span className="cp-quick-verdict-fair">
-                {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{avgFair.toFixed(2)}
+                {company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}{recFair.toFixed(2)}
               </span>
             </span>
           </div>

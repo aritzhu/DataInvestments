@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Cell,
@@ -16,13 +15,6 @@ import { ChartTooltip, ChartRangeChips, PALETTE, fmtDate, fmtMoney } from './cha
 import { InfoButton } from '../ui/InfoButton';
 import { INFO } from '../../utils/infoContent';
 
-type TargetMode = 'recommended' | 'average';
-
-const TARGET_MODES: Array<{ id: TargetMode; label: string }> = [
-  { id: 'recommended', label: 'Recomendado' },
-  { id: 'average', label: 'Media métodos' },
-];
-
 interface Props {
   history: PortfolioHistory;
   months: number;
@@ -32,45 +24,7 @@ interface Props {
   holdings: PortfolioValuationHolding[];
 }
 
-export function PortfolioTargetChart({ history, months, onRangeChange, allocation, excluded, holdings }: Props) {
-  const [mode, setMode] = useState<TargetMode>('recommended');
-
-  // Media aritmética simple de los métodos con valor mostrados en la valoración
-  const simpleMethodsAvg = (h: PortfolioValuationHolding): number | null => {
-    const vals = (h.valuationMethods ?? [])
-      .map((m) => m?.fairValue)
-      .filter((v): v is number => v != null && v > 0);
-    return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
-  };
-
-  // Ratio media-métodos / método-recomendado por acción (1 si falta alguno de los dos valores)
-  const avgRatioByTicker = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const h of holdings) {
-      const avg = simpleMethodsAvg(h);
-      map.set(
-        h.ticker,
-        avg != null && h.recommendedFairValue != null && h.recommendedFairValue > 0
-          ? avg / h.recommendedFairValue
-          : 1,
-      );
-    }
-    return map;
-  }, [holdings]);
-
-  // Ratio agregado del portfolio para puntos históricos sin detalle por holding
-  const portfolioAvgRatio = useMemo(() => {
-    let totalRec = 0;
-    let totalAvg = 0;
-    for (const h of holdings) {
-      if (excluded.has(h.ticker)) continue;
-      if (h.recommendedFairValue != null) totalRec += h.quantity * h.recommendedFairValue;
-      const avg = simpleMethodsAvg(h);
-      if (avg != null) totalAvg += h.quantity * avg;
-    }
-    return totalRec > 0 ? totalAvg / totalRec : 1;
-  }, [holdings, excluded]);
-
+export function PortfolioTargetChart({ history, months, onRangeChange, allocation, excluded }: Props) {
   const data = history.points.map((p) => {
     const h = p.holdings ?? null;
     if (h && h.length > 0) {
@@ -78,17 +32,10 @@ export function PortfolioTargetChart({ history, months, onRangeChange, allocatio
       return {
         label: fmtDate(p.date),
         marketValue: visible.reduce((s, x) => s + x.marketValue, 0),
-        targetValue: visible.reduce(
-          (s, x) =>
-            s +
-            (x.targetValue ?? 0) *
-              (mode === 'average' ? (avgRatioByTicker.get(x.ticker) ?? 1) : 1),
-          0,
-        ),
+        targetValue: visible.reduce((s, x) => s + (x.targetValue ?? 0), 0),
       };
     }
-    const scale = mode === 'average' ? portfolioAvgRatio : 1;
-    return { label: fmtDate(p.date), marketValue: p.marketValue, targetValue: p.targetValue * scale };
+    return { label: fmtDate(p.date), marketValue: p.marketValue, targetValue: p.targetValue };
   });
   const hasData = data.some((d) => d.marketValue > 0);
   const totalAlloc = allocation.reduce((s, a) => s + a.value, 0);
@@ -98,17 +45,6 @@ export function PortfolioTargetChart({ history, months, onRangeChange, allocatio
       <div className="pf-chart-header">
         <h3 className="pf-chart-title"><span className="info-label-row">Convergencia hacia el valor objetivo <InfoButton content={INFO['portfolio.convergence']} /></span></h3>
         <ChartRangeChips months={months} onRangeChange={onRangeChange} />
-      </div>
-      <div className="pf-chart-chips">
-        {TARGET_MODES.map((m) => (
-          <button
-            key={m.id}
-            className={`pf-chart-chip ${mode === m.id ? 'pf-chart-chip--active' : ''}`}
-            onClick={() => setMode(m.id)}
-          >
-            {m.label}
-          </button>
-        ))}
       </div>
       <div className="pf-chart-body">
         <div className="pf-chart-line">
@@ -124,11 +60,11 @@ export function PortfolioTargetChart({ history, months, onRangeChange, allocatio
                   tickFormatter={(v: number) => fmtMoney(v)}
                   width={70}
                 />
-                <Tooltip content={<ChartTooltip targetLabel={mode === 'average' ? 'Objetivo (media)' : 'Objetivo'} />} />
+                <Tooltip content={<ChartTooltip targetLabel="Objetivo" />} />
                 <Line
                   type="monotone"
                   dataKey="targetValue"
-                  name={mode === 'average' ? 'Valor objetivo (media)' : 'Valor objetivo'}
+                  name="Valor objetivo"
                   stroke="#6366f1"
                   strokeWidth={2}
                   dot={false}

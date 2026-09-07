@@ -57,7 +57,6 @@ export interface PortfolioValuationHolding {
   totalValue: number | null;
   pl: number | null;
   plPercent: number | null;
-  fairValue: number | null;
   recommendedFairValue: number | null;
   recommendedModel: string;
   marginOfSafety: number | null;

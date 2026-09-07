@@ -1,4 +1,5 @@
 import prisma from '../infrastructure/prisma/client';
+import { trailing12Months } from './valuationService';
 
 export interface MarketAverages {
   pe: number;
@@ -97,14 +98,15 @@ export async function getMarketAverages(sector: string): Promise<MarketAverages>
         if (stock.pbRatio) pbArr.push(stock.pbRatio);
         if (stock.psRatio) psArr.push(stock.psRatio);
 
-        const fin = await prisma.financialData.findFirst({
+        const fin = await prisma.financialData.findMany({
           where: { companyId: id },
-          orderBy: [{ year: 'desc' }, { quarter: 'desc' }],
         });
-        if (fin) {
-          if (stock.enterpriseValue && fin.ebitda && fin.ebitda > 0) evArr.push(stock.enterpriseValue / fin.ebitda);
-          if (fin.freeCashFlow != null && stock.marketCap && stock.marketCap > 0) fcfArr.push(fin.freeCashFlow / stock.marketCap);
-        }
+        const bsFin = await prisma.balanceSheet.findMany({
+          where: { companyId: id },
+        });
+        const ttm = trailing12Months(fin, bsFin);
+        if (stock.enterpriseValue && ttm?.ebitda != null && ttm.ebitda > 0) evArr.push(stock.enterpriseValue / ttm.ebitda);
+        if (ttm?.freeCashFlow != null && stock.marketCap && stock.marketCap > 0) fcfArr.push(ttm.freeCashFlow / stock.marketCap);
       }
 
       pe = robustMedian(peArr);

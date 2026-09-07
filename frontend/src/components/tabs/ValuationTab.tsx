@@ -6,7 +6,8 @@ import { SectionReveal } from '../ui/SectionReveal';
 import { ValuationChart } from '../ui/ValuationChart';
 import { CommoditySensitivityChart } from '../ui/CommoditySensitivityChart';
 import { formatPct } from '../../utils/format';
-import { computeAll, weightedAverage, getVerdict, VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, getSectorConfigs, getRecommendedModel, getRecommendedFairValue, latestFinancialPeriod, getCommodityMapping, dcfSeedRates, isConsumerCyclical, type ValuationInput } from '../../utils/valuation';
+import { VERDICT_COLORS, VERDICT_BG, VERDICT_BORDER, latestFinancialPeriod, type CommodityMapping } from '../../utils/valuation';
+import { fetchValuation, fetchCommodityMapping, type ValuationApiResponse, type ValuationConfigs } from '../../utils/valuationApi';
 import { useAuth } from '../../contexts/AuthContext';
 import { Bell, X, ChevronDown } from 'lucide-react';
 import { DisclaimerBanner } from '../DisclaimerBanner';
@@ -55,40 +56,87 @@ const METHOD_NAMES: Record<string, string> = {
   graham: 'Nº de Graham',
   fcf_yield: 'FCF Yield',
   net_net: 'Net-Net',
+  per_norm: 'P/E Normalizado',
 };
 
-export function ValuationTab({ company, financials, balanceSheets, stock }: Props) {
+// Fallback slider values while the first API response (with the effective
+// sector configs) is loading. Mirrors the backend defaults.
+const DEFAULT_SLIDERS: ValuationConfigs = {
+  dcf: { growthRate: 5, discountRate: 10, horizonYears: 10 },
+  per: { targetPE: 20 },
+  pb: { targetPB: 3 },
+  ps: { targetPS: 5 },
+  evEbitda: { targetMultiple: 15 },
+  evEbit: { targetMultiple: 15 },
+  ddm: { growthRate: 3, requiredReturn: 8 },
+  fcfYield: { targetYield: 8 },
+};
+
+export function ValuationTab({ company, financials, stock }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
   const [expandedGrowth, setExpandedGrowth] = useState(false);
   const [expandedWacc, setExpandedWacc] = useState(false);
   const [expandedPERBreakdown, setExpandedPERBreakdown] = useState(false);
   const [ccOverride, setCcOverride] = useState(() => ({ growth: false, discount: false }));
-  const [configs, setConfigs] = useState(() => {
-    const sectorConfigs = getSectorConfigs(company.sector, company.industry);
-    if (stock && isConsumerCyclical(company.sector, company.industry)) {
-      const seed = dcfSeedRates(
-        { financials, balanceSheets, stock, currency: company.currency || 'USD' },
-        { growthRate: sectorConfigs.dcf.growthRate, discountRate: sectorConfigs.dcf.discountRate },
-        company.sector,
-        company.industry,
-      );
-      if (seed.growthApplied) {
-        sectorConfigs.dcf.growthRate = seed.growthRate;
-        sectorConfigs.dcf.discountRate = seed.discountRate;
-      }
-    }
-    if (stock?.pbRatio && stock.pbRatio > 0) {
-      return { ...sectorConfigs, pb: { targetPB: stock.pbRatio } };
-    }
-    return sectorConfigs;
-  });
+  const [configs, setConfigs] = useState<ValuationConfigs>(DEFAULT_SLIDERS);
+  const [data, setData] = useState<ValuationApiResponse | null>(null);
+  const [queryVersion, setQueryVersion] = useState(0);
   const [showAlarmModal, setShowAlarmModal] = useState(false);
   const [existingAlarm, setExistingAlarm] = useState<AlarmData | null>(null);
   const [alarmTarget, setAlarmTarget] = useState<'buy' | 'hold' | 'sell'>('buy');
   const [alarmLoading, setAlarmLoading] = useState(false);
 
-  const commodityMapping = useMemo(() => getCommodityMapping(company.ticker, company.industry, company.sector), [company.ticker, company.industry, company.sector]);
+  // Load the server-computed valuation (effective sector configs + results).
+  useEffect(() => {
+    setData(null);
+    setConfigs(DEFAULT_SLIDERS);
+    setQueryVersion(0);
+    let cancelled = false;
+    fetchValuation(company.ticker)
+      .then((d) => { if (!cancelled) { setData(d); setConfigs(d.configs); } })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [company.ticker]);
+
+  // Debounced refetch whenever the user moves a slider. The current slider
+  // values are sent as backend params, so the server stays the source of truth.
+  const configsKey = JSON.stringify(configs);
+  const ccKey = `${ccOverride.growth ? 1 : 0}${ccOverride.discount ? 1 : 0}`;
+  useEffect(() => {
+    if (queryVersion === 0) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetchValuation(company.ticker, {
+        growth: configs.dcf.growthRate,
+        discount: configs.dcf.discountRate,
+        horizon: configs.dcf.horizonYears,
+        per: configs.per.targetPE,
+        pb: configs.pb.targetPB,
+        ps: configs.ps.targetPS,
+        evEbitda: configs.evEbitda.targetMultiple,
+        evEbit: configs.evEbit.targetMultiple,
+        ddmGrowth: configs.ddm.growthRate,
+        ddmReturn: configs.ddm.requiredReturn,
+        fcfYield: configs.fcfYield.targetYield,
+        ccGrowth: ccOverride.growth,
+        ccDiscount: ccOverride.discount,
+      }, { signal: controller.signal })
+        .then((d) => { if (!controller.signal.aborted) setData(d); })
+        .catch(() => {});
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryVersion, configsKey, ccKey, company.ticker]);
+
+  const [commodityMapping, setCommodityMapping] = useState<CommodityMapping | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCommodityMapping(company.ticker, company.industry, company.sector)
+      .then((m) => { if (!cancelled) setCommodityMapping(m); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [company.ticker, company.industry, company.sector]);
   const isBasicMaterials = !!commodityMapping;
   const isBasicMaterialsSector = company.sector?.toLowerCase() === 'basic materials';
   const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(null);
@@ -111,17 +159,7 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     return () => { cancelled = true; };
   }, [isBasicMaterials, commodityMapping]);
 
-  const input: ValuationInput = useMemo(() => ({
-    financials,
-    balanceSheets,
-    stock: stock!,
-    currency: company.currency || 'USD',
-  }), [financials, balanceSheets, stock, company.currency]);
-
-  const results = useMemo(() => {
-    if (!stock) return [];
-    return computeAll(input, configs, company.sector, company.industry, ccOverride);
-  }, [input, configs, ccOverride]);
+  const results = data?.results ?? [];
 
   const cogs = useMemo(() => {
     const annual = [...financials]
@@ -200,9 +238,8 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     }
   };
 
-  const rec = getRecommendedModel(input, company.sector, company.industry);
-  const recommendedModel = rec.id;
-  const recommendedBm = rec.businessModel;
+  const recommendedModel = data?.recommended.model ?? 'dcf';
+  const recommendedBm = data?.recommended.businessModel ?? data?.businessModel ?? null;
   const applicable = results.filter(r => r.fairValue != null && r.fairValue > 0);
   const activeId = applicable.some(r => r.id === activeMethod)
     ? activeMethod
@@ -213,15 +250,13 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     return <div className="tab-empty">Sin datos suficientes para valoración</div>;
   }
 
-  const validValues = applicable.map(r => r.fairValue!);
-  const resolved = getRecommendedFairValue(results, input, company.sector, company.industry);
+  const resolved = data?.recommended ?? { model: 'dcf', fairValue: null };
   const heroModel = resolved.model;
   const heroResult = results.find(r => r.id === heroModel) ?? applicable[0] ?? null;
   const heroRecommended = heroResult?.id === recommendedModel;
   const recommendedFair = heroResult?.fairValue ?? null;
-  const avgFair = weightedAverage(results);
   const avgUpside = recommendedFair && stock.currentPrice > 0 ? (recommendedFair - stock.currentPrice) / stock.currentPrice : null;
-  const { verdict, label: verdictLabel } = getVerdict(recommendedFair, stock.currentPrice);
+  const { verdict, label: verdictLabel } = data?.verdict ?? { verdict: 'na', label: 'Sin datos' };
   const periodInfo = latestFinancialPeriod(financials);
   const periodLabel = periodInfo.isTTM
     ? `TTM — ${periodInfo.quarter != null ? `Q${periodInfo.quarter} ` : ''}${periodInfo.year ?? '—'}`
@@ -246,11 +281,12 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
     return Math.min(100, Math.max(0, (stock.currentPrice / max) * 100));
   })();
 
-  const updateConfig = <K extends keyof typeof configs>(section: K, key: keyof typeof configs[K], value: number) => {
+  const updateConfig = <K extends keyof ValuationConfigs>(section: K, key: keyof ValuationConfigs[K], value: number) => {
     setConfigs(prev => ({
       ...prev,
       [section]: { ...prev[section], [key]: value },
     }));
+    setQueryVersion(v => v + 1);
   };
 
   return (
@@ -301,10 +337,6 @@ export function ValuationTab({ company, financials, balanceSheets, stock }: Prop
         </div>
 
         <div className="val-summary-secondary">
-          <span className="val-summary-secondary-text">
-            Promedio ponderado {validValues.length} métodos: {avgFair ? `${company.currency === 'EUR' ? '€' : company.currency === 'GBP' ? '£' : '$'}${avgFair.toFixed(2)}` : '—'}
-          </span>
-          <span className="val-summary-secondary-sep">·</span>
           <span className="val-summary-secondary-text">
             {periodLabel}
           </span>

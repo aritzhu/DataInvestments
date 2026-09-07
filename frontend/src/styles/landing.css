@@ -1195,6 +1195,21 @@
   font-weight: 500;
 }
 
+.company-card-bm {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--gold-light);
+  background: var(--gold-pale);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .company-card-actions {
   display: flex;
   gap: 0.5rem;
@@ -1670,6 +1685,124 @@
   box-shadow: 0 0 0 3px var(--gold-glow);
 }
 
+.filter-select {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.filter-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  font-family: inherit;
+  white-space: nowrap;
+  max-width: 15rem;
+}
+
+.filter-select-btn:hover {
+  background-color: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.filter-select-btn--open,
+.filter-select-btn:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-glow);
+}
+
+.filter-select-icon {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.filter-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-select-chev {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform 0.15s ease;
+}
+
+.filter-select-btn--open .filter-select-chev {
+  transform: rotate(180deg);
+}
+
+.filter-select-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 13rem;
+  max-width: 19rem;
+  z-index: 40;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-lg);
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.filter-select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.filter-select-option:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.filter-select-option--sel {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+.filter-select-count {
+  opacity: 0.7;
+  margin-left: auto;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 1024px) {
+  .filter-select-btn {
+    max-width: 11rem;
+  }
+}
+
 .sort-btn {
   display: flex;
   align-items: center;
@@ -1966,6 +2099,15 @@
   font-size: 0.7rem;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.company-list-bm {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--gold-light);
+  background: var(--gold-pale);
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
 }
 
 .company-list-country {

@@ -112,6 +112,10 @@ jobs:
             echo "Recomputing valuations..."
             $DC run --rm backend node dist/scripts/recomputeValuations.js
 
+            # Diagnostic: business-model classification coverage on production data (read-only report)
+            echo "Analyzing business models..."
+            $DC run --rm backend node dist/scripts/analyzeBusinessModels.js || echo "WARN: analyzeBusinessModels report incomplete"
+
             # Backfill portfolio history (idempotent upserts per [portfolioId, date])
             echo "Backfilling portfolio history..."
             $DC run --rm backend node dist/scripts/backfillPortfolioHistory.js

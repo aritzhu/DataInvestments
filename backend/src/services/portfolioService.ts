@@ -1,4 +1,4 @@
-import { computeAll, weightedAverage, getVerdict, getSectorConfigs, getRecommendedFairValue } from './valuationService';
+import { computeAll, getVerdict, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
 import { backfillPortfolioHistory } from '../scripts/backfillPortfolioHistory';
 
@@ -120,7 +120,7 @@ export async function getPortfolioValuation(portfolioId: string, userId: string)
   const portfolio = await getPortfolio(portfolioId, userId);
   if (!portfolio) return null;
 
-  const valuationsCache = new Map<string, { fairValue: number | null; recommendedFairValue: number | null; recommendedModel: string; verdict: string; methods: any[] }>();
+  const valuationsCache = new Map<string, { recommendedFairValue: number | null; recommendedModel: string; verdict: string; methods: any[] }>();
 
   const holdingsWithVal = await Promise.all(
     portfolio.holdings.map(async (h) => {
@@ -146,18 +146,17 @@ export async function getPortfolioValuation(portfolioId: string, userId: string)
             const configs = getSectorConfigs(h.company.sector, h.company.industry);
             const valInput = { financials: financialData as any, balanceSheets, stock };
             const results = computeAll(valInput, configs, h.company.sector, h.company.industry);
-            const fairValue = weightedAverage(results);
             const recommended = getRecommendedFairValue(results, valInput, h.company.sector, h.company.industry);
-            const recommendedFairValue = recommended.fairValue ?? fairValue;
+            const recommendedFairValue = recommended.fairValue;
             const currentPrice = stock.currentPrice;
             const verdict = getVerdict(recommendedFairValue, currentPrice);
 
-            cached = { fairValue, recommendedFairValue, recommendedModel: recommended.model, verdict, methods: results };
+            cached = { recommendedFairValue, recommendedModel: recommended.model, verdict, methods: results };
           } else {
-            cached = { fairValue: null, recommendedFairValue: null, recommendedModel: 'default', verdict: 'na', methods: [] };
+            cached = { recommendedFairValue: null, recommendedModel: 'default', verdict: 'na', methods: [] };
           }
         } else {
-          cached = { fairValue: null, recommendedFairValue: null, recommendedModel: 'default', verdict: 'na', methods: [] };
+          cached = { recommendedFairValue: null, recommendedModel: 'default', verdict: 'na', methods: [] };
         }
       }
 
@@ -184,7 +183,6 @@ export async function getPortfolioValuation(portfolioId: string, userId: string)
         totalValue,
         pl,
         plPercent,
-        fairValue: cached.fairValue,
         recommendedFairValue: cached.recommendedFairValue,
         recommendedModel: cached.recommendedModel,
         marginOfSafety: mos,

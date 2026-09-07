@@ -27,7 +27,8 @@ import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getMetricVariations } from './services/metricVariations';
-import { getRecommendedModel, getSectorConfigs, computeAll } from './services/valuationService';
+import { getRecommendedModel, getRecommendedFairValue, getSectorConfigs, computeAll, inferBusinessModel, dcfSeedRates, isConsumerCyclical, type BusinessModelInference, type ValuationInput } from './services/valuationService';
+import { getMappedCommodity } from './data/commodityMap';
 import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
 import { parsePagination, paginate } from './utils/pagination';
 
@@ -173,6 +174,7 @@ app.get('/api/companies', async (req, res) => {
   try {
     const query = req.query as Record<string, string>;
     const { sector, country, sort, fav, sortBy } = query;
+    const businessModel = query.businessModel;
     const search = query.search || query.q;
     const { page, pageSize, skip, take } = parsePagination(req.query, 24);
     const where: any = { active: true };
@@ -214,7 +216,8 @@ app.get('/api/companies', async (req, res) => {
     const maxPe = parseFloatParam(query.maxPe);
     const minFcfYield = parseFloatParam(query.minFcfYield);
     const maxNetDebtEbitda = parseFloatParam(query.maxNetDebtEbitda);
-    const screeningActive = sortBy != null || minNetMargin != null || maxPe != null || minFcfYield != null || maxNetDebtEbitda != null;
+    const activeBusinessModel = businessModel && businessModel !== 'all' && businessModel !== 'null' && businessModel !== 'undefined' ? businessModel : null;
+    const screeningActive = sortBy != null || minNetMargin != null || maxPe != null || minFcfYield != null || maxNetDebtEbitda != null || activeBusinessModel != null;
 
     const baseSelect = {
       id: true,
@@ -236,15 +239,27 @@ app.get('/api/companies', async (req, res) => {
         skip,
         take,
       });
+      if (companies.length) {
+        const mm = await getCompanyMetrics(companies);
+        return res.json(paginate({
+          data: companies.map((c) => ({ ...c, businessModel: mm.get(c.id)?.businessModel ?? null })),
+          total,
+          page,
+          pageSize,
+        }));
+      }
       return res.json(paginate({ data: companies, total, page, pageSize }));
     }
 
     // Screening path: compute per-company fundamentals and filter/sort on them
     const allCompanies = await prisma.company.findMany({ where, select: baseSelect });
-    const metrics = await getCompanyMetrics(allCompanies.map((c) => c.id));
+    const metrics = await getCompanyMetrics(allCompanies);
 
     let rows = allCompanies
-      .map((c) => ({ ...c, metrics: metrics.get(c.id) ?? null }))
+      .map((c) => {
+        const mm = metrics.get(c.id);
+        return { ...c, metrics: mm?.metrics ?? null, businessModel: mm?.businessModel ?? null };
+      })
       .filter((r) => {
         const m = r.metrics;
         if (!m) return false;
@@ -252,6 +267,13 @@ app.get('/api/companies', async (req, res) => {
         if (maxPe != null && (m.pe == null || m.pe <= 0 || m.pe > maxPe)) return false;
         if (minFcfYield != null && (m.fcfYield == null || m.fcfYield < minFcfYield)) return false;
         if (maxNetDebtEbitda != null && (m.ndEbitda == null || m.ndEbitda > maxNetDebtEbitda)) return false;
+        if (activeBusinessModel != null) {
+          if (activeBusinessModel === 'none') {
+            if (r.businessModel?.model != null) return false;
+          } else {
+            if (r.businessModel?.model !== activeBusinessModel) return false;
+          }
+        }
         return true;
       });
 
@@ -282,7 +304,10 @@ function parseFloatParam(value: string | undefined): number | null {
 
 // Latest fundamentals per company for screening: P/E, net margin, FCF yield
 // and net-debt/EBITDA from the most recent stock/financial/balance rows.
-async function getCompanyMetrics(ids: string[]): Promise<Map<string, Record<string, number | null>>> {
+async function getCompanyMetrics(
+  companies: Array<{ id: string; sector?: string | null; industry?: string | null }>,
+): Promise<Map<string, { metrics: Record<string, number | null>; businessModel: BusinessModelInference | null }>> {
+  const ids = companies.map((c) => c.id);
   const [stocks, financials, balanceSheets] = await Promise.all([
     prisma.stockMetric.findMany({ where: { companyId: { in: ids } }, orderBy: { date: 'desc' } }),
     prisma.financialData.findMany({ where: { companyId: { in: ids } }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
@@ -298,8 +323,9 @@ async function getCompanyMetrics(ids: string[]): Promise<Map<string, Record<stri
   const latestFin = latestBy(financials);
   const latestBs = latestBy(balanceSheets);
 
-  const out = new Map<string, Record<string, number | null>>();
-  for (const id of ids) {
+  const out = new Map<string, { metrics: Record<string, number | null>; businessModel: BusinessModelInference | null }>();
+  for (const comp of companies) {
+    const id = comp.id;
     const st = latestStock.get(id);
     const fin = latestFin.get(id);
     if (!st || !fin) continue;
@@ -315,10 +341,36 @@ async function getCompanyMetrics(ids: string[]): Promise<Map<string, Record<stri
       const debt = (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0);
       m.ndEbitda = (debt - cash) / fin.ebitda;
     }
-    out.set(id, m);
+    let businessModel: BusinessModelInference | null = null;
+    try {
+      businessModel = inferBusinessModel(
+        { financials: [fin], balanceSheets: bs ? [bs] : [], stock: st } as any,
+        comp.sector,
+        comp.industry,
+      );
+    } catch {
+      businessModel = null;
+    }
+    out.set(id, { metrics: m, businessModel });
   }
   return out;
 }
+
+app.get('/api/companies/business-model-counts', async (_req, res) => {
+  try {
+    const companies = await prisma.company.findMany({ where: { active: true }, select: { id: true, sector: true, industry: true } });
+    const mm = await getCompanyMetrics(companies);
+    const counts: Record<string, number> = {};
+    for (const c of companies) {
+      const bm = mm.get(c.id)?.businessModel;
+      const key = bm?.model ?? 'none';
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    res.json(counts);
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching business model counts' });
+  }
+});
 
 app.get('/api/companies/facets', async (_req, res) => {
   try {
@@ -399,6 +451,117 @@ app.get('/api/companies/:ticker/metric-variations', async (req, res) => {
   } catch (error) {
     console.error('[Companies] Error fetching metric variations:', error);
     res.status(500).json({ error: 'Error fetching metric variations' });
+  }
+});
+
+// ── Company valuation (single source of truth) ────────────────────────────
+
+const VALUATION_ENDPOINT_TTL_MS = 30 * 1000;
+const valuationEndpointCache = new Map<string, { at: number; data: unknown }>();
+
+app.get('/api/companies/:ticker/valuation', async (req, res) => {
+  try {
+    const { ticker } = req.params;
+    const q = req.query as Record<string, string>;
+    const qs = Object.keys(q).sort().map((k) => `${k}=${q[k]}`).join('&');
+    const cacheKey = `${ticker.toUpperCase()}|${qs}`;
+    const cached = valuationEndpointCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < VALUATION_ENDPOINT_TTL_MS) {
+      res.json(cached.data);
+      return;
+    }
+
+    const company = await prisma.company.findUnique({ where: { ticker: ticker.toUpperCase() } });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    const [financials, balanceSheets, stockMetrics] = await Promise.all([
+      prisma.financialData.findMany({ where: { companyId: company.id }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+      prisma.balanceSheet.findMany({ where: { companyId: company.id }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+      prisma.stockMetric.findMany({ where: { companyId: company.id }, orderBy: { date: 'desc' } }),
+    ]);
+
+    const stock = stockMetrics[0];
+    if (!stock) {
+      res.status(400).json({ error: 'Sin datos de mercado para esta empresa' });
+      return;
+    }
+
+    const input: ValuationInput = {
+      financials: financials as any,
+      balanceSheets: balanceSheets as any,
+      stock: stock as any,
+      currency: company.currency || 'USD',
+    };
+
+    const configs = getSectorConfigs(company.sector, company.industry);
+    if (isConsumerCyclical(company.sector, company.industry)) {
+      const seed = dcfSeedRates(input, { growthRate: configs.dcf.growthRate, discountRate: configs.dcf.discountRate }, company.sector, company.industry);
+      if (seed.growthApplied) {
+        configs.dcf.growthRate = seed.growthRate;
+        configs.dcf.discountRate = seed.discountRate;
+      }
+    }
+    if (stock.pbRatio && stock.pbRatio > 0) {
+      configs.pb.targetPB = stock.pbRatio;
+    }
+
+    const growth = parseFloatParam(q.growth);
+    const discount = parseFloatParam(q.discount);
+    if (growth != null) configs.dcf.growthRate = growth;
+    if (discount != null) configs.dcf.discountRate = discount;
+    const horizon = parseFloatParam(q.horizon);
+    if (horizon != null) configs.dcf.horizonYears = horizon;
+    const per = parseFloatParam(q.per);
+    if (per != null) configs.per.targetPE = per;
+    const pb = parseFloatParam(q.pb);
+    if (pb != null) configs.pb.targetPB = pb;
+    const ps = parseFloatParam(q.ps);
+    if (ps != null) configs.ps.targetPS = ps;
+    const evEbitda = parseFloatParam(q.evEbitda);
+    if (evEbitda != null) configs.evEbitda.targetMultiple = evEbitda;
+    const evEbit = parseFloatParam(q.evEbit);
+    if (evEbit != null) configs.evEbit.targetMultiple = evEbit;
+    const ddmGrowth = parseFloatParam(q.ddmGrowth);
+    if (ddmGrowth != null) configs.ddm.growthRate = ddmGrowth;
+    const ddmReturn = parseFloatParam(q.ddmReturn);
+    if (ddmReturn != null) configs.ddm.requiredReturn = ddmReturn;
+    const fcfYield = parseFloatParam(q.fcfYield);
+    if (fcfYield != null) configs.fcfYield.targetYield = fcfYield;
+
+    const flag = (v: string | undefined): boolean => v === '1' || v === 'true';
+    const ccOverride = { growth: growth != null || flag(q.ccGrowth), discount: discount != null || flag(q.ccDiscount) };
+
+    const results = computeAll(input, configs, company.sector, company.industry, ccOverride);
+    const recommended = getRecommendedFairValue(results, input, company.sector, company.industry);
+    const businessModel = recommended.businessModel ?? getRecommendedModel(input, company.sector, company.industry).businessModel ?? null;
+    const currentPrice = stock.currentPrice ?? 0;
+    const verdict: { verdict: 'buy' | 'hold' | 'sell' | 'na'; upside: number | null; label: string } = (() => {
+      const fv = recommended.fairValue;
+      if (fv == null || currentPrice <= 0) return { verdict: 'na', upside: null, label: 'Sin datos' };
+      const upside = (fv - currentPrice) / currentPrice;
+      if (upside > 0.15) return { verdict: 'buy', upside, label: 'Infravalorada' };
+      if (upside < -0.15) return { verdict: 'sell', upside, label: 'Sobrevalorada' };
+      return { verdict: 'hold', upside, label: 'Justa' };
+    })();
+
+    const payload = {
+      ticker: company.ticker,
+      asOf: stock.date,
+      currentPrice,
+      results,
+      recommended,
+      businessModel,
+      verdict,
+      configs,
+    };
+    valuationEndpointCache.set(cacheKey, { at: Date.now(), data: payload });
+    res.json(payload);
+  } catch (error) {
+    console.error('[Companies] Error computing valuation:', error);
+    res.status(500).json({ error: 'Error computing valuation' });
   }
 });
 
@@ -611,6 +774,21 @@ app.use('/api/courses', coursesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/commodities', commodityRoutes);
+
+app.get('/api/commodities/mapping', async (req, res) => {
+  try {
+    const { ticker, industry, sector } = req.query as Record<string, string>;
+    if (!ticker) {
+      res.status(400).json({ error: 'Missing ticker' });
+      return;
+    }
+    const mapping = getMappedCommodity(ticker, industry ?? null, sector ?? null);
+    res.json(mapping);
+  } catch (error) {
+    console.error('[Commodities] Error resolving mapping:', error);
+    res.status(500).json({ error: 'Error resolving commodity mapping' });
+  }
+});
 
 // ── Site Settings ─────────────────────────────────────────────────────────
 

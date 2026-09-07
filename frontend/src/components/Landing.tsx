@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, DollarSign, ArrowRight, Shield, PieChart, Database, Heart, ArrowUpDown, Globe, LayoutGrid, List, ChevronDown, Check } from 'lucide-react';
 import { SectionReveal } from './ui/SectionReveal';
 import { BookCarousel, type Book } from './BookCarousel';
 import { MarketTicker } from './hero/MarketTicker';
@@ -60,15 +60,28 @@ const METHOD_NAMES: Record<string, string> = {
   graham: 'Nº de Graham',
   fcf_yield: 'FCF Yield',
   net_net: 'Net-Net',
+  per_norm: 'P/E Normalizado',
 };
 
 const DEFAULT_PAGE_SIZE = 24;
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 100];
 
+const BUSINESS_MODEL_DROPDOWN: { id: string; label: string }[] = [
+  { id: 'brand', label: 'De marca / intangibles' },
+  { id: 'asset_light', label: 'Ligero en activos (servicios/software)' },
+  { id: 'asset_heavy', label: 'Intensivo en capital' },
+  { id: 'growth', label: 'Alto crecimiento' },
+  { id: 'stable', label: 'Maduro / generador de efectivo' },
+  { id: 'commodity', label: 'Cíclico / commodity' },
+  { id: 'financial', label: 'Entidad financiera' },
+  { id: 'none', label: 'No determinado' },
+];
+
 function buildCacheKey(args: {
   search: string;
   sector: string | null;
   country: string;
+  businessModel: string;
   sort: string;
   fav: boolean;
   userKey: string;
@@ -84,6 +97,7 @@ function buildCacheKey(args: {
     args.search,
     args.sector ?? '',
     args.country,
+    args.businessModel,
     args.sort,
     args.fav ? '1' : '0',
     args.userKey,
@@ -130,6 +144,7 @@ export function Landing() {
   const initialSort = (searchParams.get('sort') as 'asc' | 'desc') || 'asc';
   const initialShowFavoritesOnly = searchParams.get('fav') === '1';
   const initialCountry = searchParams.get('country') || '';
+  const initialBusinessModel = searchParams.get('bm') || '';
   const initialPage = (() => {
     const p = parseInt(searchParams.get('page') || '1', 10);
     return Number.isFinite(p) && p > 0 ? p : 1;
@@ -142,6 +157,7 @@ export function Landing() {
     search: initialSearch,
     sector: initialSector,
     country: initialCountry,
+    businessModel: initialBusinessModel,
     sort: initialSort,
     fav: initialShowFavoritesOnly,
     userKey: initialShowFavoritesOnly ? 'anon' : 'public',
@@ -159,12 +175,16 @@ export function Landing() {
   const [companies, setCompanies] = useState<CompanyFromAPI[]>(() => initialCache?.companies ?? []);
   const [total, setTotal] = useState(() => initialCache?.total ?? 0);
   const [facets, setFacets] = useState<{ sectors: string[]; countries: string[] }>(() => initialCache?.facets ?? { sectors: [], countries: [] });
+  const [bmCounts, setBmCounts] = useState<Record<string, number>>({});
+  const [openSelect, setOpenSelect] = useState<string | null>(null);
+  const selectRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSort);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(initialShowFavoritesOnly);
   const [showVisitedOnly, setShowVisitedOnly] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<string>(initialCountry);
+  const [selectedBusinessModel, setSelectedBusinessModel] = useState<string>(initialBusinessModel);
   const [valuationCountry, setValuationCountry] = useState<string>('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState<number>(initialPage);
@@ -180,7 +200,7 @@ export function Landing() {
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
   const [isLoading, setIsLoading] = useState(() => initialCache == null);
   const screeningActive = sortBy !== '' || screenMinMargin !== '' || screenMaxPe !== '' || screenMinFcf !== '' || screenMaxNd !== '';
-  const hasActiveFilters = searchTerm.trim() !== '' || selectedSector !== null || selectedCountry !== '' || showFavoritesOnly || showVisitedOnly || screeningActive;
+  const hasActiveFilters = searchTerm.trim() !== '' || selectedSector !== null || selectedCountry !== '' || selectedBusinessModel !== '' || showFavoritesOnly || showVisitedOnly || screeningActive;
   const [suggestions, setSuggestions] = useState<{ id: string; ticker: string; name: string }[]>([]);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const suggestionsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,6 +222,7 @@ export function Landing() {
         search: searchTerm,
         sector: selectedSector,
         country: selectedCountry,
+        businessModel: selectedBusinessModel,
         sort: sortOrder,
         fav: showFavoritesOnly,
         userKey: showFavoritesOnly ? (user?.id ?? 'anon') : 'public',
@@ -213,7 +234,7 @@ export function Landing() {
         maxNd: screenMaxNd,
         sortBy,
       }),
-    [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, user, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]
+    [searchTerm, selectedSector, selectedCountry, selectedBusinessModel, sortOrder, showFavoritesOnly, user, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]
   );
 
   useEffect(() => {
@@ -226,6 +247,10 @@ export function Landing() {
           setLandingCache(cacheKey, { facets: next });
         }
       })
+      .catch(() => {});
+    fetch('/api/companies/business-model-counts')
+      .then((res) => res.json())
+      .then((data) => { if (data && typeof data === 'object') setBmCounts(data); })
       .catch(() => {});
     fetch('/api/settings')
       .then((res) => res.json())
@@ -246,6 +271,7 @@ export function Landing() {
     if (searchTerm) params.set('search', searchTerm);
     if (selectedSector) params.set('sector', selectedSector);
     if (selectedCountry) params.set('country', selectedCountry);
+    if (selectedBusinessModel) params.set('businessModel', selectedBusinessModel);
     if (sortOrder !== 'asc') params.set('sort', sortOrder);
     if (showFavoritesOnly && user) params.set('fav', '1');
     if (screenMinMargin) params.set('minNetMargin', String(parseFloat(screenMinMargin) / 100));
@@ -285,7 +311,7 @@ export function Landing() {
     return () => {
       cancelled = true;
     };
-  }, [searchTerm, selectedSector, selectedCountry, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy, cacheKey]);
+  }, [searchTerm, selectedSector, selectedCountry, selectedBusinessModel, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy, cacheKey]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -341,6 +367,7 @@ export function Landing() {
     if (searchTerm) params.search = searchTerm;
     if (selectedCountry) params.country = selectedCountry;
     if (selectedSector) params.sector = selectedSector;
+    if (selectedBusinessModel) params.bm = selectedBusinessModel;
     if (sortOrder !== 'asc') params.sort = sortOrder;
     if (showFavoritesOnly) params.fav = '1';
     if (page > 1) params.page = String(page);
@@ -351,7 +378,7 @@ export function Landing() {
     if (screenMaxNd) params.screenMaxNd = screenMaxNd;
     if (sortBy) params.sortBy = sortBy;
     setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
+  }, [searchTerm, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, page, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
 
   const isFirstRender = useRef(true);
   useEffect(() => {
@@ -360,7 +387,7 @@ export function Landing() {
       return;
     }
     setPage(1);
-  }, [searchTerm, selectedCountry, selectedSector, sortOrder, showFavoritesOnly, pageSize]);
+  }, [searchTerm, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, pageSize]);
 
   useEffect(() => {
     if (didInitialScroll.current) return;
@@ -408,6 +435,17 @@ export function Landing() {
     const handleClick = (e: MouseEvent) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
         setSuggestions([]);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Close custom dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
+        setOpenSelect(null);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -776,23 +814,89 @@ export function Landing() {
                   )}
                 </div>
                 {availableCountries.length > 0 && (
-                  <div className="country-filter-wrapper">
-                    <Globe size={14} className="country-filter-icon" />
-                    <select
-                      className="country-filter"
-                      aria-label="Filtrar por país"
-                      value={selectedCountry}
-                      onChange={(e) => setSelectedCountry(e.target.value)}
+                  <div className="filter-select" ref={openSelect === 'country' ? selectRef : undefined}>
+                    <button
+                      type="button"
+                      className={`filter-select-btn ${openSelect === 'country' ? 'filter-select-btn--open' : ''}`}
+                      onClick={() => setOpenSelect(openSelect === 'country' ? null : 'country')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openSelect === 'country'}
                     >
-                      <option value="">Todos los países</option>
-                      {availableCountries.map((code) => (
-                        <option key={code} value={code}>
-                          {COUNTRY_NAMES[code] || code}
-                        </option>
-                      ))}
-                    </select>
+                      <Globe size={14} className="filter-select-icon" />
+                      <span className="filter-select-value">
+                        {selectedCountry ? (COUNTRY_NAMES[selectedCountry] || selectedCountry) : 'Todos los países'}
+                      </span>
+                      <ChevronDown size={14} className="filter-select-chev" />
+                    </button>
+                    {openSelect === 'country' && (
+                      <div className="filter-select-menu" role="listbox">
+                        <button
+                          type="button"
+                          className={`filter-select-option ${selectedCountry === '' ? 'filter-select-option--sel' : ''}`}
+                          onClick={() => { setSelectedCountry(''); setPage(1); setOpenSelect(null); }}
+                        >
+                          <span>Todos los países</span>
+                          {selectedCountry === '' && <Check size={14} />}
+                        </button>
+                        {availableCountries.map((code) => (
+                          <button
+                            key={code}
+                            type="button"
+                            className={`filter-select-option ${selectedCountry === code ? 'filter-select-option--sel' : ''}`}
+                            onClick={() => { setSelectedCountry(code); setPage(1); setOpenSelect(null); }}
+                          >
+                            <span>{COUNTRY_NAMES[code] || code}</span>
+                            {selectedCountry === code && <Check size={14} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
+                <div className="filter-select" ref={openSelect === 'bm' ? selectRef : undefined}>
+                  <button
+                    type="button"
+                    className={`filter-select-btn ${openSelect === 'bm' ? 'filter-select-btn--open' : ''}`}
+                    onClick={() => setOpenSelect(openSelect === 'bm' ? null : 'bm')}
+                    aria-haspopup="listbox"
+                    aria-expanded={openSelect === 'bm'}
+                  >
+                    <PieChart size={14} className="filter-select-icon" />
+                    <span className="filter-select-value">
+                      {selectedBusinessModel
+                        ? (BUSINESS_MODEL_DROPDOWN.find((b) => b.id === selectedBusinessModel)?.label ?? 'Modelo seleccionado')
+                        : 'Todos los modelos'}
+                    </span>
+                    <ChevronDown size={14} className="filter-select-chev" />
+                  </button>
+                  {openSelect === 'bm' && (
+                    <div className="filter-select-menu" role="listbox">
+                      <button
+                        type="button"
+                        className={`filter-select-option ${selectedBusinessModel === '' ? 'filter-select-option--sel' : ''}`}
+                        onClick={() => { setSelectedBusinessModel(''); setPage(1); setOpenSelect(null); }}
+                      >
+                        <span>Todos los modelos</span>
+                        {selectedBusinessModel === '' && <Check size={14} />}
+                      </button>
+                      {BUSINESS_MODEL_DROPDOWN.map((bm) => {
+                        const count = bm.id === 'none' ? (bmCounts.none ?? 0) : (bmCounts[bm.id] ?? 0);
+                        return (
+                          <button
+                            key={bm.id}
+                            type="button"
+                            className={`filter-select-option ${selectedBusinessModel === bm.id ? 'filter-select-option--sel' : ''}`}
+                            onClick={() => { setSelectedBusinessModel(bm.id); setPage(1); setOpenSelect(null); }}
+                          >
+                            <span>{bm.label}</span>
+                            {count > 0 && <span className="filter-select-count">({count})</span>}
+                            {selectedBusinessModel === bm.id && <Check size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <button
                   className="sort-btn"
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -989,6 +1093,9 @@ export function Landing() {
                         <div>
                           <div className="company-card-ticker">{company.ticker}{isCompanyVisited(company.ticker) && <span className="company-visited-badge">✓ Gratis</span>}</div>
                           <div className="company-card-name">{company.sector || company.industry || 'N/A'}</div>
+                          {company.businessModel && (
+                            <div className="company-card-bm">{company.businessModel.label}</div>
+                          )}
                         </div>
                         <button
                           className={`company-card-heart ${user && isFavorite(company.id) ? 'company-card-heart--active' : ''}`}
@@ -1035,6 +1142,9 @@ export function Landing() {
                     </Link>
                     <div className="company-list-meta">
                       <span className="company-list-sector">{company.sector || company.industry || 'N/A'}</span>
+                      {company.businessModel && (
+                        <span className="company-list-bm">{company.businessModel.label}</span>
+                      )}
                       <span className="company-list-country">{COUNTRY_NAMES[company.country || ''] || company.country || ''}</span>
                     </div>
                     {screeningActive && company.metrics && (

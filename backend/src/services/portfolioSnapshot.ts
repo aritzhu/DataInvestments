@@ -1,5 +1,5 @@
 import prisma from '../infrastructure/prisma/client';
-import { computeAll, weightedAverage, getSectorConfigs, getRecommendedFairValue } from './valuationService';
+import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
 
 async function recomputeRecommendedFairValue(company: { id: string; sector: string | null; industry: string | null }): Promise<number | null> {
   const [financials, balanceSheets, stock] = await Promise.all([
@@ -12,11 +12,11 @@ async function recomputeRecommendedFairValue(company: { id: string; sector: stri
   const valInput = { financials: financials as any, balanceSheets: balanceSheets as any, stock: stock as any };
   const results = computeAll(valInput, configs, company.sector, company.industry);
   const recommended = getRecommendedFairValue(results, valInput, company.sector, company.industry);
-  return recommended.fairValue ?? weightedAverage(results);
+  return recommended.fairValue;
 }
 
 // Records one daily PortfolioSnapshot per portfolio: market value (Σ qty×price)
-// vs target value (Σ qty×recommended fair value, with weighted-average fallback).
+// vs target value (Σ qty×recommended fair value).
 export async function recordPortfolioSnapshots(): Promise<{ portfolios: number; snapshots: number }> {
   const portfolios = await prisma.portfolio.findMany({
     include: {

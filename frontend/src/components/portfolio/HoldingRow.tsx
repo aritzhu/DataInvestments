@@ -26,7 +26,7 @@ const fmtPct = (n: number | null) => {
 };
 
 export function HoldingRow({ holding, portfolioTotalValue, excluded, onToggleExcluded, onEdit, onRemove }: Props) {
-  const verdictInfo = getVerdict(holding.recommendedFairValue ?? holding.fairValue, holding.currentPrice ?? 0);
+  const verdictInfo = getVerdict(holding.recommendedFairValue, holding.currentPrice ?? 0);
   const modelLabel = holding.recommendedModel.toUpperCase();
   const weightPct = holding.totalValue != null && portfolioTotalValue > 0 ? holding.totalValue / portfolioTotalValue : null;
 
@@ -69,7 +69,7 @@ export function HoldingRow({ holding, portfolioTotalValue, excluded, onToggleExc
           </div>
           <div className="pf-holding-metric">
             <span className="pf-holding-metric-label">Fair Value ({modelLabel}): </span>
-            {fmt(holding.recommendedFairValue ?? holding.fairValue)}
+            {fmt(holding.recommendedFairValue)}
           </div>
           <div className="pf-holding-metric">
             <span className="pf-holding-metric-label">MOS: </span>
