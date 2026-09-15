@@ -359,7 +359,7 @@ interface DCFRates {
   r: number;
   growthDetails: GrowthResult['details'];
   growthApplied: boolean;
-  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number } | null;
+  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number; missingMarketCap: boolean } | null;
 }
 function computeAutoDCFParams(input: ValuationInput, config: { growthRate: number; discountRate: number }, _sector?: string | null, _industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): DCFRates {
   const growth = computeWeightedGrowth(input.financials);
@@ -368,7 +368,10 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
 
   const bs = latest(input.balanceSheets);
   const beta = input.stock?.beta != null ? input.stock.beta : null;
-  const equity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
+  const marketCap = input.stock?.marketCap != null && input.stock.marketCap > 0 ? input.stock.marketCap : null;
+  const bookEquity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
+  const equity = marketCap ?? bookEquity;
+  const missingMarketCap = marketCap == null;
   const debtTotal = bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0;
   const debt = debtTotal > 0 ? debtTotal : null;
   const interest = latest(input.financials)?.interestExpense != null ? Math.abs(latest(input.financials)!.interestExpense!) : null;
@@ -390,7 +393,7 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
     const waccPct = Ke * eW + Kd * (1 - tax) * dW;
     if (isFinite(waccPct) && waccPct > 0) {
       r = waccPct / 100;
-      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct };
+      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct, missingMarketCap };
     }
   }
 
@@ -769,7 +772,11 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
 
   const baseConf: ValuationResult['confidence'] = isQuarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
   const conf = capConfidence(baseConf, ttmAnnualFields, ['freeCashFlow', 'operatingCashFlow']);
-  const dataWarning = ttmAnnualFields && ttmAnnualFields.some((f) => f === 'freeCashFlow' || f === 'operatingCashFlow') ? PARTIAL_DATA_WARNING : undefined;
+  const partialWarning = ttmAnnualFields && ttmAnnualFields.some((f) => f === 'freeCashFlow' || f === 'operatingCashFlow') ? PARTIAL_DATA_WARNING : undefined;
+  const marketCapWarning = cc.wacc?.missingMarketCap
+    ? 'No se encontró el valor de mercado (market cap) de la empresa para ponderar el equity; el WACC usa el valor contable del balance. Consulta el WACC actual de esta empresa en internet para contrastarlo.'
+    : undefined;
+  const dataWarning = [partialWarning, marketCapWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
   const currency = input.currency;
 
   return {
@@ -799,7 +806,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
         { label: 'Ke (CAPM: rf 3% + β×5%)', value: `${cc.wacc.Ke.toFixed(2)}%`, rawValue: cc.wacc.Ke },
         { label: 'Kd (interés/deuda)', value: `${cc.wacc.Kd.toFixed(2)}%`, rawValue: cc.wacc.Kd },
         { label: 'Impuesto efectivo', value: `${cc.wacc.tax.toFixed(1)}%`, rawValue: cc.wacc.tax },
-        { label: 'Equity', value: fmtB(cc.wacc.equity, currency), rawValue: cc.wacc.equity },
+        { label: 'Equity (valor mercado)', value: fmtB(cc.wacc.equity, currency), rawValue: cc.wacc.equity },
         { label: 'Deuda', value: fmtB(cc.wacc.debt, currency), rawValue: cc.wacc.debt },
         { label: 'Peso Equity / Deuda', value: `${(cc.wacc.equityWeight * 100).toFixed(0)}% / ${(cc.wacc.debtWeight * 100).toFixed(0)}%`, rawValue: cc.wacc.equityWeight },
         { label: 'WACC = Ke×E/(D+E) + Kd×(1−t)×D/(D+E)', value: `${cc.wacc.wacc.toFixed(2)}%`, rawValue: cc.wacc.wacc },

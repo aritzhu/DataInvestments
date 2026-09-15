@@ -269,7 +269,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const hasWacc = dcfInputs.some((i) => i.label.startsWith('Ke (CAPM'));
   const isWaccInput = (label: string) =>
     dcfWaccLabels.some((p) => label.startsWith(p)) ||
-    (hasWacc && (label === 'Equity' || label === 'Deuda'));
+    (hasWacc && (label.startsWith('Equity') || label === 'Deuda'));
   const dcfGrowthItems = dcfInputs.filter((i) => dcfGrowthLabels.some((p) => i.label.startsWith(p)));
   const dcfWaccItems = dcfInputs.filter((i) => isWaccInput(i.label));
   const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
