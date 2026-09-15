@@ -2,7 +2,7 @@ import prisma from '../infrastructure/prisma/client';
 import { fetchYahooQuote } from './yahoo';
 import { fetchYFinanceInfo } from './yfinanceSidecar';
 import { resolveShares, sanitizeEnterpriseValue, sanitizeRatio } from './dataAggregator';
-import { computeAll, getRecommendedFairValue, getSectorConfigs } from './valuationService';
+import { computeAll, getRecommendedFairValue, getSectorConfigs, computeRoic } from './valuationService';
 import { applyCompanyOverrides } from './overrides';
 
 const REFRESH_DELAY_MS = Number(process.env.REFRESH_DELAY_MS || 150);
@@ -38,6 +38,7 @@ export async function recomputeIntrinsic(companyId: string, ticker: string, sect
 
   const configs = getSectorConfigs(sector, industry);
   const valInput = { financials: financials as any, balanceSheets: balanceSheets as any, stock };
+  const roic = computeRoic(valInput);
   const results = computeAll(valInput, configs, sector, industry);
   const { fairValue } = getRecommendedFairValue(results, valInput, sector, industry);
 
@@ -49,7 +50,7 @@ export async function recomputeIntrinsic(companyId: string, ticker: string, sect
 
   await prisma.stockMetric.update({
     where: { id: stock.id },
-    data: { intrinsicValue, marginOfSafety },
+    data: { intrinsicValue, marginOfSafety, roic },
   });
 
   console.log(`[QuoteRefresh] ${ticker} price=${stock.currentPrice?.toFixed(2)} fair=${intrinsicValue?.toFixed(2) ?? 'null'} mos=${marginOfSafety != null ? (marginOfSafety * 100).toFixed(0) + '%' : 'null'}`);

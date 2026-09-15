@@ -34,8 +34,8 @@ export interface ValuationQueryParams {
   ddmGrowth?: number;
   ddmReturn?: number;
   fcfYield?: number;
-  ccGrowth?: boolean;
-  ccDiscount?: boolean;
+  dcfGrowth?: boolean;
+  dcfDiscount?: boolean;
 }
 
 export async function fetchValuation(ticker: string, params: ValuationQueryParams = {}, options?: { signal?: AbortSignal }): Promise<ValuationApiResponse> {

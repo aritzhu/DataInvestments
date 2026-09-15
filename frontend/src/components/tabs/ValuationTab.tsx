@@ -78,7 +78,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const [expandedGrowth, setExpandedGrowth] = useState(false);
   const [expandedWacc, setExpandedWacc] = useState(false);
   const [expandedPERBreakdown, setExpandedPERBreakdown] = useState(false);
-  const [ccOverride, setCcOverride] = useState(() => ({ growth: false, discount: false }));
+  const [dcfOverride, setDcfOverride] = useState(() => ({ growth: false, discount: false }));
   const [configs, setConfigs] = useState<ValuationConfigs>(DEFAULT_SLIDERS);
   const [data, setData] = useState<ValuationApiResponse | null>(null);
   const [queryVersion, setQueryVersion] = useState(0);
@@ -102,7 +102,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
   // Debounced refetch whenever the user moves a slider. The current slider
   // values are sent as backend params, so the server stays the source of truth.
   const configsKey = JSON.stringify(configs);
-  const ccKey = `${ccOverride.growth ? 1 : 0}${ccOverride.discount ? 1 : 0}`;
+  const dcfKey = `${dcfOverride.growth ? 1 : 0}${dcfOverride.discount ? 1 : 0}`;
   useEffect(() => {
     if (queryVersion === 0) return;
     const controller = new AbortController();
@@ -119,15 +119,15 @@ export function ValuationTab({ company, financials, stock }: Props) {
         ddmGrowth: configs.ddm.growthRate,
         ddmReturn: configs.ddm.requiredReturn,
         fcfYield: configs.fcfYield.targetYield,
-        ccGrowth: ccOverride.growth,
-        ccDiscount: ccOverride.discount,
+        dcfGrowth: dcfOverride.growth,
+        dcfDiscount: dcfOverride.discount,
       }, { signal: controller.signal })
         .then((d) => { if (!controller.signal.aborted) setData(d); })
         .catch(() => {});
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryVersion, configsKey, ccKey, company.ticker]);
+  }, [queryVersion, configsKey, dcfKey, company.ticker]);
 
   const [commodityMapping, setCommodityMapping] = useState<CommodityMapping | null>(null);
   useEffect(() => {
@@ -483,7 +483,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
                     <input type="range" min={0} max={15} step={0.5} value={configs.dcf.growthRate}
-                      onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setCcOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
+                      onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.growthRate}%</span>
                     {dcfGrowthItems.length > 0 && (
                       <>
@@ -507,7 +507,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Tasa de descuento <InfoButton content={INFO['valuation.discountRate']} /></span></label>
                     <input type="range" min={5} max={20} step={0.5} value={configs.dcf.discountRate}
-                      onChange={(e) => { updateConfig('dcf', 'discountRate', parseFloat(e.target.value)); setCcOverride((prev) => ({ ...prev, discount: true })); }} className="val-config-slider" />
+                      onChange={(e) => { updateConfig('dcf', 'discountRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, discount: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.discountRate}%</span>
                     {dcfWaccItems.length > 0 && (
                       <>

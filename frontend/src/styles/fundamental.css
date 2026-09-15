@@ -571,3 +571,50 @@
 
 .fund-variations-tooltip-dot--roe { background: #16a34a; }
 .fund-variations-tooltip-dot--pb { background: #4f46e5; }
+
+/* ── Transposed history table (metrics as rows, years as columns) ────── */
+
+.fund-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.fund-history-table th,
+.fund-history-table td {
+  padding: 0.45rem 0.75rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.fund-history-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  color: var(--text-tertiary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  z-index: 1;
+}
+
+.fund-history-table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.fund-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.fund-history-table td {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.fund-history-metric-col {
+  text-align: left !important;
+  font-weight: 600;
+  color: var(--text-secondary);
+}

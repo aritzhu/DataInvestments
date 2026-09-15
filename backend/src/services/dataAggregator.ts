@@ -308,7 +308,14 @@ async function importEuropeanEsef(
       dividendRate: null,
       roe: latestNetIncome > 0 && latestEquity && latestEquity > 0 ? latestNetIncome / latestEquity : null,
       roa: latestNetIncome > 0 && latestAssets && latestAssets > 0 ? latestNetIncome / latestAssets : null,
-      roic: null,
+      roic: computeRoicFromFields({
+        ebit: firstRecord?.ebit ?? null,
+        taxExpense: firstRecord?.taxExpense ?? null,
+        equity: latestEquity,
+        shortTermDebt: firstRecord?.shortTermDebt ?? null,
+        longTermDebt: firstRecord?.longTermDebt ?? null,
+        cash: firstRecord?.cash ?? 0,
+      }),
       currentRatio: firstRecord?.currentAssets != null && firstRecord?.currentLiabilities != null && firstRecord.currentLiabilities > 0 ? firstRecord.currentAssets / firstRecord.currentLiabilities : null,
       debtToEquity: latestLiabilities && latestEquity && latestEquity > 0 ? latestLiabilities / latestEquity : null,
       altmanZ: null,
@@ -391,7 +398,7 @@ import axios from 'axios';
 import { SP500_SECTORS } from '../data/sp500';
 import { TICKER_SECTORS } from '../data/sectors';
 import { validateFinancialData, validateBalanceSheet, logValidationWarnings } from '../utils/financialValidation';
-import { computeAll, getSectorConfigs, getRecommendedFairValue } from './valuationService';
+import { computeAll, getSectorConfigs, getRecommendedFairValue, computeRoicFromFields, computeRoic } from './valuationService';
 import prisma from '../infrastructure/prisma/client';
 import { applyCompanyOverrides } from './overrides';
 
@@ -806,7 +813,14 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         sharesOutstanding: shares,
         roe: info?.returnOnEquity != null ? info.returnOnEquity : (latestNetIncome > 0 && latestEquity && latestEquity > 0 ? latestNetIncome / latestEquity : null),
         roa: info?.returnOnAssets != null ? info.returnOnAssets : (latestNetIncome > 0 && latestAssets && latestAssets > 0 ? latestNetIncome / latestAssets : null),
-        roic: null,
+        roic: computeRoicFromFields({
+          ebit: latestYear ? operatingIncomeMap.get(latestYear) ?? null : null,
+          taxExpense: latestYear ? taxMap.get(latestYear) ?? null : null,
+          equity: latestEquity,
+          shortTermDebt: latestYear ? shortTermDebtMap.get(latestYear) ?? null : null,
+          longTermDebt: latestYear ? longTermDebtMap.get(latestYear) ?? null : null,
+          cash: latestYear ? cashMap.get(latestYear) ?? 0 : 0,
+        }),
         currentRatio: info?.currentRatio ?? (latestCurrentAssets != null && latestCurrentLiabilities != null && latestCurrentLiabilities > 0 ? latestCurrentAssets / latestCurrentLiabilities : null),
         debtToEquity: latestLiabilities && latestEquity && latestEquity > 0 ? latestLiabilities / latestEquity : null,
         altmanZ: null,
@@ -1423,7 +1437,14 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
               dividendRate: null,
               roe: latestNetIncome > 0 && latestEquity && latestEquity > 0 ? latestNetIncome / latestEquity : null,
               roa: latestNetIncome > 0 && latestAssets && latestAssets > 0 ? latestNetIncome / latestAssets : null,
-              roic: null,
+              roic: computeRoicFromFields({
+                ebit: firstRecord?.ebit ?? null,
+                taxExpense: firstRecord?.taxExpense ?? null,
+                equity: latestEquity,
+                shortTermDebt: firstRecord?.shortTermDebt ?? null,
+                longTermDebt: firstRecord?.longTermDebt ?? null,
+                cash: firstRecord?.cash ?? 0,
+              }),
               currentRatio: firstRecord?.currentAssets != null && firstRecord?.currentLiabilities != null && firstRecord.currentLiabilities > 0 ? firstRecord.currentAssets / firstRecord.currentLiabilities : null,
               debtToEquity: latestLiabilities && latestEquity && latestEquity > 0 ? latestLiabilities / latestEquity : null,
               altmanZ: null,
@@ -1614,6 +1635,11 @@ export async function syncCompanyData(ticker: string, years: number): Promise<Sy
         if (allFinancials.length > 0) {
           const configs = getSectorConfigs(companyForVal.sector, companyForVal.industry);
           const valInput = { financials: allFinancials as any, balanceSheets: allBalanceSheets as any, stock: stockForValuation };
+          const roic = computeRoic(valInput);
+          await prisma.stockMetric.update({
+            where: { id: stockForValuation.id },
+            data: { roic },
+          });
           const results = computeAll(valInput, configs, companyForVal.sector, companyForVal.industry);
           const fairValue = getRecommendedFairValue(results, valInput, companyForVal.sector, companyForVal.industry).fairValue;
           if (fairValue != null && fairValue > 0) {

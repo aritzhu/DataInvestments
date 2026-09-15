@@ -10,6 +10,15 @@ export interface MetricVariationPoint {
   periodEnd: string;
   roe: number | null;
   pbRatio: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  netMargin: number | null;
+  roa: number | null;
+  roic: number | null;
+  totalDebt: number | null;
+  quickRatio: number | null;
+  currentRatio: number | null;
+  debtToEquity: number | null;
 }
 
 function periodEnd(year: number, quarter: number | null): Date {
@@ -32,6 +41,11 @@ function priceAt(pts: YFinanceHistoryPoint[], date: Date): number | null {
   return last;
 }
 
+function safeDiv(a: number | null, b: number | null): number | null {
+  if (a == null || b == null || b === 0) return null;
+  return a / b;
+}
+
 export async function getMetricVariations(companyId: string, ticker: string): Promise<MetricVariationPoint[]> {
   const [financials, balanceSheets, latestStock] = await Promise.all([
     prisma.financialData.findMany({
@@ -52,7 +66,19 @@ export async function getMetricVariations(companyId: string, ticker: string): Pr
   const bsByKey = new Map<string, (typeof balanceSheets)[number]>();
   for (const bs of balanceSheets) bsByKey.set(`${bs.year}-${bs.quarter ?? 0}`, bs);
 
-  const candidates: { year: number; quarter: number; netIncome: number; equity: number; end: Date }[] = [];
+  type Candidate = {
+    year: number; quarter: number; end: Date;
+    netIncome: number; equity: number;
+    revenue: number | null; grossProfit: number | null; ebit: number | null;
+    taxExpense: number | null;
+    totalAssets: number | null;
+    totalCurrentAssets: number | null; totalCurrentLiabilities: number | null;
+    inventory: number | null;
+    shortTermDebt: number | null; longTermDebt: number | null;
+    cash: number;
+  };
+
+  const candidates: Candidate[] = [];
   let earliestEnd: Date = new Date();
   let hasEarliest = false;
 
@@ -63,7 +89,21 @@ export async function getMetricVariations(companyId: string, ticker: string): Pr
     const netIncome = f.netIncome ?? null;
     if (netIncome == null || equity == null) continue;
     const end = periodEnd(f.year, f.quarter ?? 0);
-    candidates.push({ year: f.year, quarter: f.quarter ?? 0, netIncome, equity, end });
+    candidates.push({
+      year: f.year, quarter: f.quarter ?? 0, end,
+      netIncome, equity,
+      revenue: f.revenue ?? null,
+      grossProfit: f.grossProfit ?? null,
+      ebit: f.ebit ?? null,
+      taxExpense: f.taxExpense ?? null,
+      totalAssets: bs?.totalAssets ?? f.totalAssets ?? null,
+      totalCurrentAssets: bs?.totalCurrentAssets ?? null,
+      totalCurrentLiabilities: bs?.totalCurrentLiabilities ?? null,
+      inventory: bs?.inventory ?? null,
+      shortTermDebt: bs?.shortTermDebt ?? null,
+      longTermDebt: bs?.longTermDebt ?? null,
+      cash: (bs?.cashAndCashEquivalents ?? 0) + (bs?.shortTermInvestments ?? 0),
+    });
     if (!hasEarliest || end.getTime() < earliestEnd.getTime()) {
       earliestEnd = end;
       hasEarliest = true;
@@ -83,7 +123,7 @@ export async function getMetricVariations(companyId: string, ticker: string): Pr
 
   const out: MetricVariationPoint[] = [];
   for (const c of selected) {
-    const roe = c.equity > 0 ? c.netIncome / c.equity : null;
+    const roe = safeDiv(c.netIncome, c.equity);
     let pbRatio: number | null = null;
     if (shares != null && prices.length > 0 && c.equity > 0) {
       const price = priceAt(prices, c.end);
@@ -92,13 +132,48 @@ export async function getMetricVariations(companyId: string, ticker: string): Pr
         pbRatio = mcap / c.equity;
       }
     }
+
+    // Margins
+    const grossMargin = safeDiv(c.grossProfit, c.revenue);
+    const operatingMargin = safeDiv(c.ebit, c.revenue);
+    const netMargin = safeDiv(c.netIncome, c.revenue);
+
+    // Return ratios
+    const roa = safeDiv(c.netIncome, c.totalAssets);
+
+    // ROIC = NOPAT / Invested Capital
+    let roic: number | null = null;
+    if (c.ebit != null && c.ebit > 0) {
+      const taxRate = c.taxExpense != null && c.taxExpense > 0
+        ? Math.min(Math.max(c.taxExpense / c.ebit, 0), 0.6)
+        : 0.21;
+      const nopat = c.ebit * (1 - taxRate);
+      const investedCapital = c.equity + (c.shortTermDebt ?? 0) + (c.longTermDebt ?? 0) - c.cash;
+      if (nopat > 0 && investedCapital > 0) {
+        roic = nopat / investedCapital;
+      }
+    }
+
+    // Financial health
+    const totalDebt = (c.shortTermDebt ?? 0) + (c.longTermDebt ?? 0);
+    const quickRatio = c.totalCurrentAssets != null && c.totalCurrentLiabilities != null && c.totalCurrentLiabilities > 0
+      ? (c.totalCurrentAssets - (c.inventory ?? 0)) / c.totalCurrentLiabilities
+      : null;
+    const currentRatio = c.totalCurrentAssets != null && c.totalCurrentLiabilities != null && c.totalCurrentLiabilities > 0
+      ? c.totalCurrentAssets / c.totalCurrentLiabilities
+      : null;
+    const debtToEquity = c.equity > 0 ? totalDebt / c.equity : null;
+
     out.push({
       year: c.year,
       quarter: c.quarter,
       periodLabel: periodLabel(c.year, c.quarter),
       periodEnd: c.end.toISOString().slice(0, 10),
-      roe,
-      pbRatio,
+      roe, pbRatio,
+      grossMargin, operatingMargin, netMargin,
+      roa, roic,
+      totalDebt: totalDebt > 0 ? totalDebt : null,
+      quickRatio, currentRatio, debtToEquity,
     });
   }
 

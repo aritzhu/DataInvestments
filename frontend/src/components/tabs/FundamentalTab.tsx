@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { TrendingUp, ShieldCheck, HandCoins, Gauge, Users, Target, BookOpen, Activity } from 'lucide-react';
+import { TrendingUp, ShieldCheck, HandCoins, Users, Target, BookOpen, Activity, PieChart, HeartPulse } from 'lucide-react';
 import type { CompanyProfile } from '../CompanyPage';
 import { AbbrTip } from '../ui/AbbrTip';
 import { SectionReveal } from '../ui/SectionReveal';
 import { CompareTab } from './CompareTab';
 import { MetricVariationsCard } from './MetricVariationsCard';
+import { MetricHistoryCard } from './MetricHistoryCard';
 import { fmtCurrencyShort, formatPct } from '../../utils/format';
 import { computeGrowth, computeSolvency, computeShareholderReturns, computeEfficiency } from '../../utils/fundamental';
 import { getMetricConfidence, parseWarningFields, type MetricConfidence } from '../../utils/metricConfidence';
@@ -250,12 +251,40 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         </section>
       </SectionReveal>
 
-      {/* Pilar 4 — Eficiencia y DuPont */}
+      {/* Pilar 4 — Ratios de margen */}
       <SectionReveal delay={120}>
         <section className="fund-section">
           <header className="fund-section-header">
-            <span className="fund-section-icon fund-section-icon--purple"><Gauge size={18} /></span>
-            <h3 className="fund-section-title"><span className="info-label-row">Eficiencia y análisis DuPont <InfoButton content={INFO['fundamental.efficiency']} /></span></h3>
+            <span className="fund-section-icon fund-section-icon--amber"><PieChart size={18} /></span>
+            <h3 className="fund-section-title"><span className="info-label-row">Ratios de margen <InfoButton content={INFO['fundamental.efficiency']} /></span></h3>
+          </header>
+          <div className="fund-grid">
+            <Metric label="Margen bruto" value={formatPct(efficiency.grossMargin)} />
+            <Metric label="Margen op." value={formatPct(efficiency.operatingMargin)} />
+            <Metric label="Margen neto" value={formatPct(efficiency.netMargin)} confidence={conf('dupont_netMargin')} />
+            <Metric label="Margen FCF" value={formatPct(efficiency.fcfMargin)} confidence={conf('fcfMargin')} />
+            <Metric label="Conv. FCF" value={formatPct(efficiency.fcfConversion)} confidence={conf('fcfConversion')} />
+            <Metric label="CapEx" value={formatPct(efficiency.capexIntensity)} confidence={conf('capexIntensity')} />
+          </div>
+          <MetricHistoryCard
+            ticker={company.ticker}
+            title="Ratios de margen"
+            metrics={[
+              { key: 'grossMargin', label: 'Margen bruto', color: '#f97316', format: 'pct' },
+              { key: 'operatingMargin', label: 'Margen operativo', color: '#3b82f6', format: 'pct' },
+              { key: 'netMargin', label: 'Margen neto', color: '#16a34a', format: 'pct' },
+            ]}
+          />
+          <FundGuide info={FUND_SECTION_INFO.efficiency} />
+        </section>
+      </SectionReveal>
+
+      {/* Pilar 5 — Rentabilidad (ROA, ROE, ROIC) */}
+      <SectionReveal delay={140}>
+        <section className="fund-section">
+          <header className="fund-section-header">
+            <span className="fund-section-icon fund-section-icon--purple"><HandCoins size={18} /></span>
+            <h3 className="fund-section-title"><span className="info-label-row">Rentabilidad <InfoButton content={INFO['fundamental.returns']} /></span></h3>
           </header>
           <div className="fund-dupont">
             <div className="fund-dupont-equation">
@@ -270,22 +299,58 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
             </div>
           </div>
           <div className="fund-grid">
-            <Metric label="Margen bruto" value={formatPct(efficiency.grossMargin)} />
-            <Metric label="Margen op." value={formatPct(efficiency.operatingMargin)} />
-            <Metric label="Margen FCF" value={formatPct(efficiency.fcfMargin)} confidence={conf('fcfMargin')} />
-            <Metric label="Conv. FCF" value={formatPct(efficiency.fcfConversion)} confidence={conf('fcfConversion')} />
-            <Metric label="CapEx" value={formatPct(efficiency.capexIntensity)} confidence={conf('capexIntensity')} />
+            <Metric label="ROA" value={formatPct(stock?.roa ?? null)} />
+            <Metric label="ROE" value={formatPct(stock?.roe ?? efficiency.dupont.roe)} confidence={conf('dupont_roe')} />
+            <Metric label="ROIC" value={formatPct(stock?.roic ?? null)} />
             <Metric label="Rot. inv." value={efficiency.inventoryTurnover != null ? `${efficiency.inventoryTurnover.toFixed(1)}x` : '—'} confidence={conf('inventoryTurnover')} />
             <Metric label="DSO" value={efficiency.daysSalesOutstanding != null ? `${efficiency.daysSalesOutstanding.toFixed(0)} días` : '—'} confidence={conf('daysSalesOutstanding')} />
             <Metric label="DPO" value={efficiency.daysPayableOutstanding != null ? `${efficiency.daysPayableOutstanding.toFixed(0)} días` : '—'} confidence={conf('daysPayableOutstanding')} />
             <Metric label="CCC" value={efficiency.cashConversionCycle != null ? `${efficiency.cashConversionCycle.toFixed(0)} días` : '—'} confidence={conf('cashConversionCycle')} />
           </div>
+          <MetricHistoryCard
+            ticker={company.ticker}
+            title="Rentabilidad"
+            metrics={[
+              { key: 'roa', label: 'ROA', color: '#3b82f6', format: 'pct' },
+              { key: 'roe', label: 'ROE', color: '#16a34a', format: 'pct' },
+              { key: 'roic', label: 'ROIC', color: '#8b5cf6', format: 'pct' },
+            ]}
+          />
           <FundGuide info={FUND_SECTION_INFO.efficiency} />
         </section>
       </SectionReveal>
 
-      {/* Pilar 5 — Evolución histórica */}
-      <SectionReveal delay={140}>
+      {/* Pilar 6 — Salud financiera */}
+      <SectionReveal delay={160}>
+        <section className="fund-section">
+          <header className="fund-section-header">
+            <span className="fund-section-icon fund-section-icon--blue"><HeartPulse size={18} /></span>
+            <h3 className="fund-section-title"><span className="info-label-row">Salud financiera <InfoButton content={INFO['fundamental.solvency']} /></span></h3>
+          </header>
+          <div className="fund-grid">
+            <Metric label="Deuda neta" value={fmtCurrencyShort(solvency.netDebt, currency)} negative={(solvency.netDebt ?? 0) > 0} positive={(solvency.netDebt ?? 0) < 0} confidence={conf('netDebt')} />
+            <Metric label="Current Ratio" value={solvency.currentRatio != null ? `${solvency.currentRatio.toFixed(2)}x` : '—'} positive={(solvency.currentRatio ?? 0) >= 1.5} negative={(solvency.currentRatio ?? 0) < 1} confidence={conf('currentRatio')} />
+            <Metric label="Quick ratio" value={solvency.quickRatio != null ? `${solvency.quickRatio.toFixed(2)}x` : '—'} positive={(solvency.quickRatio ?? 0) >= 1} negative={(solvency.quickRatio ?? 0) < 0.5} confidence={conf('quickRatio')} />
+            <Metric label="Debt/Equity" value={solvency.totalDebtEquity != null ? `${solvency.totalDebtEquity.toFixed(2)}x` : '—'} negative={solvency.totalDebtEquity != null && solvency.totalDebtEquity > 2} confidence={conf('totalDebtEquity')} />
+            <Metric label="Capital circ." value={fmtCurrencyShort(solvency.workingCapital, currency)} positive={(solvency.workingCapital ?? 0) > 0} negative={(solvency.workingCapital ?? 0) < 0} confidence={conf('workingCapital')} />
+            <Metric label="ND/EBITDA" value={solvency.netDebtEbitda != null ? `${solvency.netDebtEbitda.toFixed(2)}x` : '—'} negative={solvency.netDebtEbitda != null && solvency.netDebtEbitda > 3} positive={solvency.netDebtEbitda != null && solvency.netDebtEbitda <= 1} confidence={conf('netDebtEbitda')} />
+            <Metric label="Cob. Interés" value={solvency.interestCoverage != null ? `${solvency.interestCoverage.toFixed(1)}x` : '—'} positive={(solvency.interestCoverage ?? 0) > 3} negative={(solvency.interestCoverage ?? 0) < 1} confidence={conf('interestCoverage')} />
+          </div>
+          <MetricHistoryCard
+            ticker={company.ticker}
+            title="Salud financiera"
+            metrics={[
+              { key: 'currentRatio', label: 'Current Ratio', color: '#3b82f6', format: 'x' },
+              { key: 'quickRatio', label: 'Quick Ratio', color: '#06b6d4', format: 'x' },
+              { key: 'debtToEquity', label: 'Debt/Equity', color: '#f97316', format: 'x' },
+            ]}
+          />
+          <FundGuide info={FUND_SECTION_INFO.solvency} />
+        </section>
+      </SectionReveal>
+
+      {/* Pilar 7 — Evolución histórica */}
+      <SectionReveal delay={180}>
         <section className="fund-section" id="metric-variations-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--teal"><Activity size={18} /></span>
@@ -298,8 +363,8 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         </section>
       </SectionReveal>
 
-      {/* Pilar 6 — Comparación con pares */}
-      <SectionReveal delay={180}>
+      {/* Pilar 8 — Comparación con pares */}
+      <SectionReveal delay={200}>
         <section className="fund-section">
           <header className="fund-section-header">
             <span className="fund-section-icon fund-section-icon--indigo"><Users size={18} /></span>
@@ -310,7 +375,7 @@ export function FundamentalTab({ company, financial, financials, balanceSheets, 
         </section>
       </SectionReveal>
 
-      {/* Pilar 7 — Prospectivo y riesgo */}
+      {/* Pilar 9 — Prospectivo y riesgo */}
       <SectionReveal delay={220}>
         <section className="fund-section">
           <header className="fund-section-header">
