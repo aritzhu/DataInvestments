@@ -255,9 +255,7 @@ function extractQuarterlyTagSeries(facts: SECCompanyFacts, concept: string, poin
     if (pointInTime) {
       const results: { year: number; quarter: number; value: number }[] = [];
       for (const fact of byPeriod.values()) {
-        if (fact.form === '10-K') continue; // Dec-31 annual row is stored separately
         const q = quarterOfEnd(fact.end as string);
-        if (q === 4) continue;
         const year = new Date(fact.end as string).getFullYear();
         results.push({ year, quarter: q, value: fact.val });
       }
