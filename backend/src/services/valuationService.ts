@@ -309,7 +309,10 @@ const DCF_RF = 3;
 const DCF_MARKET_PREMIUM = 5;
 const DCF_KD_FALLBACK = 5;
 const DCF_TAX_FALLBACK = 25;
+const DCF_BETA_FALLBACK = 1;
 const DCF_GROWTH_WEIGHTS = { cagr5: 0.5, cagr10: 0.3, recent: 0.2 };
+
+export type DCFGrowthMethod = 'cagr' | 'roic';
 
 interface GrowthResult {
   growthRate: number | null;
@@ -359,21 +362,48 @@ interface DCFRates {
   r: number;
   growthDetails: GrowthResult['details'];
   growthApplied: boolean;
-  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number; missingMarketCap: boolean } | null;
+  growthMethod: 'manual' | 'roic' | 'cagr';
+  roic: number | null;
+  reinvestmentRate: number | null;
+  roicFallback: boolean;
+  isGrowth: boolean;
+  ebit: number | null;
+  effectiveTaxRate: number | null;
+  investedCapital: number | null;
+  fcf: number | null;
+  nopat: number | null;
+  reinvestment: number | null;
+  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number; missingMarketCap: boolean; beta: number; betaEstimated: boolean; debtAssumedZero: boolean } | null;
 }
-function computeAutoDCFParams(input: ValuationInput, config: { growthRate: number; discountRate: number }, _sector?: string | null, _industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): DCFRates {
+function computeAutoDCFParams(input: ValuationInput, config: { growthRate: number; discountRate: number; growthMethod?: DCFGrowthMethod }, _sector?: string | null, _industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): DCFRates {
   const growth = computeWeightedGrowth(input.financials);
   const growthApplied = growth.growthRate != null;
-  const g = dcfOverride?.growth ? config.growthRate / 100 : (growthApplied ? growth.growthRate! : config.growthRate / 100);
+  const sustainable = config.growthMethod === 'roic' ? computeSustainableGrowth(input) : null;
+  const roicFallback = config.growthMethod === 'roic' && sustainable?.growth == null;
+  const isGrowth = inferBusinessModel(input, _sector, _industry).model === 'growth';
+  const growthMethod: DCFRates['growthMethod'] = dcfOverride?.growth
+    ? 'manual'
+    : (sustainable?.growth != null ? 'roic' : 'cagr');
+  let g: number;
+  if (growthMethod === 'roic') {
+    g = sustainable!.growth!;
+  } else if (growthMethod === 'cagr' && growthApplied) {
+    g = growth.growthRate!;
+  } else {
+    g = config.growthRate / 100;
+  }
 
   const bs = latest(input.balanceSheets);
-  const beta = input.stock?.beta != null ? input.stock.beta : null;
+  const betaRaw = input.stock?.beta != null ? input.stock.beta : null;
+  const betaEstimated = betaRaw == null;
+  const beta = betaRaw ?? DCF_BETA_FALLBACK;
   const marketCap = input.stock?.marketCap != null && input.stock.marketCap > 0 ? input.stock.marketCap : null;
   const bookEquity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
   const equity = marketCap ?? bookEquity;
   const missingMarketCap = marketCap == null;
   const debtTotal = bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0;
-  const debt = debtTotal > 0 ? debtTotal : null;
+  const debtAssumedZero = debtTotal <= 0;
+  const debt = debtTotal > 0 ? debtTotal : 0;
   const interest = latest(input.financials)?.interestExpense != null ? Math.abs(latest(input.financials)!.interestExpense!) : null;
   const lastFin = latest(input.financials);
   const taxExpense = lastFin?.taxExpense != null ? Math.abs(lastFin.taxExpense) : null;
@@ -382,7 +412,7 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
 
   let wacc: DCFRates['wacc'] = null;
   let r = config.discountRate / 100;
-  if (!dcfOverride?.discount && beta != null && equity != null && debt != null) {
+  if (!dcfOverride?.discount && equity != null) {
     const Ke = DCF_RF + beta * DCF_MARKET_PREMIUM;
     const Kd = interest != null && interest > 0 && debt > 0 ? (interest / debt) * 100 : DCF_KD_FALLBACK;
     const tax = pretax != null && pretax > 0 && taxExpense != null ? taxExpense / pretax : DCF_TAX_FALLBACK / 100;
@@ -393,17 +423,18 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
     const waccPct = Ke * eW + Kd * (1 - tax) * dW;
     if (isFinite(waccPct) && waccPct > 0) {
       r = waccPct / 100;
-      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct, missingMarketCap };
+      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct, missingMarketCap, beta, betaEstimated, debtAssumedZero };
     }
   }
 
-  return { g, r, growthDetails: growth.details, growthApplied, wacc };
+  return { g, r, growthDetails: growth.details, growthApplied, growthMethod, roic: sustainable?.roic ?? null, reinvestmentRate: sustainable?.reinvestmentRate ?? null, roicFallback, isGrowth, ebit: sustainable?.ebit ?? null, effectiveTaxRate: sustainable != null ? sustainable.effectiveTaxRate : null, investedCapital: sustainable?.investedCapital ?? null, fcf: sustainable?.fcf ?? null, nopat: sustainable?.nopat ?? null, reinvestment: sustainable?.reinvestment ?? null, wacc };
 }
 
-export function dcfSeedRates(input: ValuationInput, config: { growthRate: number; discountRate: number }, sector: string | null | undefined, industry?: string | null): { growthRate: number; discountRate: number; growthApplied: boolean } {
-  const cc = computeAutoDCFParams(input, config, sector, industry);
-  const cappedG = cc.g >= cc.r ? cc.r - 0.005 : cc.g;
-  return { growthRate: +(cappedG * 100).toFixed(2), discountRate: +(cc.r * 100).toFixed(2), growthApplied: cc.growthApplied };
+export function dcfSeedRates(input: ValuationInput, config: { growthRate: number; discountRate: number; growthMethod?: DCFGrowthMethod }, sector: string | null | undefined, industry?: string | null): { growthRate: number; discountRate: number; growthApplied: boolean; growthMethod: DCFGrowthMethod } {
+  const growthMethod: DCFGrowthMethod = config.growthMethod ?? 'cagr';
+  const cc = computeAutoDCFParams(input, { ...config, growthMethod }, sector, industry);
+  const seededG = cc.g;
+  return { growthRate: +(seededG * 100).toFixed(2), discountRate: +(cc.r * 100).toFixed(2), growthApplied: cc.growthApplied, growthMethod: cc.growthMethod === 'manual' ? 'cagr' : cc.growthMethod };
 }
 
 // ── P/E normalizado (Consumer Defensive) ──
@@ -705,7 +736,7 @@ export function computePENormalized(input: ValuationInput, sector?: string | nul
 }
 
 // ── DCF ──
-export function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number }, sector?: string | null, industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): ValuationResult {
+export function computeDCF(input: ValuationInput, config: { growthRate: number; discountRate: number; horizonYears: number; growthMethod?: DCFGrowthMethod }, sector?: string | null, industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): ValuationResult {
   const f = latest(input.financials);
   const { stock } = input;
   const shares = sharesOf(stock);
@@ -757,10 +788,11 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     return { id: 'dcf', name: 'DCF (Flujo de Caja Descontado)', description: 'Valor intrínseco calculado con flujos de caja futuros descontados', explanation: 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Es el método más fundamental: una empresa vale la suma de todo el dinero que generará en el futuro, ajustado por riesgo y tiempo.', formula: 'Σ(FCF×(1+g)ⁿ/(1+r)ⁿ) + TV', fairValue: null, confidence: 'na', confidenceReason: 'FCF no positivo', configurable: true, inputs: [] };
   }
 
-  const cc = computeAutoDCFParams(input, { growthRate: config.growthRate, discountRate: config.discountRate }, sector, industry, dcfOverride);
-  const g = cc.g >= cc.r ? cc.r - 0.005 : cc.g;
+  const cc = computeAutoDCFParams(input, { growthRate: config.growthRate, discountRate: config.discountRate, growthMethod: config.growthMethod }, sector, industry, dcfOverride);
+  const g = cc.g;
   const r = cc.r;
-  const tg = 0.03;
+  let tg = 0.03;
+  if (r - tg <= 0) tg = r - 0.005;
 
   let totalPV = 0;
   for (let i = 1; i <= config.horizonYears; i++) {
@@ -769,6 +801,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const terminalValue = (fcf * Math.pow(1 + g, config.horizonYears) * (1 + tg)) / (r - tg);
   const terminalPV = terminalValue / Math.pow(1 + r, config.horizonYears);
   const fairValue = (totalPV + terminalPV) / shares;
+  const terminalWeight = (totalPV + terminalPV) > 0 ? terminalPV / (totalPV + terminalPV) : 0;
 
   const baseConf: ValuationResult['confidence'] = isQuarterly ? 'medium' : (fcfValues.length >= 3 ? (consistency(fcfValues) > 0.6 ? 'high' : 'medium') : 'low');
   const conf = capConfidence(baseConf, ttmAnnualFields, ['freeCashFlow', 'operatingCashFlow']);
@@ -776,7 +809,22 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const marketCapWarning = cc.wacc?.missingMarketCap
     ? 'No se encontró el valor de mercado (market cap) de la empresa para ponderar el equity; el WACC usa el valor contable del balance. Consulta el WACC actual de esta empresa en internet para contrastarlo.'
     : undefined;
-  const dataWarning = [partialWarning, marketCapWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
+  const terminalWarning = terminalWeight >= 0.6
+    ? `El ${(terminalWeight * 100).toFixed(0)}% del valor justo proviene del valor terminal (perpetuidad al 3%): habitual en empresas de alto crecimiento, pero el resultado depende mucho de esa hipótesis de largo plazo.`
+    : undefined;
+  const growthCapWarning = cc.g >= cc.r
+    ? `El crecimiento estimado (${(cc.g * 100).toFixed(1)}%) supera la tasa de descuento (${(r * 100).toFixed(1)}%): se aplica el crecimiento estimado con el terminal al ${(tg * 100).toFixed(0)}%; el valor depende en gran medida de esa hipótesis de largo plazo.`
+    : undefined;
+  const roicFallbackWarning = cc.roicFallback
+    ? 'El crecimiento sostenible (ROIC × reinversión) no se pudo calcular (NOPAT no positivo o sin FCF disponible); se usa el CAGR de ingresos como estimador.'
+    : undefined;
+  const waccEstimateWarning = cc.wacc
+    ? [
+        cc.wacc.betaEstimated ? 'La β no estaba disponible y se usó 1.0 (estimada) para el CAPM.' : null,
+        cc.wacc.debtAssumedZero ? 'No se registró deuda; se asume financiación 100% equity (WACC = coste del equity).' : null,
+      ].filter((w): w is string => Boolean(w)).join(' ') || undefined
+    : undefined;
+  const dataWarning = [partialWarning, marketCapWarning, terminalWarning, growthCapWarning, roicFallbackWarning, waccEstimateWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
   const currency = input.currency;
 
   return {
@@ -787,7 +835,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
       : (isQuarterly
           ? 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF TTM (últimos 4 trimestres) como base de proyección.'
           : 'Estima el valor de la empresa proyectando sus flujos de caja libres futuros y descontándolos al presente. Usa el FCF promedio de los últimos años para suavizar la volatilidad cíclica.'),
-    formula: `Σ(FCF_${fcfSource === 'TTM' ? 'TTM' : 'prom'}×(1+${config.growthRate}%)ⁿ/(1+${config.discountRate}%)ⁿ) + TV`,
+    formula: `Σ(FCF_${fcfSource === 'TTM' ? 'TTM' : 'prom'}×(1+${(g * 100).toFixed(2)}%)ⁿ/(1+${(r * 100).toFixed(2)}%)ⁿ) + TV`,
     fairValue, confidence: conf,
     confidenceReason: `FCF ${fcfSource}: ${fmtB(fcf, currency)}`,
     configurable: true,
@@ -795,6 +843,16 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     inputs: [
       { label: `FCF ${fcfSource}`, value: fmtB(fcf, currency), rawValue: fcf },
       { label: 'Crecimiento anual', value: `${(g * 100).toFixed(2)}%`, rawValue: g * 100 },
+      ...(cc.growthMethod === 'roic' ? [
+        { label: 'Estimador', value: 'ROIC × reinversión', rawValue: 1 },
+        { label: 'NOPAT (EBIT×(1−impuesto))', value: cc.nopat != null ? fmtB(cc.nopat, currency) : '—', rawValue: cc.nopat ?? 0 },
+        { label: 'Impuesto efectivo (ROIC)', value: cc.effectiveTaxRate != null ? `${(cc.effectiveTaxRate * 100).toFixed(0)}%` : '—', rawValue: cc.effectiveTaxRate ?? 0 },
+        { label: 'Capital invertido (equity+deuda−caja)', value: cc.investedCapital != null ? fmtB(cc.investedCapital, currency) : '—', rawValue: cc.investedCapital ?? 0 },
+        { label: 'FCF base', value: cc.fcf != null ? fmtB(cc.fcf, currency) : '—', rawValue: cc.fcf ?? 0 },
+        { label: 'Reinversión (NOPAT−FCF)', value: cc.reinvestment != null ? fmtB(cc.reinvestment, currency) : '—', rawValue: cc.reinvestment ?? 0 },
+        { label: 'ROIC (NOPAT / capital invertido)', value: cc.roic != null ? `${(cc.roic * 100).toFixed(1)}%` : '—', rawValue: cc.roic ?? 0 },
+        { label: 'Tasa de reinversión (1 − FCF/NOPAT)', value: cc.reinvestmentRate != null ? `${(cc.reinvestmentRate * 100).toFixed(0)}%` : '—', rawValue: cc.reinvestmentRate ?? 0 },
+      ] : []),
       ...(cc.growthApplied ? [
         { label: 'CAGR ingresos 5 años', value: cc.growthDetails.cagr5 != null ? `${(cc.growthDetails.cagr5 * 100).toFixed(2)}%` : '—', rawValue: cc.growthDetails.cagr5 ?? 0 },
         { label: 'CAGR ingresos 10 años', value: cc.growthDetails.cagr10 != null ? `${(cc.growthDetails.cagr10 * 100).toFixed(2)}%` : '—', rawValue: cc.growthDetails.cagr10 ?? 0 },
@@ -803,11 +861,12 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
       ] : []),
       { label: cc.wacc ? 'Tasa de descuento (WACC)' : 'Tasa de descuento', value: `${(r * 100).toFixed(2)}%`, rawValue: r * 100 },
       ...(cc.wacc ? [
+        { label: 'Beta (CAPM)', value: `${cc.wacc.beta.toFixed(2)}${cc.wacc.betaEstimated ? ' (estimada)' : ''}`, rawValue: cc.wacc.beta },
         { label: 'Ke (CAPM: rf 3% + β×5%)', value: `${cc.wacc.Ke.toFixed(2)}%`, rawValue: cc.wacc.Ke },
         { label: 'Kd (interés/deuda)', value: `${cc.wacc.Kd.toFixed(2)}%`, rawValue: cc.wacc.Kd },
         { label: 'Impuesto efectivo', value: `${cc.wacc.tax.toFixed(1)}%`, rawValue: cc.wacc.tax },
         { label: 'Equity (valor mercado)', value: fmtB(cc.wacc.equity, currency), rawValue: cc.wacc.equity },
-        { label: 'Deuda', value: fmtB(cc.wacc.debt, currency), rawValue: cc.wacc.debt },
+        { label: 'Deuda', value: cc.wacc.debtAssumedZero ? '0 (no registrada)' : fmtB(cc.wacc.debt, currency), rawValue: cc.wacc.debt },
         { label: 'Peso Equity / Deuda', value: `${(cc.wacc.equityWeight * 100).toFixed(0)}% / ${(cc.wacc.debtWeight * 100).toFixed(0)}%`, rawValue: cc.wacc.equityWeight },
         { label: 'WACC = Ke×E/(D+E) + Kd×(1−t)×D/(D+E)', value: `${cc.wacc.wacc.toFixed(2)}%`, rawValue: cc.wacc.wacc },
       ] : []),
@@ -815,6 +874,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
       { label: 'Terminal growth', value: `${(tg * 100).toFixed(0)}%`, rawValue: tg * 100 },
       { label: 'Valor presente FCF', value: fmtB(totalPV, currency), rawValue: totalPV },
       { label: 'Valor terminal (PV)', value: fmtB(terminalPV, currency), rawValue: terminalPV },
+      { label: 'Peso valor terminal', value: `${(terminalWeight * 100).toFixed(0)}%`, rawValue: terminalWeight },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
     ],
   };
@@ -1197,7 +1257,7 @@ export function computeAll(input: ValuationInput, configs: ValuationConfigs, sec
 }
 
 export type ValuationConfigs = {
-  dcf: { growthRate: number; discountRate: number; horizonYears: number };
+  dcf: { growthRate: number; discountRate: number; horizonYears: number; growthMethod?: DCFGrowthMethod; roicAvailable?: boolean };
   per: { targetPE: number };
   pb: { targetPB: number };
   ps: { targetPS: number };
@@ -1311,33 +1371,62 @@ const BUSINESS_MODEL_LABEL: Record<BusinessModel, string> = {
   financial: 'Entidad financiera',
 };
 
-export function computeRoic(input: ValuationInput): number | null {
-  const ttm = trailing12Months(input.financials, input.balanceSheets);
-  if (!ttm) return null;
+function computeNopatAndRoic(ttm: TTMData): { nopat: number | null; roic: number | null; taxRate: number; investedCapital: number | null; ebit: number | null } {
   const bs = ttm.balanceSheet;
-  if (!bs) return null;
+  if (!bs) return { nopat: null, roic: null, taxRate: 0.21, investedCapital: null, ebit: null };
   const equity = bs.totalStockholdersEquity ?? 0;
   const cash = (bs.cashAndCashEquivalents ?? 0) + (bs.shortTermInvestments ?? 0);
   const debt = (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0);
   const investedCapital = equity + debt - cash;
-  if (investedCapital <= 0) return null;
-  const revenue = ttm.revenue ?? 0;
-  if (revenue <= 0) return null;
+  if (investedCapital <= 0) return { nopat: null, roic: null, taxRate: 0.21, investedCapital, ebit: null };
 
   let ebit = ttm.ebit;
   if (ebit == null) {
     ebit = (ttm.netIncome ?? 0) + (ttm.taxExpense ?? 0);
   }
-  if (ebit == null || ebit <= 0) return null;
+  if (ebit == null || ebit <= 0) return { nopat: null, roic: null, taxRate: 0.21, investedCapital, ebit };
 
   const taxExp = ttm.taxExpense ?? 0;
-  let taxRate = 0.21;
-  if (taxExp > 0) {
-    taxRate = Math.min(Math.max(taxExp / ebit, 0), 0.6);
-  }
+  const taxRate = taxExp > 0 ? Math.min(Math.max(taxExp / ebit, 0), 0.6) : 0.21;
   const nopat = ebit * (1 - taxRate);
-  if (nopat <= 0) return null;
-  return nopat / investedCapital;
+  if (nopat <= 0) return { nopat: null, roic: null, taxRate, investedCapital, ebit };
+  return { nopat, roic: nopat / investedCapital, taxRate, investedCapital, ebit };
+}
+
+export function computeRoic(input: ValuationInput): number | null {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  if (!ttm) return null;
+  if ((ttm.revenue ?? 0) <= 0) return null;
+  return computeNopatAndRoic(ttm).roic;
+}
+
+// ── Crecimiento sostenible (Damodaran): g = ROIC × tasa de reinversión ──
+export interface SustainableGrowth {
+  growth: number | null;
+  roic: number | null;
+  reinvestmentRate: number | null;
+  nopat: number | null;
+  reinvestment: number | null;
+  ebit: number | null;
+  effectiveTaxRate: number;
+  investedCapital: number | null;
+  fcf: number | null;
+}
+export function computeSustainableGrowth(input: ValuationInput): SustainableGrowth {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  if (!ttm) return { growth: null, roic: null, reinvestmentRate: null, nopat: null, reinvestment: null, ebit: null, effectiveTaxRate: 0.21, investedCapital: null, fcf: null };
+  const { nopat, roic, taxRate, investedCapital, ebit } = computeNopatAndRoic(ttm);
+  if (nopat == null || roic == null) return { growth: null, roic, reinvestmentRate: null, nopat, reinvestment: null, ebit, effectiveTaxRate: taxRate, investedCapital, fcf: null };
+  const fcf = ttm.freeCashFlow != null
+    ? ttm.freeCashFlow
+    : ttm.operatingCashFlow != null
+      ? ttm.operatingCashFlow - ttm.capex
+      : null;
+  if (fcf == null) return { growth: null, roic, reinvestmentRate: null, nopat, reinvestment: null, ebit, effectiveTaxRate: taxRate, investedCapital, fcf };
+  const reinvestment = nopat - fcf;
+  const reinvestmentRate = Math.min(Math.max(reinvestment / nopat, 0), 1);
+  const growth = Math.min(roic * reinvestmentRate, 0.5);
+  return { growth, roic, reinvestmentRate, nopat, reinvestment, ebit, effectiveTaxRate: taxRate, investedCapital, fcf };
 }
 
 /** Compute ROIC from raw TTM/annual fields (NOPAT / invested capital). */

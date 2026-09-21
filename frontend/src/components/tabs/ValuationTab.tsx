@@ -62,7 +62,7 @@ const METHOD_NAMES: Record<string, string> = {
 // Fallback slider values while the first API response (with the effective
 // sector configs) is loading. Mirrors the backend defaults.
 const DEFAULT_SLIDERS: ValuationConfigs = {
-  dcf: { growthRate: 5, discountRate: 10, horizonYears: 10 },
+  dcf: { growthRate: 5, discountRate: 10, horizonYears: 10, growthMethod: 'cagr', roicAvailable: true },
   per: { targetPE: 20 },
   pb: { targetPB: 3 },
   ps: { targetPS: 5 },
@@ -79,6 +79,8 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const [expandedWacc, setExpandedWacc] = useState(false);
   const [expandedPERBreakdown, setExpandedPERBreakdown] = useState(false);
   const [dcfOverride, setDcfOverride] = useState(() => ({ growth: false, discount: false }));
+  const [dcfBaseGrowth, setDcfBaseGrowth] = useState(5);
+  const [dcfBaseDiscount, setDcfBaseDiscount] = useState(10);
   const [configs, setConfigs] = useState<ValuationConfigs>(DEFAULT_SLIDERS);
   const [data, setData] = useState<ValuationApiResponse | null>(null);
   const [queryVersion, setQueryVersion] = useState(0);
@@ -88,13 +90,21 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const [alarmLoading, setAlarmLoading] = useState(false);
 
   // Load the server-computed valuation (effective sector configs + results).
+  const readAppliedGrowth = (d: ValuationApiResponse | null): number => {
+    const row = d?.results.find((r) => r.id === 'dcf')?.inputs?.find((i) => i.label === 'Crecimiento anual');
+    return typeof row?.rawValue === 'number' ? row.rawValue : dcfBaseGrowth;
+  };
+  const readAppliedDiscount = (d: ValuationApiResponse | null): number => {
+    const row = d?.results.find((r) => r.id === 'dcf')?.inputs?.find((i) => i.label.startsWith('Tasa de descuento'));
+    return typeof row?.rawValue === 'number' ? row.rawValue : dcfBaseDiscount;
+  };
   useEffect(() => {
     setData(null);
     setConfigs(DEFAULT_SLIDERS);
     setQueryVersion(0);
     let cancelled = false;
     fetchValuation(company.ticker)
-      .then((d) => { if (!cancelled) { setData(d); setConfigs(d.configs); } })
+      .then((d) => { if (!cancelled) { setData(d); setConfigs(d.configs); setDcfBaseGrowth(readAppliedGrowth(d)); setDcfBaseDiscount(readAppliedDiscount(d)); } })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [company.ticker]);
@@ -108,7 +118,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetchValuation(company.ticker, {
-        growth: configs.dcf.growthRate,
+        growth: dcfOverride.growth ? configs.dcf.growthRate : undefined,
         discount: configs.dcf.discountRate,
         horizon: configs.dcf.horizonYears,
         per: configs.per.targetPE,
@@ -121,8 +131,9 @@ export function ValuationTab({ company, financials, stock }: Props) {
         fcfYield: configs.fcfYield.targetYield,
         dcfGrowth: dcfOverride.growth,
         dcfDiscount: dcfOverride.discount,
+        growthMethod: configs.dcf.growthMethod,
       }, { signal: controller.signal })
-        .then((d) => { if (!controller.signal.aborted) setData(d); })
+        .then((d) => { if (!controller.signal.aborted) { setData(d); setConfigs(d.configs); setDcfBaseGrowth(readAppliedGrowth(d)); setDcfBaseDiscount(readAppliedDiscount(d)); } })
         .catch(() => {});
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -263,16 +274,23 @@ export function ValuationTab({ company, financials, stock }: Props) {
     : `Ejercicio ${periodInfo.year ?? '—'}`;
 
   const dcfGrowthLabels = ['CAGR ingresos', 'Crecimiento reciente', 'Peso ponderado'];
-  const dcfWaccLabels = ['Ke (CAPM', 'Kd (interés', 'Impuesto efectivo', 'Peso Equity', 'WACC = Ke×E'];
+  const dcfRoicLabels = ['Estimador', 'NOPAT (EBIT×', 'Impuesto efectivo (ROIC)', 'Capital invertido (', 'FCF base', 'Reinversión (NOPAT', 'ROIC (NOPAT', 'Tasa de reinversión'];
+  const dcfWaccLabels = ['Beta (CAPM', 'Ke (CAPM', 'Kd (interés', 'Impuesto efectivo', 'Peso Equity', 'WACC = Ke×E'];
   // Para 'Equity' y 'Deuda' solo clasificamos como WACC si el método es DCF y hay inputs de WACC presentes.
   const dcfInputs = active?.id === 'dcf' ? (active.inputs ?? []) : [];
   const hasWacc = dcfInputs.some((i) => i.label.startsWith('Ke (CAPM'));
   const isWaccInput = (label: string) =>
     dcfWaccLabels.some((p) => label.startsWith(p)) ||
     (hasWacc && (label.startsWith('Equity') || label === 'Deuda'));
-  const dcfGrowthItems = dcfInputs.filter((i) => dcfGrowthLabels.some((p) => i.label.startsWith(p)));
+  const growthMethod = configs.dcf.growthMethod;
+  const dcfGrowthItems = dcfInputs.filter((i) =>
+    growthMethod === 'roic'
+      ? dcfRoicLabels.some((p) => i.label.startsWith(p))
+      : dcfGrowthLabels.some((p) => i.label.startsWith(p)));
   const dcfWaccItems = dcfInputs.filter((i) => isWaccInput(i.label));
-  const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
+  const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !dcfRoicLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
+  const growthSliderMax = Math.max(0.5, Math.round(dcfBaseGrowth * 1.2 * 2) / 2);
+  const discountSliderMax = Math.max(20, Math.round(dcfBaseDiscount * 1.2 * 2) / 2);
 
   const barPct = (() => {
     if (!recommendedFair || !stock.currentPrice || stock.currentPrice <= 0) return 50;
@@ -286,6 +304,15 @@ export function ValuationTab({ company, financials, stock }: Props) {
       ...prev,
       [section]: { ...prev[section], [key]: value },
     }));
+    setQueryVersion(v => v + 1);
+  };
+
+  const setGrowthMethod = (method: 'cagr' | 'roic') => {
+    setConfigs(prev => ({
+      ...prev,
+      dcf: { ...prev.dcf, growthMethod: method },
+    }));
+    setDcfOverride(prev => ({ ...prev, growth: false }));
     setQueryVersion(v => v + 1);
   };
 
@@ -479,10 +506,23 @@ export function ValuationTab({ company, financials, stock }: Props) {
             {active.configurable && active.id === 'dcf' && (
               <div className="val-config">
                 <h4 className="val-config-title">Configurar DCF</h4>
+                <div className="val-growth-method">
+                  <span className="val-config-label">Estimador de crecimiento</span>
+                  <div className="val-growth-method-row">
+                    <button type="button" className={`val-growth-method-btn ${configs.dcf.growthMethod !== 'roic' ? 'val-growth-method-btn--active' : ''}`} onClick={() => setGrowthMethod('cagr')}>
+                      CAGR ingresos
+                    </button>
+                    {configs.dcf.roicAvailable !== false && (
+                      <button type="button" className={`val-growth-method-btn ${configs.dcf.growthMethod === 'roic' ? 'val-growth-method-btn--active' : ''}`} onClick={() => setGrowthMethod('roic')}>
+                        ROIC × reinversión
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <div className="val-config-grid">
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
-                    <input type="range" min={0} max={15} step={0.5} value={configs.dcf.growthRate}
+                    <input type="range" min={0} max={growthSliderMax} step={0.5} value={configs.dcf.growthRate}
                       onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.growthRate}%</span>
                     {dcfGrowthItems.length > 0 && (
@@ -506,7 +546,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
                   </div>
                   <div className="val-config-item">
                     <label className="val-config-label"><span className="info-label-row">Tasa de descuento <InfoButton content={INFO['valuation.discountRate']} /></span></label>
-                    <input type="range" min={5} max={20} step={0.5} value={configs.dcf.discountRate}
+                    <input type="range" min={5} max={discountSliderMax} step={0.5} value={configs.dcf.discountRate}
                       onChange={(e) => { updateConfig('dcf', 'discountRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, discount: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.discountRate}%</span>
                     {dcfWaccItems.length > 0 && (

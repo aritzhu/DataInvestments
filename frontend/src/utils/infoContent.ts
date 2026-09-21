@@ -157,12 +157,12 @@ export const INFO = {
 
   'valuation.dcfGrowth': {
     title: 'Crecimiento anual del flujo',
-    body: 'Incremento **porcentual anual** esperado del flujo de caja durante el horizonte de valoración.\n\nUn crecimiento mayor aumenta el valor justo; úsalo con prudencia, porque también es más arriesgado.',
+    body: 'Incremento **porcentual anual** esperado del flujo de caja durante el horizonte de valoración.\n\n**Estimadores automáticos** (elige en el selector):\n- **CAGR ingresos**: crecimiento histórico de ventas ponderado (5A/10A/reciente). Útil para empresas estables.\n- **ROIC × reinversión**: crecimiento sostenible = retorno sobre el capital invertido × tasa de reinversión de beneficios (`1 − FCF/NOPAT`). Más prudente en alto crecimiento, porque asume autofinanciación.\n\nSi el crecimiento estimado **supera la tasa de descuento**, se aplica la tasa estimada con el terminal al 3% y se muestra un aviso (el valor depende en gran medida de esa hipótesis de largo plazo).\n\nMover el slider fuerza un valor manual (máximo +20% sobre la tasa estimada de esta empresa). Un crecimiento mayor aumenta el valor justo; úsalo con prudencia, porque también es más arriesgado.',
   } as InfoContent,
 
   'valuation.discountRate': {
     title: 'Tasa de descuento',
-    body: 'Rentabilidad mínima que exiges a la inversión para compensar el **riesgo y el coste de oportunidad**.\n\n`Valor actual = Flujo futuro ÷ (1 + tasa)^año`. A mayor tasa, menor valor presente: es el "módulo de interés compuesto" en sentido inverso.',
+    body: 'Rentabilidad mínima que exiges a la inversión para compensar el **riesgo y el coste de oportunidad**.\n\n`Valor actual = Flujo futuro ÷ (1 + tasa)^año`. A mayor tasa, menor valor presente: es el "módulo de interés compuesto" en sentido inverso.\n\nPor defecto se usa el **WACC** (coste medio ponderado del capital): Ke = rf 3% + β×5% ponderado con la deuda y el equity. Si faltan datos, β se estima en 1.0 o la deuda se asume 0 (WACC = Ke) y se avisa en "Valores utilizados".',
     badges: [{ label: 'Alta = conservador', tone: 'warn' }],
     tip: 'Una tasa de descuento típica ronda el 8–12% para empresas consolidadas.',
   } as InfoContent,

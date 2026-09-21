@@ -27,7 +27,7 @@ import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getMetricVariations } from './services/metricVariations';
-import { getRecommendedModel, getRecommendedFairValue, getSectorConfigs, computeAll, inferBusinessModel, dcfSeedRates, type BusinessModelInference, type ValuationInput } from './services/valuationService';
+import { getRecommendedModel, getRecommendedFairValue, getSectorConfigs, computeAll, computeSustainableGrowth, inferBusinessModel, dcfSeedRates, type BusinessModelInference, type ValuationInput } from './services/valuationService';
 import { getMappedCommodity } from './data/commodityMap';
 import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
 import { parsePagination, paginate } from './utils/pagination';
@@ -496,20 +496,26 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       currency: company.currency || 'USD',
     };
 
+    const growth = parseFloatParam(q.growth);
+    const discount = parseFloatParam(q.discount);
+    const growthMethod = typeof q.growthMethod === 'string' && (q.growthMethod === 'cagr' || q.growthMethod === 'roic') ? q.growthMethod : null;
+
     const configs = getSectorConfigs(company.sector, company.industry);
-    const seed = dcfSeedRates(input, { growthRate: configs.dcf.growthRate, discountRate: configs.dcf.discountRate }, company.sector, company.industry);
+    const seed = dcfSeedRates(input, { growthRate: configs.dcf.growthRate, discountRate: configs.dcf.discountRate, growthMethod: growthMethod ?? undefined }, company.sector, company.industry);
+    configs.dcf.growthMethod = seed.growthMethod;
     if (seed.growthApplied) {
       configs.dcf.growthRate = seed.growthRate;
       configs.dcf.discountRate = seed.discountRate;
     }
+    const sustainableGrowth = computeSustainableGrowth(input);
+    configs.dcf.roicAvailable = sustainableGrowth.roic != null && sustainableGrowth.growth != null;
     if (stock.pbRatio && stock.pbRatio >= 0.2 && stock.pbRatio <= 20) {
       configs.pb.targetPB = stock.pbRatio;
     }
 
-    const growth = parseFloatParam(q.growth);
-    const discount = parseFloatParam(q.discount);
     if (growth != null) configs.dcf.growthRate = growth;
     if (discount != null) configs.dcf.discountRate = discount;
+    if (growthMethod != null) configs.dcf.growthMethod = growthMethod;
     const horizon = parseFloatParam(q.horizon);
     if (horizon != null) configs.dcf.horizonYears = horizon;
     const per = parseFloatParam(q.per);
@@ -530,7 +536,7 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
     if (fcfYield != null) configs.fcfYield.targetYield = fcfYield;
 
     const flag = (v: string | undefined): boolean => v === '1' || v === 'true';
-    const dcfOverride = { growth: growth != null || flag(q.dcfGrowth), discount: discount != null || flag(q.dcfDiscount) };
+    const dcfOverride = { growth: flag(q.dcfGrowth), discount: flag(q.dcfDiscount) };
 
     const results = computeAll(input, configs, company.sector, company.industry, dcfOverride);
     const recommended = getRecommendedFairValue(results, input, company.sector, company.industry);

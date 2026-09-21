@@ -452,6 +452,41 @@
   margin-bottom: 0.35rem;
 }
 
+.val-growth-method {
+  margin-bottom: 0.75rem;
+}
+
+.val-growth-method-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.val-growth-method-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.val-growth-method-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.val-growth-method-btn--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
 .val-config-slider {
   -webkit-appearance: none;
   appearance: none;

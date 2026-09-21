@@ -1,7 +1,7 @@
 import type { ValuationResult, BusinessModelInference, CommodityMapping } from './valuation';
 
 export interface ValuationConfigs {
-  dcf: { growthRate: number; discountRate: number; horizonYears: number };
+  dcf: { growthRate: number; discountRate: number; horizonYears: number; growthMethod?: 'cagr' | 'roic'; roicAvailable?: boolean };
   per: { targetPE: number };
   pb: { targetPB: number };
   ps: { targetPS: number };
@@ -36,6 +36,7 @@ export interface ValuationQueryParams {
   fcfYield?: number;
   dcfGrowth?: boolean;
   dcfDiscount?: boolean;
+  growthMethod?: 'cagr' | 'roic';
 }
 
 export async function fetchValuation(ticker: string, params: ValuationQueryParams = {}, options?: { signal?: AbortSignal }): Promise<ValuationApiResponse> {
