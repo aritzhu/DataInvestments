@@ -13,6 +13,20 @@
 * Empresas europeas se normalizan al mismo modelo.
 * Las fuentes de datos deben ser intercambiables.
 
+## Valoración DCF
+
+* Los importes de `g`, `r` y `tg` son **fracciones decimales**; los porcentajes de WACC (`Ke`, `Kd`, `tax`) son **números de porcentaje**. Mezclar ambas escalas produce WACC y valores terminales absurdos.
+* La tasa de descuento se calcula por WACC CAPM (`Ke = rf 3% + β×5%`), no por config de sector, salvo override manual del usuario.
+* La deuda que pondera en el WACC es **neta**: bruta (`shortTermDebt + longTermDebt`) menos efectivo. El efectivo compensa deuda.
+* `Kd` se calcula sobre el gasto de intereses **TTM** (4 trimestres) o el último ejercicio anual, nunca sobre un trimestre suelto: un flujo trimestral contra deuda de cierre anualizada produce Kd ~4x bajo.
+* **Suelo de coherencia de `Kd`**: si queda por debajo del risk-free (3%) o por encima del 50%, no es información sino un dato roto, y se sustituye por el 5% con aviso. Causa típica: `LongTermDebt` incluye obligaciones de arrendamiento, que no devengan interés registrado.
+* **Suelo de WACC del 5%**: el apalancamiento nunca reduce el coste de capital por debajo del coste sin deuda. Alineado con el `min={5}` del slider para que backend y UI no diverjan.
+* El crecimiento terminal `tg` es fijo al 3% y **no configurable**: mantiene el modelo simple y comparable entre empresas. Se acota a `r − 0.5pp` para que el spread nunca se estreche hasta multiplicar el valor terminal.
+* El crecimiento proyectado `g` se acota a `r − 1pp`: con `g ≥ r` el valor presente diverge.
+* El **peso del valor terminal no se selecciona, se emerge** de `g`, `r`, horizonte y `tg`. Se expone en `ValuationResult.terminalValue` como campo estructurado para que el frontend no lo deduzca parseando etiquetas.
+* El horizonte es la palanca más potente sobre ese peso: 5 años ~73%, 10 años ~54%, 20 años ~31%.
+* `npm run audit:dcf` lista las empresas con supuestos dudosos (Kd bajo el risk-free, WACC bajo el suelo, peso del terminal excessive).
+
 ## Calidad de datos
 
 * Cada fila de `FinancialData` y `BalanceSheet` registra su `source` y `tier`.

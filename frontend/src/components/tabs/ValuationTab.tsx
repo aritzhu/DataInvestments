@@ -275,7 +275,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
 
   const dcfGrowthLabels = ['CAGR ingresos', 'Crecimiento reciente', 'Peso ponderado'];
   const dcfRoicLabels = ['Estimador', 'NOPAT (EBIT×', 'Impuesto efectivo (ROIC)', 'Capital invertido (', 'FCF base', 'Reinversión (NOPAT', 'ROIC (NOPAT', 'Tasa de reinversión'];
-  const dcfWaccLabels = ['Beta (CAPM', 'Ke (CAPM', 'Kd (interés', 'Impuesto efectivo', 'Peso Equity', 'WACC = Ke×E'];
+  const dcfWaccLabels = ['Beta (CAPM', 'Ke (CAPM', 'Kd (interés', 'Impuesto efectivo', 'Peso Equity', 'WACC = Ke×E', 'Deuda bruta', 'Efectivo compensado', 'Deuda neta'];
   // Para 'Equity' y 'Deuda' solo clasificamos como WACC si el método es DCF y hay inputs de WACC presentes.
   const dcfInputs = active?.id === 'dcf' ? (active.inputs ?? []) : [];
   const hasWacc = dcfInputs.some((i) => i.label.startsWith('Ke (CAPM'));
@@ -291,6 +291,11 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !dcfRoicLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
   const growthSliderMax = Math.max(0.5, Math.round(dcfBaseGrowth * 1.2 * 2) / 2);
   const discountSliderMax = Math.max(20, Math.round(dcfBaseDiscount * 1.2 * 2) / 2);
+
+  const terminal = active?.id === 'dcf' ? active.terminalValue : undefined;
+  const terminalWeightPct = terminal ? terminal.weight * 100 : 0;
+  const explicitWeightPct = terminal ? (1 - terminal.weight) * 100 : 0;
+  const terminalTone = terminalWeightPct >= 75 ? 'high' : terminalWeightPct >= 60 ? 'mid' : 'ok';
 
   const barPct = (() => {
     if (!recommendedFair || !stock.currentPrice || stock.currentPrice <= 0) return 50;
@@ -588,6 +593,32 @@ export function ValuationTab({ company, financials, stock }: Props) {
                     </div>
                   </div>
                 )}
+                {terminal && (
+                  <div className={`val-terminal val-terminal--${terminalTone}`}>
+                    <h4 className="val-terminal-title">
+                      <span className="info-label-row">Reparto del valor justo <InfoButton content={INFO['valuation.terminal']} /></span>
+                    </h4>
+                    <div className="val-terminal-bar" role="img" aria-label={`Valor terminal ${terminalWeightPct.toFixed(0)}%, flujos proyectados ${explicitWeightPct.toFixed(0)}%`}>
+                      <div className="val-terminal-seg val-terminal-seg--explicit" style={{ width: `${explicitWeightPct}%` }} />
+                      <div className="val-terminal-seg val-terminal-seg--terminal" style={{ width: `${terminalWeightPct}%` }} />
+                    </div>
+                    <div className="val-terminal-legend">
+                      <span className="val-terminal-legend-item">
+                        <span className="val-terminal-dot val-terminal-dot--explicit" />
+                        Horizonte {configs.dcf.horizonYears} años: {explicitWeightPct.toFixed(0)}%
+                      </span>
+                      <span className="val-terminal-legend-item">
+                        <span className="val-terminal-dot val-terminal-dot--terminal" />
+                        Valor terminal al {(terminal.growthRate * 100).toFixed(1)}%{terminal.capped ? ' (limitado)' : ''}: {terminalWeightPct.toFixed(0)}%
+                      </span>
+                    </div>
+                    {terminalWeightPct >= 75 && (
+                      <p className="val-terminal-hint">
+                        Más del 75% del valor depende de la perpetuidad. Alarga el horizonte para repartir el peso hacia flujos que puedes verificar en los estados financieros.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -632,6 +663,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
                   shares={active.inputs.find((i) => i.label === 'Acciones')?.rawValue ?? 0}
                   growthRate={configs.dcf.growthRate}
                   discountRate={configs.dcf.discountRate}
+                  terminalGrowthRate={(active.terminalValue?.growthRate ?? 0.03) * 100}
                   horizonYears={configs.dcf.horizonYears}
                   commodityPrice={commodityData.price}
                   commodityName={commodityMapping.commodityName}
@@ -679,6 +711,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
                   shares={active.inputs.find((i) => i.label === 'Acciones')?.rawValue ?? 0}
                   growthRate={configs.dcf.growthRate}
                   discountRate={configs.dcf.discountRate}
+                  terminalGrowthRate={(active.terminalValue?.growthRate ?? 0.03) * 100}
                   horizonYears={configs.dcf.horizonYears}
                   commodityPrice={0}
                   commodityName="materia prima"

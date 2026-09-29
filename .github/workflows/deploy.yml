@@ -112,6 +112,10 @@ jobs:
             echo "Recomputing valuations..."
             $DC run --rm backend node dist/scripts/recomputeValuations.js
 
+            # Diagnostic: DCF assumption sanity on production data (read-only report)
+            echo "Auditing DCF assumptions..."
+            $DC run --rm backend node dist/scripts/auditDcfAssumptions.js || echo "WARN: auditDcfAssumptions report incomplete"
+
             # Diagnostic: business-model classification coverage on production data (read-only report)
             echo "Analyzing business models..."
             $DC run --rm backend node dist/scripts/analyzeBusinessModels.js || echo "WARN: analyzeBusinessModels report incomplete"

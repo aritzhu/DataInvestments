@@ -19,6 +19,7 @@
     "backfill:websites": "tsx src/scripts/backfillWebsites.ts",
     "process:logos": "tsx src/scripts/processLogos.ts",
     "recompute:valuation": "tsx src/scripts/recomputeValuations.ts",
+    "audit:dcf": "tsx src/scripts/auditDcfAssumptions.ts",
     "refresh:quotes": "tsx src/scripts/refreshQuotes.ts",
     "resync:stale": "tsx src/scripts/resyncStale.ts",
     "worker": "tsx src/worker.ts",

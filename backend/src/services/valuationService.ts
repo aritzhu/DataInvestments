@@ -26,6 +26,7 @@ export interface ValuationResult {
   applicability?: { applicable: boolean; reason: string };
   scenarios?: { bear: number; base: number; bull: number };
   sensitivityTable?: { pe: number; price: number; isTarget?: boolean }[];
+  terminalValue?: { pv: number; pvExplicit: number; weight: number; growthRate: number; capped: boolean };
   perPEBreakdown?: {
     fundamental: { pe: number; payout: number; ke: number; g: number } | null;
     forward: number | null;
@@ -311,6 +312,16 @@ const DCF_KD_FALLBACK = 5;
 const DCF_TAX_FALLBACK = 25;
 const DCF_BETA_FALLBACK = 1;
 const DCF_GROWTH_WEIGHTS = { cagr5: 0.5, cagr10: 0.3, recent: 0.2 };
+// El apalancamiento nunca puede reducir el coste de capital por debajo del coste
+// sin deuda, ni un WACC deprimido produce una valuation creíble. Suelo alineado
+// con el min={5} del slider de la UI para que backend y frontend no diverjan.
+const DCF_WACC_FLOOR = 5;
+const DCF_KD_MAX = 50;
+// Los importes de g, r y tg son fracciones decimales; DCF_TERMINAL_GROWTH se
+// mantiene en esa misma escala (0.03 = 3%) para poder mezclarse con r - spread.
+const DCF_TERMINAL_GROWTH = 0.03;
+const DCF_MIN_SPREAD = 0.005;
+const DCF_MIN_GROWTH_SPREAD = 0.01;
 
 export type DCFGrowthMethod = 'cagr' | 'roic';
 
@@ -373,7 +384,7 @@ interface DCFRates {
   fcf: number | null;
   nopat: number | null;
   reinvestment: number | null;
-  wacc: { Ke: number; Kd: number; tax: number; equity: number; debt: number; equityWeight: number; debtWeight: number; wacc: number; missingMarketCap: boolean; beta: number; betaEstimated: boolean; debtAssumedZero: boolean } | null;
+  wacc: { Ke: number; Kd: number; kdRaw: number | null; tax: number; equity: number; debt: number; debtGross: number; cashApplied: number; debtCashAdjusted: boolean; equityWeight: number; debtWeight: number; wacc: number; waccRaw: number; waccFloored: boolean; kdOutlier: boolean; missingMarketCap: boolean; beta: number; betaEstimated: boolean; debtAssumedZero: boolean } | null;
 }
 function computeAutoDCFParams(input: ValuationInput, config: { growthRate: number; discountRate: number; growthMethod?: DCFGrowthMethod }, _sector?: string | null, _industry?: string | null, dcfOverride?: { growth?: boolean; discount?: boolean }): DCFRates {
   const growth = computeWeightedGrowth(input.financials);
@@ -401,29 +412,40 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
   const bookEquity = bs?.totalStockholdersEquity != null && bs.totalStockholdersEquity > 0 ? bs.totalStockholdersEquity : null;
   const equity = marketCap ?? bookEquity;
   const missingMarketCap = marketCap == null;
-  const debtTotal = bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0;
-  const debtAssumedZero = debtTotal <= 0;
-  const debt = debtTotal > 0 ? debtTotal : 0;
-  const interest = latest(input.financials)?.interestExpense != null ? Math.abs(latest(input.financials)!.interestExpense!) : null;
-  const lastFin = latest(input.financials);
-  const taxExpense = lastFin?.taxExpense != null ? Math.abs(lastFin.taxExpense) : null;
-  const netIncome = lastFin?.netIncome != null ? Math.abs(lastFin.netIncome) : null;
+  const debtGross = bs != null ? (bs.shortTermDebt ?? 0) + (bs.longTermDebt ?? 0) : 0;
+  const debtAssumedZero = debtGross <= 0;
+  // El efectivo compensa deuda: la deuda neta es la que pondera en el WACC.
+  const cashAvailable = bs?.cashAndCashEquivalents != null && bs.cashAndCashEquivalents > 0 ? bs.cashAndCashEquivalents : 0;
+  const cashApplied = Math.min(cashAvailable, debtGross);
+  const debt = Math.max(0, debtGross - cashApplied);
+  const debtCashAdjusted = cashApplied > 0;
+  const ttmFin = trailing12Months(input.financials, input.balanceSheets);
+  const lastAnnual = latestAnnual(input.financials);
+  const interest = Math.abs(ttmFin?.interestExpense ?? lastAnnual?.interestExpense ?? 0) || null;
+  const taxExpense = Math.abs(ttmFin?.taxExpense ?? lastAnnual?.taxExpense ?? 0) || null;
+  const netIncome = Math.abs(ttmFin?.netIncome ?? lastAnnual?.netIncome ?? 0) || null;
   const pretax = taxExpense != null && netIncome != null ? taxExpense + netIncome : null;
 
   let wacc: DCFRates['wacc'] = null;
   let r = config.discountRate / 100;
   if (!dcfOverride?.discount && equity != null) {
     const Ke = DCF_RF + beta * DCF_MARKET_PREMIUM;
-    const Kd = interest != null && interest > 0 && debt > 0 ? (interest / debt) * 100 : DCF_KD_FALLBACK;
+    // Kd por debajo del risk-free (o disparado) no es información, es un dato
+    // roto: suele indicar que la deuda registrada incluye arrendamientos.
+    const kdRaw = interest != null && interest > 0 && debt > 0 ? (interest / debt) * 100 : null;
+    const kdOutlier = kdRaw != null && (kdRaw < DCF_RF || kdRaw > DCF_KD_MAX);
+    const Kd = kdRaw != null && !kdOutlier ? kdRaw : DCF_KD_FALLBACK;
     const tax = pretax != null && pretax > 0 && taxExpense != null ? taxExpense / pretax : DCF_TAX_FALLBACK / 100;
     const taxPct = pretax != null && pretax > 0 && taxExpense != null ? (taxExpense / pretax) * 100 : DCF_TAX_FALLBACK;
     const total = equity + debt;
     const eW = equity / total;
     const dW = debt / total;
     const waccPct = Ke * eW + Kd * (1 - tax) * dW;
-    if (isFinite(waccPct) && waccPct > 0) {
-      r = waccPct / 100;
-      wacc = { Ke, Kd, tax: taxPct, equity, debt, equityWeight: eW, debtWeight: dW, wacc: waccPct, missingMarketCap, beta, betaEstimated, debtAssumedZero };
+    const waccFloored = waccPct < DCF_WACC_FLOOR;
+    const waccFinal = Math.max(waccPct, DCF_WACC_FLOOR);
+    if (isFinite(waccFinal) && waccFinal > 0) {
+      r = waccFinal / 100;
+      wacc = { Ke, Kd, kdRaw, tax: taxPct, equity, debt, debtGross, cashApplied, debtCashAdjusted, equityWeight: eW, debtWeight: dW, wacc: waccFinal, waccRaw: waccPct, waccFloored, kdOutlier, missingMarketCap, beta, betaEstimated, debtAssumedZero };
     }
   }
 
@@ -789,10 +811,17 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   }
 
   const cc = computeAutoDCFParams(input, { growthRate: config.growthRate, discountRate: config.discountRate, growthMethod: config.growthMethod }, sector, industry, dcfOverride);
-  const g = cc.g;
   const r = cc.r;
-  let tg = 0.03;
-  if (r - tg <= 0) tg = r - 0.005;
+  // Un crecimiento >= r hace divergir el valor presente: se acota con un
+  // margen mínimo y se avisa en lugar de publicar un valor sin cooldown.
+  const gRaw = cc.g;
+  const g = Math.min(gRaw, r - DCF_MIN_GROWTH_SPREAD);
+  const growthClamped = g < gRaw;
+  // El spread r - tg nunca baja de 50bp: un spread narrower multiplica el
+  // valor terminal y produce valoraciones desorbitadas.
+  let tg = Math.min(DCF_TERMINAL_GROWTH, r - DCF_MIN_SPREAD);
+  if (tg <= 0) tg = 0;
+  const tgCapped = tg < DCF_TERMINAL_GROWTH;
 
   let totalPV = 0;
   for (let i = 1; i <= config.horizonYears; i++) {
@@ -810,21 +839,27 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
     ? 'No se encontró el valor de mercado (market cap) de la empresa para ponderar el equity; el WACC usa el valor contable del balance. Consulta el WACC actual de esta empresa en internet para contrastarlo.'
     : undefined;
   const terminalWarning = terminalWeight >= 0.6
-    ? `El ${(terminalWeight * 100).toFixed(0)}% del valor justo proviene del valor terminal (perpetuidad al 3%): habitual en empresas de alto crecimiento, pero el resultado depende mucho de esa hipótesis de largo plazo.`
+    ? `El ${(terminalWeight * 100).toFixed(0)}% del valor justo proviene del valor terminal (perpetuidad al ${(tg * 100).toFixed(1)}%): habitual en empresas de alto crecimiento, pero el resultado depende mucho de esa hipótesis de largo plazo${terminalWeight >= 0.75 ? '; un horizonte más largo reparte el peso hacia los flujos proyectados' : ''}.`
     : undefined;
-  const growthCapWarning = cc.g >= cc.r
-    ? `El crecimiento estimado (${(cc.g * 100).toFixed(1)}%) supera la tasa de descuento (${(r * 100).toFixed(1)}%): se aplica el crecimiento estimado con el terminal al ${(tg * 100).toFixed(0)}%; el valor depende en gran medida de esa hipótesis de largo plazo.`
+  const growthCapWarning = growthClamped
+    ? `El crecimiento estimado (${(gRaw * 100).toFixed(1)}%) iguala o supera la tasa de descuento (${(r * 100).toFixed(1)}%): se aplica un crecimiento acotado al ${(g * 100).toFixed(1)}% para evitar que el valor presente diverja.`
+    : undefined;
+  const terminalSpreadWarning = tgCapped
+    ? `El crecimiento terminal se limitó al ${(tg * 100).toFixed(1)}% para mantener un margen mínimo del 0.5% sobre la tasa de descuento.`
     : undefined;
   const roicFallbackWarning = cc.roicFallback
     ? 'El crecimiento sostenible (ROIC × reinversión) no se pudo calcular (NOPAT no positivo o sin FCF disponible); se usa el CAGR de ingresos como estimador.'
     : undefined;
   const waccEstimateWarning = cc.wacc
     ? [
+        cc.wacc.kdOutlier ? `El coste de deuda calculado (${cc.wacc.kdRaw!.toFixed(2)}%${cc.wacc.debtCashAdjusted ? ' sobre deuda neta' : ''}) era incoherente; se usó ${DCF_KD_FALLBACK}%. Suele indicar que la deuda registrada incluye obligaciones de arrendamiento.` : null,
+        cc.wacc.waccFloored ? `El WACC calculado (${cc.wacc.waccRaw.toFixed(2)}%) quedaba por debajo del suelo del ${DCF_WACC_FLOOR}%; se aplicó el suelo.` : null,
+        cc.wacc.debtCashAdjusted ? `La deuda se compensó con ${fmtB(cc.wacc.cashApplied, input.currency)} de efectivo: deuda bruta ${fmtB(cc.wacc.debtGross, input.currency)} → deuda neta ${fmtB(cc.wacc.debt, input.currency)}.` : null,
         cc.wacc.betaEstimated ? 'La β no estaba disponible y se usó 1.0 (estimada) para el CAPM.' : null,
         cc.wacc.debtAssumedZero ? 'No se registró deuda; se asume financiación 100% equity (WACC = coste del equity).' : null,
       ].filter((w): w is string => Boolean(w)).join(' ') || undefined
     : undefined;
-  const dataWarning = [partialWarning, marketCapWarning, terminalWarning, growthCapWarning, roicFallbackWarning, waccEstimateWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
+  const dataWarning = [partialWarning, marketCapWarning, terminalWarning, growthCapWarning, terminalSpreadWarning, roicFallbackWarning, waccEstimateWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
   const currency = input.currency;
 
   return {
@@ -863,20 +898,25 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
       ...(cc.wacc ? [
         { label: 'Beta (CAPM)', value: `${cc.wacc.beta.toFixed(2)}${cc.wacc.betaEstimated ? ' (estimada)' : ''}`, rawValue: cc.wacc.beta },
         { label: 'Ke (CAPM: rf 3% + β×5%)', value: `${cc.wacc.Ke.toFixed(2)}%`, rawValue: cc.wacc.Ke },
-        { label: 'Kd (interés/deuda)', value: `${cc.wacc.Kd.toFixed(2)}%`, rawValue: cc.wacc.Kd },
+        { label: 'Kd (interés/deuda neta)', value: cc.wacc.kdOutlier ? `${cc.wacc.kdRaw!.toFixed(2)}% → ${cc.wacc.Kd.toFixed(2)}% (sustituido)` : `${cc.wacc.Kd.toFixed(2)}%`, rawValue: cc.wacc.Kd },
         { label: 'Impuesto efectivo', value: `${cc.wacc.tax.toFixed(1)}%`, rawValue: cc.wacc.tax },
         { label: 'Equity (valor mercado)', value: fmtB(cc.wacc.equity, currency), rawValue: cc.wacc.equity },
-        { label: 'Deuda', value: cc.wacc.debtAssumedZero ? '0 (no registrada)' : fmtB(cc.wacc.debt, currency), rawValue: cc.wacc.debt },
+        { label: 'Deuda neta', value: cc.wacc.debtAssumedZero ? '0 (no registrada)' : fmtB(cc.wacc.debt, currency), rawValue: cc.wacc.debt },
+        ...(cc.wacc.debtCashAdjusted ? [
+          { label: 'Deuda bruta', value: fmtB(cc.wacc.debtGross, currency), rawValue: cc.wacc.debtGross },
+          { label: 'Efectivo compensado', value: fmtB(cc.wacc.cashApplied, currency), rawValue: cc.wacc.cashApplied },
+        ] : []),
         { label: 'Peso Equity / Deuda', value: `${(cc.wacc.equityWeight * 100).toFixed(0)}% / ${(cc.wacc.debtWeight * 100).toFixed(0)}%`, rawValue: cc.wacc.equityWeight },
-        { label: 'WACC = Ke×E/(D+E) + Kd×(1−t)×D/(D+E)', value: `${cc.wacc.wacc.toFixed(2)}%`, rawValue: cc.wacc.wacc },
+        { label: 'WACC = Ke×E/(D+E) + Kd×(1−t)×D/(D+E)', value: cc.wacc.waccFloored ? `${cc.wacc.waccRaw.toFixed(2)}% → ${cc.wacc.wacc.toFixed(2)}% (suelo)` : `${cc.wacc.wacc.toFixed(2)}%`, rawValue: cc.wacc.wacc },
       ] : []),
       { label: 'Horizonte', value: `${config.horizonYears} años`, rawValue: config.horizonYears },
-      { label: 'Terminal growth', value: `${(tg * 100).toFixed(0)}%`, rawValue: tg * 100 },
+      { label: 'Terminal growth', value: `${(tg * 100).toFixed(1)}%${tgCapped ? ' (limitado)' : ''}`, rawValue: tg * 100 },
       { label: 'Valor presente FCF', value: fmtB(totalPV, currency), rawValue: totalPV },
       { label: 'Valor terminal (PV)', value: fmtB(terminalPV, currency), rawValue: terminalPV },
       { label: 'Peso valor terminal', value: `${(terminalWeight * 100).toFixed(0)}%`, rawValue: terminalWeight },
       { label: 'Acciones', value: `${(shares / 1e9).toFixed(2)}B`, rawValue: shares },
     ],
+    terminalValue: { pv: terminalPV, pvExplicit: totalPV, weight: terminalWeight, growthRate: tg, capped: tgCapped },
   };
 }
 

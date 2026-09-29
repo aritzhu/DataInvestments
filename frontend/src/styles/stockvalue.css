@@ -347,6 +347,98 @@
   max-width: 54ch;
 }
 
+/* Reparto del valor justo: flujos proyectados vs valor terminal */
+.val-terminal {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.val-terminal-title {
+  font-family: 'Fraunces', 'Instrument Sans', Georgia, serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+.val-terminal-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.val-terminal-seg {
+  height: 100%;
+  transition: width 0.35s ease;
+}
+
+.val-terminal-seg--explicit {
+  background: var(--blue-light);
+}
+
+.val-terminal-seg--terminal {
+  background: var(--green);
+}
+
+.val-terminal--mid .val-terminal-seg--terminal {
+  background: var(--amber);
+}
+
+.val-terminal--high .val-terminal-seg--terminal {
+  background: var(--red);
+}
+
+.val-terminal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.val-terminal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.val-terminal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.val-terminal-dot--explicit {
+  background: var(--blue-light);
+}
+
+.val-terminal-dot--terminal {
+  background: var(--green);
+}
+
+.val-terminal--mid .val-terminal-dot--terminal {
+  background: var(--amber);
+}
+
+.val-terminal--high .val-terminal-dot--terminal {
+  background: var(--red);
+}
+
+.val-terminal-hint {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+  max-width: 62ch;
+}
+
 .val-hero-right { flex-shrink: 0; }
 
 .val-price-compare {

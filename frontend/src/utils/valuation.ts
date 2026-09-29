@@ -25,6 +25,7 @@ export interface ValuationResult {
   dataWarning?: string;
   scenarios?: { bear: number; base: number; bull: number };
   sensitivityTable?: { pe: number; price: number; isTarget?: boolean }[];
+  terminalValue?: { pv: number; pvExplicit: number; weight: number; growthRate: number; capped: boolean };
   perPEBreakdown?: {
     fundamental: { pe: number; payout: number; ke: number; g: number } | null;
     forward: number | null;

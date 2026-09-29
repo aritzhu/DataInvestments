@@ -7,6 +7,7 @@ interface Props {
   shares: number;
   growthRate: number;
   discountRate: number;
+  terminalGrowthRate: number;
   horizonYears: number;
   commodityPrice: number;
   commodityName: string;
@@ -30,6 +31,7 @@ function computeScenarioFairValue(
   shares: number,
   g: number,
   r: number,
+  tg: number,
   horizon: number,
   cogs: number,
   pctMP: number,
@@ -39,7 +41,6 @@ function computeScenarioFairValue(
   const deltaCOGS = cogs * pctMP * delta;
   const deltaFCF = -deltaCOGS * (1 - taxRate);
   const fcfScenario = baseFCF + deltaFCF;
-  const tg = 0.03;
   let totalPV = 0;
   for (let i = 1; i <= horizon; i++) {
     totalPV += (fcfScenario * Math.pow(1 + g, i)) / Math.pow(1 + r, i);
@@ -74,6 +75,7 @@ export function CommoditySensitivityChart({
   shares,
   growthRate,
   discountRate,
+  terminalGrowthRate,
   horizonYears,
   commodityPrice,
   commodityName,
@@ -87,6 +89,7 @@ export function CommoditySensitivityChart({
 }: Props) {
   const g = growthRate / 100;
   const r = discountRate / 100;
+  const tg = terminalGrowthRate / 100;
 
   const optimisticPrice = commodityPrice * (1 + optimisticPct / 100);
   const pessimisticPrice = commodityPrice * (1 - pessimisticPct / 100);
@@ -98,13 +101,13 @@ export function CommoditySensitivityChart({
     const rows: ScenarioData[] = [];
     for (let year = 0; year <= horizonYears; year++) {
       rows.push({
-        base: computeScenarioFairValue(baseFCF, shares, g, r, year, cogs, pctMP, taxRate, 0),
-        optimistic: computeScenarioFairValue(baseFCF, shares, g, r, year, cogs, pctMP, taxRate, deltaOptimistic),
-        pessimistic: computeScenarioFairValue(baseFCF, shares, g, r, year, cogs, pctMP, taxRate, deltaPessimistic),
+        base: computeScenarioFairValue(baseFCF, shares, g, r, tg, year, cogs, pctMP, taxRate, 0),
+        optimistic: computeScenarioFairValue(baseFCF, shares, g, r, tg, year, cogs, pctMP, taxRate, deltaOptimistic),
+        pessimistic: computeScenarioFairValue(baseFCF, shares, g, r, tg, year, cogs, pctMP, taxRate, deltaPessimistic),
       });
     }
     return rows;
-  }, [baseFCF, shares, g, r, horizonYears, cogs, pctMP, taxRate, deltaOptimistic, deltaPessimistic]);
+  }, [baseFCF, shares, g, r, tg, horizonYears, cogs, pctMP, taxRate, deltaOptimistic, deltaPessimistic]);
 
   if (!baseFCF || shares <= 0 || cogs <= 0 || data.length === 0) {
     return null;

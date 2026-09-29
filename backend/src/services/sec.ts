@@ -213,6 +213,10 @@ const QUARTERLY_FIELD_TAGS: Record<string, { tags: string[]; pointInTime: boolea
   currentLiabilities: { tags: ['LiabilitiesCurrent'], pointInTime: true },
   accountsPayable: { tags: ['AccountsPayable', 'AccountsPayableCurrent'], pointInTime: true },
   shortTermDebt: { tags: ['DebtCurrent', 'LongTermDebtCurrent', 'ShortTermBorrowings'], pointInTime: true },
+  // Orden de prioridad importante: `LongTermDebtNoncurrent` excluye obligaciones
+  // de arrendamiento, `LongTermDebt` las incluye. No alterar el orden para "optimizar"
+  // la cobertura: la deuda con leases infla el denominador de Kd (=interés/deuda) y
+  // hace el WACC irrealmente bajo. computeAutoDCFParams lo detecta vía el guard kdOutlier.
   longTermDebt: { tags: ['LongTermDebtNoncurrent', 'LongTermDebt'], pointInTime: true },
   retainedEarnings: { tags: ['RetainedEarningsAccumulatedDeficit', 'RetainedEarnings'], pointInTime: true },
   shortTermInvestments: { tags: ['ShortTermInvestments', 'MarketableSecurities', 'ShortTermMarketableSecurities', 'AvailableForSaleSecuritiesDebtSecuritiesCurrent'], pointInTime: true },
@@ -586,6 +590,8 @@ export function extractShortTermDebt(facts: SECCompanyFacts): ExtractedValues {
 }
 
 export function extractLongTermDebt(facts: SECCompanyFacts): ExtractedValues {
+  // Ver nota en BALANCE_SHEET_FIELD_TAGS.longTermDebt: el fallback `LongTermDebt`
+  // incluye arrendamientos y por eso va en último lugar.
   return extractBestTag(facts, ['LongTermDebtNoncurrent', 'LongTermDebt']);
 }
 
