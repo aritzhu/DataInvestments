@@ -1018,6 +1018,10 @@ export function CompanyPage() {
             balanceSheets={balanceSheets}
             stock={stock}
             selectedYear={selectedYear}
+            initialValuation={valuationData}
+            initialCommodityMapping={commodityMapping}
+            initialCommodityData={commodityData}
+            initialExistingAlarm={existingAlarm}
           />
         )}
         {activeTab === 'fundamental' && (

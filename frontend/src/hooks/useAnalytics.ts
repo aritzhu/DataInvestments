@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useSiteSettings } from './useSiteSettings';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -48,15 +49,12 @@ export function usePageTracking() {
 }
 
 export function useInitAnalytics() {
+  const { settings } = useSiteSettings();
+
   useEffect(() => {
-    fetch(`${API_BASE}/settings`)
-      .then((res) => res.json())
-      .then((data) => {
-        const id = data.analytics_id;
-        if (id && typeof id === 'string' && id.startsWith('G-')) {
-          initGA(id);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    const id = settings?.analytics_id;
+    if (id && typeof id === 'string' && id.startsWith('G-')) {
+      initGA(id);
+    }
+  }, [settings]);
 }

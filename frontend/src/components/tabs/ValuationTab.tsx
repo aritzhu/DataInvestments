@@ -22,12 +22,12 @@ const getAuth = () => {
 
 interface AlarmData {
   id: string;
-  companyId: string;
+  companyId?: string;
   targetVerdict: string;
-  lastVerdict: string | null;
-  lastPrice: number | null;
-  lastCheckedAt: string | null;
-  triggered: boolean;
+  lastVerdict?: string | null;
+  lastPrice?: number | null;
+  lastCheckedAt?: string | null;
+  triggered?: boolean;
 }
 
 interface Props {
@@ -36,6 +36,12 @@ interface Props {
   balanceSheets: CompanyProfile['balanceSheets'];
   stock: CompanyProfile['stockMetrics'][0] | null;
   selectedYear: number | null;
+  // CompanyPage already loads all four of these on page view. Accepting them as
+  // initial values avoids re-downloading the same payloads when this tab mounts.
+  initialValuation?: ValuationApiResponse | null;
+  initialCommodityMapping?: CommodityMapping | null;
+  initialCommodityData?: { price: number; name: string; currency: string } | null;
+  initialExistingAlarm?: AlarmData | null;
 }
 
 const CONFIDENCE_DOT: Record<string, string> = {
@@ -72,7 +78,7 @@ const DEFAULT_SLIDERS: ValuationConfigs = {
   fcfYield: { targetYield: 8 },
 };
 
-export function ValuationTab({ company, financials, stock }: Props) {
+export function ValuationTab({ company, financials, stock, initialValuation, initialCommodityMapping, initialCommodityData, initialExistingAlarm }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
   const [expandedGrowth, setExpandedGrowth] = useState(false);
@@ -82,10 +88,10 @@ export function ValuationTab({ company, financials, stock }: Props) {
   const [dcfBaseGrowth, setDcfBaseGrowth] = useState(5);
   const [dcfBaseDiscount, setDcfBaseDiscount] = useState(10);
   const [configs, setConfigs] = useState<ValuationConfigs>(DEFAULT_SLIDERS);
-  const [data, setData] = useState<ValuationApiResponse | null>(null);
+  const [data, setData] = useState<ValuationApiResponse | null>(initialValuation ?? null);
   const [queryVersion, setQueryVersion] = useState(0);
   const [showAlarmModal, setShowAlarmModal] = useState(false);
-  const [existingAlarm, setExistingAlarm] = useState<AlarmData | null>(null);
+  const [existingAlarm, setExistingAlarm] = useState<AlarmData | null>(initialExistingAlarm ?? null);
   const [alarmTarget, setAlarmTarget] = useState<'buy' | 'hold' | 'sell'>('buy');
   const [alarmLoading, setAlarmLoading] = useState(false);
 
@@ -99,6 +105,13 @@ export function ValuationTab({ company, financials, stock }: Props) {
     return typeof row?.rawValue === 'number' ? row.rawValue : dcfBaseDiscount;
   };
   useEffect(() => {
+    if (initialValuation) {
+      setData(initialValuation);
+      setConfigs(initialValuation.configs);
+      setDcfBaseGrowth(readAppliedGrowth(initialValuation));
+      setDcfBaseDiscount(readAppliedDiscount(initialValuation));
+      return;
+    }
     setData(null);
     setConfigs(DEFAULT_SLIDERS);
     setQueryVersion(0);
@@ -107,7 +120,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
       .then((d) => { if (!cancelled) { setData(d); setConfigs(d.configs); setDcfBaseGrowth(readAppliedGrowth(d)); setDcfBaseDiscount(readAppliedDiscount(d)); } })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [company.ticker]);
+  }, [company.ticker, initialValuation]);
 
   // Debounced refetch whenever the user moves a slider. The current slider
   // values are sent as backend params, so the server stays the source of truth.
@@ -140,24 +153,28 @@ export function ValuationTab({ company, financials, stock }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryVersion, configsKey, dcfKey, company.ticker]);
 
-  const [commodityMapping, setCommodityMapping] = useState<CommodityMapping | null>(null);
+  const [commodityMapping, setCommodityMapping] = useState<CommodityMapping | null>(initialCommodityMapping ?? null);
   useEffect(() => {
+    if (initialCommodityMapping) {
+      setCommodityMapping(initialCommodityMapping);
+      return;
+    }
     let cancelled = false;
     fetchCommodityMapping(company.ticker, company.industry, company.sector)
       .then((m) => { if (!cancelled) setCommodityMapping(m); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [company.ticker, company.industry, company.sector]);
+  }, [company.ticker, company.industry, company.sector, initialCommodityMapping]);
   const isBasicMaterials = !!commodityMapping;
   const isBasicMaterialsSector = company.sector?.toLowerCase() === 'basic materials';
-  const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(null);
+  const [commodityData, setCommodityData] = useState<{ price: number; name: string; currency: string } | null>(initialCommodityData ?? null);
   const [optimisticPct, setOptimisticPct] = useState(commodityMapping?.defaultOptimisticPct ?? 20);
   const [pessimisticPct, setPessimisticPct] = useState(commodityMapping?.defaultPessimisticPct ?? 20);
   const [manualPctMP, setManualPctMP] = useState(0.5);
 
   // Fetch current commodity price for Basic Materials companies
   useEffect(() => {
-    if (!isBasicMaterials || !commodityMapping) return;
+    if (!isBasicMaterials || !commodityMapping || initialCommodityData) return;
     let cancelled = false;
     fetch(`/api/commodities/prices?symbols=${encodeURIComponent(commodityMapping.commoditySymbol)}`)
       .then((res) => res.json())
@@ -168,7 +185,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [isBasicMaterials, commodityMapping]);
+  }, [isBasicMaterials, commodityMapping, initialCommodityData]);
 
   const results = data?.results ?? [];
 
@@ -185,7 +202,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
 
   // Fetch existing alarm for this company
   useEffect(() => {
-    if (!user || !company.id) return;
+    if (!user || !company.id || initialExistingAlarm) return;
     fetch('/api/alarms', { headers: getAuth() })
       .then((res) => res.json())
       .then((alarms: AlarmData[]) => {
@@ -193,7 +210,7 @@ export function ValuationTab({ company, financials, stock }: Props) {
         if (found) setExistingAlarm(found);
       })
       .catch(() => {});
-  }, [user, company.id]);
+  }, [user, company.id, initialExistingAlarm]);
 
   const handleOpenAlarm = () => {
     if (existingAlarm) {

@@ -4,6 +4,7 @@ import { GraduationCap, FileDown, ArrowRight, BookOpen, Loader2, CheckCircle2, C
 import { coursesApi, type Course } from '../utils/coursesApi';
 import { getCourseProgress, resetAllProgress } from '../utils/courseProgress';
 import { trackEvent } from '../hooks/useAnalytics';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import '../styles/formacion.css';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -23,6 +24,7 @@ export function FormacionPage() {
   const [guidePdfUrl, setGuidePdfUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [progressTick, setProgressTick] = useState(0);
+  const { settings: siteSettings } = useSiteSettings();
 
   useEffect(() => {
     trackEvent('formacion_view');
@@ -36,14 +38,11 @@ export function FormacionPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.guide_pdf_url) setGuidePdfUrl(data.guide_pdf_url);
-      })
-      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (siteSettings?.guide_pdf_url) setGuidePdfUrl(siteSettings.guide_pdf_url);
+  }, [siteSettings]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

@@ -21,12 +21,15 @@ export function CheckoutResultPage() {
     if (status !== 'success') return;
 
     let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const controller = new AbortController();
     const token = localStorage.getItem('token');
 
     const poll = async (attempt: number): Promise<void> => {
       try {
         const res = await fetch('/api/subscription/plan-info', {
           headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
@@ -43,14 +46,18 @@ export function CheckoutResultPage() {
         // retry
       }
       if (attempt < 6 && !cancelled) {
-        setTimeout(() => void poll(attempt + 1), 1500);
+        retryTimer = setTimeout(() => void poll(attempt + 1), 1500);
       } else if (!cancelled) {
         setSyncing(false);
       }
     };
 
     void poll(0);
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      controller.abort();
+    };
   }, [status, updateUserTier]);
 
   if (status === 'cancel') {

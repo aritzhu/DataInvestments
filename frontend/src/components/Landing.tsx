@@ -14,6 +14,7 @@ import { INFO } from '../utils/infoContent';
 import { Skeleton, SkeletonCard } from './ui/Skeleton';
 import { getLandingCache, setLandingCache, type CompanyFromAPI } from '../utils/companiesCache';
 import { trackEvent } from '../hooks/useAnalytics';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { WelcomeModal } from './WelcomeModal';
 import '../styles/landing.css';
 
@@ -179,6 +180,14 @@ export function Landing() {
   const [openSelect, setOpenSelect] = useState<string | null>(null);
   const selectRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
+  // Debounced mirror of the search box: without it every keystroke issued a full
+  // company-list request on top of the suggestions request.
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   const [selectedSector, setSelectedSector] = useState<string | null>(initialSector);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialSort);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(initialShowFavoritesOnly);
@@ -193,6 +202,7 @@ export function Landing() {
   const [valuationLimits, setValuationLimits] = useState<{ u: string; o: string } | null>(() => initialCache?.valuationLimits ?? null);
   const [undervalued, setUndervalued] = useState<any[]>(() => initialCache?.undervalued ?? []);
   const [overvalued, setOvervalued] = useState<any[]>(() => initialCache?.overvalued ?? []);
+  const { settings: siteSettings } = useSiteSettings();
   const [screenMinMargin, setScreenMinMargin] = useState(searchParams.get('screenMinMargin') || '');
   const [screenMaxPe, setScreenMaxPe] = useState(searchParams.get('screenMaxPe') || '');
   const [screenMinFcf, setScreenMinFcf] = useState(searchParams.get('screenMinFcf') || '');
@@ -252,23 +262,22 @@ export function Landing() {
       .then((res) => res.json())
       .then((data) => { if (data && typeof data === 'object') setBmCounts(data); })
       .catch(() => {});
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        setHeroSettings(data);
-        const limits = { u: data.undervalued_limit || '5', o: data.overvalued_limit || '5' };
-        setValuationLimits(limits);
-        setLandingCache(cacheKey, { heroSettings: data, valuationLimits: limits });
-      })
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!siteSettings) return;
+    setHeroSettings(siteSettings);
+    const limits = { u: siteSettings.undervalued_limit || '5', o: siteSettings.overvalued_limit || '5' };
+    setValuationLimits(limits);
+    setLandingCache(cacheKey, { heroSettings: siteSettings, valuationLimits: limits });
+  }, [siteSettings, cacheKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     const params = new URLSearchParams();
     params.set('page', String(page));
     params.set('pageSize', String(pageSize));
-    if (searchTerm) params.set('search', searchTerm);
+    if (debouncedSearch) params.set('search', debouncedSearch);
     if (selectedSector) params.set('sector', selectedSector);
     if (selectedCountry) params.set('country', selectedCountry);
     if (selectedBusinessModel) params.set('businessModel', selectedBusinessModel);
@@ -290,10 +299,9 @@ export function Landing() {
     }
 
     const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
-    fetch(`/api/companies?${params.toString()}`, { headers })
+    fetch(`/api/companies?${params.toString()}`, { headers, signal: controller.signal })
       .then((res) => res.json())
       .then((d) => {
-        if (cancelled) return;
         const nextCompanies = Array.isArray(d.data) ? d.data : [];
         const nextTotal = typeof d.total === 'number' ? d.total : 0;
         setCompanies(nextCompanies);
@@ -302,16 +310,15 @@ export function Landing() {
         setLandingCache(cacheKey, { companies: nextCompanies, total: nextTotal });
       })
       .catch(() => {
-        if (!cancelled) {
-          setCompanies([]);
-          setTotal(0);
-          setIsLoading(false);
-        }
+        if (controller.signal.aborted) return;
+        setCompanies([]);
+        setTotal(0);
+        setIsLoading(false);
       });
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, [searchTerm, selectedSector, selectedCountry, selectedBusinessModel, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy, cacheKey]);
+  }, [debouncedSearch, selectedSector, selectedCountry, selectedBusinessModel, sortOrder, showFavoritesOnly, page, pageSize, user, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy, cacheKey]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -386,8 +393,10 @@ export function Landing() {
       isFirstRender.current = false;
       return;
     }
-    setPage(1);
-  }, [searchTerm, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, pageSize]);
+    // Only reset when the page is actually off 1; on the same value React already
+    // bails out, but stating it keeps this from re-entering the fetch effect.
+    if (page !== 1) setPage(1);
+  }, [debouncedSearch, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, pageSize]);
 
   useEffect(() => {
     if (didInitialScroll.current) return;

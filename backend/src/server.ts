@@ -12,6 +12,8 @@ import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 import prisma from './infrastructure/prisma/client';
+import { Prisma } from '@prisma/client';
+import type { FinancialData, BalanceSheet } from '@prisma/client';
 import authRoutes from './routes/auth';
 import favoritesRoutes from './routes/favorites';
 import alarmsRoutes, { checkAllAlarms } from './routes/alarms';
@@ -251,7 +253,11 @@ app.get('/api/companies', async (req, res) => {
       return res.json(paginate({ data: companies, total, page, pageSize }));
     }
 
-    // Screening path: compute per-company fundamentals and filter/sort on them
+    // Screening path: compute per-company fundamentals and filter/sort on them.
+    // The scan is unbounded on purpose: filtering happens in JS, so capping it would
+    // silently drop companies from the result set and make `total` undercount.
+    // The per-request cost was addressed in getCompanyMetrics instead (latest row per
+    // company, fetched in SQL) rather than by truncating the universe.
     const allCompanies = await prisma.company.findMany({ where, select: baseSelect });
     const metrics = await getCompanyMetrics(allCompanies);
 
@@ -308,17 +314,26 @@ async function getCompanyMetrics(
   companies: Array<{ id: string; sector?: string | null; industry?: string | null }>,
 ): Promise<Map<string, { metrics: Record<string, number | null>; businessModel: BusinessModelInference | null }>> {
   const ids = companies.map((c) => c.id);
+  // Only the most recent row per company is ever read below, so fetch just that row
+  // instead of the full history. Selecting every row and discarding it in JS cost
+  // ~6s of Prisma hydration per request for 481 companies.
   const [stocks, financials, balanceSheets] = await Promise.all([
     prisma.stockMetric.findMany({ where: { companyId: { in: ids } }, orderBy: { date: 'desc' } }),
-    prisma.financialData.findMany({ where: { companyId: { in: ids } }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
-    prisma.balanceSheet.findMany({ where: { companyId: { in: ids } }, orderBy: [{ year: 'desc' }, { quarter: 'desc' }] }),
+    prisma.$queryRaw<FinancialData[]>`
+      SELECT DISTINCT ON ("companyId") *
+      FROM "FinancialData"
+      WHERE "companyId" IN (${Prisma.join(ids)})
+      ORDER BY "companyId", "year" DESC, "quarter" DESC
+    `,
+    prisma.$queryRaw<BalanceSheet[]>`
+      SELECT DISTINCT ON ("companyId") *
+      FROM "BalanceSheet"
+      WHERE "companyId" IN (${Prisma.join(ids)})
+      ORDER BY "companyId", "year" DESC, "quarter" DESC
+    `,
   ]);
 
-  const latestBy = <T extends { companyId: string }>(rows: T[]): Map<string, T> => {
-    const map = new Map<string, T>();
-    for (const row of rows) if (!map.has(row.companyId)) map.set(row.companyId, row);
-    return map;
-  };
+  const latestBy = <T extends { companyId: string }>(rows: T[]): Map<string, T> => new Map(rows.map((row) => [row.companyId, row]));
   const latestStock = latestBy(stocks);
   const latestFin = latestBy(financials);
   const latestBs = latestBy(balanceSheets);
@@ -356,17 +371,43 @@ async function getCompanyMetrics(
   return out;
 }
 
+// Single-slot cache with the same TTL as the recommended valuations, plus a shared
+// in-flight promise: this route is hit on every screener page load and previously
+// recomputed business models for all active companies on each request.
+const BUSINESS_MODEL_COUNTS_TTL_MS = 10 * 60 * 1000;
+let businessModelCountsCache: { at: number; data: Record<string, number> } | null = null;
+let businessModelCountsInFlight: Promise<Record<string, number>> | null = null;
+
+async function getBusinessModelCounts(): Promise<Record<string, number>> {
+  if (businessModelCountsCache && Date.now() - businessModelCountsCache.at < BUSINESS_MODEL_COUNTS_TTL_MS) {
+    return businessModelCountsCache.data;
+  }
+  if (!businessModelCountsInFlight) {
+    businessModelCountsInFlight = (async () => {
+      const companies = await prisma.company.findMany({ where: { active: true }, select: { id: true, sector: true, industry: true } });
+      const mm = await getCompanyMetrics(companies);
+      const counts: Record<string, number> = {};
+      for (const c of companies) {
+        const bm = mm.get(c.id)?.businessModel;
+        const key = bm?.model ?? 'none';
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      return counts;
+    })()
+      .then((data) => {
+        businessModelCountsCache = { at: Date.now(), data };
+        return data;
+      })
+      .finally(() => {
+        businessModelCountsInFlight = null;
+      });
+  }
+  return businessModelCountsInFlight;
+}
+
 app.get('/api/companies/business-model-counts', async (_req, res) => {
   try {
-    const companies = await prisma.company.findMany({ where: { active: true }, select: { id: true, sector: true, industry: true } });
-    const mm = await getCompanyMetrics(companies);
-    const counts: Record<string, number> = {};
-    for (const c of companies) {
-      const bm = mm.get(c.id)?.businessModel;
-      const key = bm?.model ?? 'none';
-      counts[key] = (counts[key] || 0) + 1;
-    }
-    res.json(counts);
+    res.json(await getBusinessModelCounts());
   } catch (error) {
     res.status(500).json({ error: 'Error fetching business model counts' });
   }
@@ -457,7 +498,34 @@ app.get('/api/companies/:ticker/metric-variations', async (req, res) => {
 // ── Company valuation (single source of truth) ────────────────────────────
 
 const VALUATION_ENDPOINT_TTL_MS = 30 * 1000;
+// Bounded LRU. The key includes the whole query string and the endpoint is public and
+// unauthenticated, so a client walking decimal values would otherwise grow this map
+// without limit, each entry holding a full multi-model valuation payload.
+const VALUATION_ENDPOINT_MAX_ENTRIES = 500;
 const valuationEndpointCache = new Map<string, { at: number; data: unknown }>();
+
+function getCachedValuation(key: string): unknown {
+  const hit = valuationEndpointCache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at < VALUATION_ENDPOINT_TTL_MS) {
+    // Refresh recency: re-inserting moves the key to the end of the Map iteration order.
+    valuationEndpointCache.delete(key);
+    valuationEndpointCache.set(key, hit);
+    return hit.data;
+  }
+  valuationEndpointCache.delete(key);
+  return undefined;
+}
+
+function setCachedValuation(key: string, data: unknown): void {
+  valuationEndpointCache.delete(key);
+  valuationEndpointCache.set(key, { at: Date.now(), data });
+  while (valuationEndpointCache.size > VALUATION_ENDPOINT_MAX_ENTRIES) {
+    const oldest = valuationEndpointCache.keys().next();
+    if (oldest.done) break;
+    valuationEndpointCache.delete(oldest.value);
+  }
+}
 
 app.get('/api/companies/:ticker/valuation', async (req, res) => {
   try {
@@ -465,9 +533,9 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
     const q = req.query as Record<string, string>;
     const qs = Object.keys(q).sort().map((k) => `${k}=${q[k]}`).join('&');
     const cacheKey = `${ticker.toUpperCase()}|${qs}`;
-    const cached = valuationEndpointCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < VALUATION_ENDPOINT_TTL_MS) {
-      res.json(cached.data);
+    const cached = getCachedValuation(cacheKey);
+    if (cached !== undefined) {
+      res.json(cached);
       return;
     }
 
@@ -561,7 +629,7 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       verdict,
       configs,
     };
-    valuationEndpointCache.set(cacheKey, { at: Date.now(), data: payload });
+    setCachedValuation(cacheKey, payload);
     res.json(payload);
   } catch (error) {
     console.error('[Companies] Error computing valuation:', error);
@@ -671,13 +739,35 @@ async function computeRecommendedValuations(): Promise<RecommendedValuation[]> {
   return out;
 }
 
+// Single-flight + prewarm: the recompute is expensive (whole-table valuation, ~10s cold),
+// so concurrent cold requests must share one run instead of each doing the full work, and
+// a timer refreshes it before the TTL lapses so request handlers never pay the cost.
+let valuationsInFlight: Promise<RecommendedValuation[]> | null = null;
+
 async function getRecommendedValuations(): Promise<RecommendedValuation[]> {
   if (valuationsCache && Date.now() - valuationsCache.at < VALUATIONS_TTL_MS) {
     return valuationsCache.data;
   }
-  const data = await computeRecommendedValuations();
-  valuationsCache = { at: Date.now(), data };
-  return data;
+  if (!valuationsInFlight) {
+    valuationsInFlight = computeRecommendedValuations()
+      .then((data) => {
+        valuationsCache = { at: Date.now(), data };
+        return data;
+      })
+      .finally(() => {
+        valuationsInFlight = null;
+      });
+  }
+  return valuationsInFlight;
+}
+
+function scheduleValuationsPrewarm(): void {
+  const timer = setTimeout(() => {
+    void getRecommendedValuations()
+      .catch((err) => console.error('[Valuations] prewarm failed:', err))
+      .finally(() => scheduleValuationsPrewarm());
+  }, VALUATIONS_TTL_MS);
+  timer.unref();
 }
 
 function parseCountry(value: unknown): string | undefined {
@@ -872,6 +962,9 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 
 app.listen(PORT, () => {
   console.log(`DataInvestments API running on port ${PORT}`);
+  void getRecommendedValuations()
+    .catch((err) => console.error('[Valuations] initial prewarm failed:', err))
+    .finally(() => scheduleValuationsPrewarm());
 });
 
 // ── Cron: Alarm check ─────────────────────────────────────────────────────

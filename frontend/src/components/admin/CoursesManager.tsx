@@ -3,6 +3,7 @@ import {
   Save, Plus, Trash2, FileDown, X, Loader2, Copy, ClipboardPaste, Check, ExternalLink, Upload,
 } from 'lucide-react';
 import { coursesApi, type Course } from '../../utils/coursesApi';
+import { useSiteSettings, invalidateSiteSettings } from '../../hooks/useSiteSettings';
 import { SectionBuilder } from './SectionBuilder';
 import { CourseContent, parseCourseContent } from '../course/CourseContent';
 
@@ -45,6 +46,7 @@ export function CoursesManager() {
   const [loading, setLoading] = useState(true);
 
   const [guidePdfUrl, setGuidePdfUrl] = useState('');
+  const { settings: siteSettings } = useSiteSettings();
   const [guideUploading, setGuideUploading] = useState(false);
   const [guideSaving, setGuideSaving] = useState(false);
   const [guideError, setGuideError] = useState('');
@@ -74,13 +76,11 @@ export function CoursesManager() {
 
   useEffect(() => {
     loadCourses();
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.guide_pdf_url) setGuidePdfUrl(data.guide_pdf_url);
-      })
-      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (siteSettings?.guide_pdf_url) setGuidePdfUrl(siteSettings.guide_pdf_url);
+  }, [siteSettings]);
 
   const openCreate = () => {
     setEditingCourse(null);
@@ -190,6 +190,7 @@ export function CoursesManager() {
         headers: { 'Content-Type': 'application/json', ...getAuth() },
         body: JSON.stringify({ guide_pdf_url: guidePdfUrl }),
       });
+      invalidateSiteSettings();
       setGuideSaved(true);
       setTimeout(() => setGuideSaved(false), 2500);
     } finally {

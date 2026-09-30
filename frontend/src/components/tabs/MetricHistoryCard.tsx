@@ -1,24 +1,6 @@
-import { useEffect, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
-
-interface VariationPoint {
-  year: number;
-  quarter: number;
-  periodLabel: string;
-  periodEnd: string;
-  roe: number | null;
-  pbRatio: number | null;
-  grossMargin: number | null;
-  operatingMargin: number | null;
-  netMargin: number | null;
-  roa: number | null;
-  roic: number | null;
-  totalDebt: number | null;
-  quickRatio: number | null;
-  currentRatio: number | null;
-  debtToEquity: number | null;
-}
+import { useMetricVariations, type VariationPoint } from '../../hooks/useMetricVariations';
 
 export interface MetricConfig {
   key: keyof Omit<VariationPoint, 'year' | 'quarter' | 'periodLabel' | 'periodEnd'>;
@@ -65,31 +47,7 @@ function TrendTooltip({ active, payload, metrics }: any) {
 }
 
 export function MetricHistoryCard({ ticker, title, metrics }: Props) {
-  const [data, setData] = useState<VariationPoint[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = () => {
-    setLoading(true);
-    setError(null);
-    fetch(`/api/companies/${encodeURIComponent(ticker)}/metric-variations`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((d) => {
-        setData(d.variations ?? []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Error de red');
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    load();
-  }, [ticker]);
+  const { data, loading, error, reload: load } = useMetricVariations(ticker);
 
   const allRows = data ?? [];
   const annualRows = allRows.filter((p) => p.quarter === 0);

@@ -1,15 +1,6 @@
-import { useEffect, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
-
-interface VariationPoint {
-  year: number;
-  quarter: number;
-  periodLabel: string;
-  periodEnd: string;
-  roe: number | null;
-  pbRatio: number | null;
-}
+import { useMetricVariations, type VariationPoint } from '../../hooks/useMetricVariations';
 
 interface Props {
   ticker: string;
@@ -45,32 +36,7 @@ function TrendTooltip({ active, payload }: any) {
 }
 
 export function MetricVariationsCard({ ticker }: Props) {
-  const [data, setData] = useState<VariationPoint[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = () => {
-    setLoading(true);
-    setError(null);
-    fetch(`/api/companies/${encodeURIComponent(ticker)}/metric-variations`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        return r.json();
-      })
-      .then((d) => {
-        setData(d.variations ?? []);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Error de red');
-        setLoading(false);
-      });
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker]);
+  const { data, loading, error, reload: load } = useMetricVariations(ticker);
 
   const rows = data ?? [];
   const chartData = rows.map((p) => ({

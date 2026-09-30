@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 import { UsageIndicator } from './ui/UsageIndicator';
 import '../styles/navbar.css';
 
@@ -11,6 +12,7 @@ export function Navbar() {
   const [theme, setTheme] = useState(getTheme());
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null);
   const [siteFaviconUrl, setSiteFaviconUrl] = useState<string | null>(null);
+  const { settings: siteSettings } = useSiteSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, updateTheme } = useAuth();
@@ -33,14 +35,10 @@ export function Navbar() {
   }, [menuOpen]);
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.site_logo_url) setSiteLogoUrl(data.site_logo_url);
-        if (data.site_favicon_url) setSiteFaviconUrl(data.site_favicon_url);
-      })
-      .catch(() => {});
-  }, []);
+    if (!siteSettings) return;
+    if (siteSettings.site_logo_url) setSiteLogoUrl(siteSettings.site_logo_url);
+    if (siteSettings.site_favicon_url) setSiteFaviconUrl(siteSettings.site_favicon_url);
+  }, [siteSettings]);
 
   useEffect(() => {
     if (siteFaviconUrl) {

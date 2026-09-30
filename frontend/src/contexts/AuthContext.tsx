@@ -301,11 +301,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setVisitedTickers([]);
   };
 
-  const updateUserTier = (tier: string) => {
-    if (user) {
-      setUser({ ...user, subscriptionTier: tier as User['subscriptionTier'] });
-    }
-  };
+  // Functional update so the identity never depends on `user`. If this read `user`
+  // directly it would be a new function every render, re-triggering any effect that
+  // lists it as a dependency (see CheckoutResultPage's tier-sync poll).
+  const updateUserTier = useCallback((tier: string) => {
+    setUser((prev) => (prev ? { ...prev, subscriptionTier: tier as User['subscriptionTier'] } : prev));
+  }, []);
 
   const loadUsage = useCallback(async () => {
     try {

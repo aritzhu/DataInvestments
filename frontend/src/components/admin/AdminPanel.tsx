@@ -4,6 +4,7 @@ import { ArrowLeft, Settings, RefreshCw, Upload, FileText, Download, Loader2, Ro
 import { AddCompanyForm } from './AddCompanyForm';
 import { CompanyRow } from './CompanyRow';
 import { apiFetch } from '../../utils/api';
+import { useSiteSettings, invalidateSiteSettings } from '../../hooks/useSiteSettings';
 import { BulkImportProgress } from './BulkImportProgress';
 import { DataStatsSection } from './DataStatsSection';
 import { StatementsEditor } from './StatementsEditor';
@@ -82,6 +83,7 @@ export function AdminPanel() {
   const [totalPages, setTotalPages] = useState(1);
   const [grandTotal, setGrandTotal] = useState(0);
   const [heroSettings, setHeroSettings] = useState<Record<string, string>>({});
+  const { settings: siteSettings } = useSiteSettings();
   const [heroSaving, setHeroSaving] = useState(false);
   const [books, setBooks] = useState<Book[]>(() => DEFAULT_BOOKS.map((b) => ({ ...b })));
   const [booksSaving, setBooksSaving] = useState(false);
@@ -130,19 +132,15 @@ export function AdminPanel() {
   }, [page, pageSize, search]);
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((data) => {
-        setHeroSettings(data);
-        try {
-          const parsed = JSON.parse(data.books || '');
-          if (Array.isArray(parsed)) setBooks(parsed as Book[]);
-        } catch {
-          setBooks(DEFAULT_BOOKS.map((b) => ({ ...b })));
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (!siteSettings) return;
+    setHeroSettings(siteSettings as Record<string, string>);
+    try {
+      const parsed = JSON.parse(siteSettings.books || '');
+      if (Array.isArray(parsed)) setBooks(parsed as Book[]);
+    } catch {
+      setBooks(DEFAULT_BOOKS.map((b) => ({ ...b })));
+    }
+  }, [siteSettings]);
 
   useEffect(() => {
     fetchCompanies();
@@ -170,6 +168,7 @@ export function AdminPanel() {
         headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify(heroSettings),
       });
+      invalidateSiteSettings();
     } finally {
       setHeroSaving(false);
     }
@@ -185,6 +184,7 @@ export function AdminPanel() {
         body: JSON.stringify({ analytics_id: heroSettings.analytics_id || '' }),
       });
       if (res.ok) {
+        invalidateSiteSettings();
         setAnalyticsSaved(true);
         setTimeout(() => setAnalyticsSaved(false), 3000);
       }
@@ -201,6 +201,7 @@ export function AdminPanel() {
         headers: { 'Content-Type': 'application/json', ...auth },
         body: JSON.stringify({ books: JSON.stringify(books) }),
       });
+      invalidateSiteSettings();
       setHeroSettings((prev) => ({ ...prev, books: JSON.stringify(books) }));
     } finally {
       setBooksSaving(false);
