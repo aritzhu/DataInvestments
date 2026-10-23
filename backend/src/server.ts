@@ -29,7 +29,7 @@ import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
 import { getMetricVariations } from './services/metricVariations';
-import { getRecommendedModel, getRecommendedFairValue, getSectorConfigs, computeAll, computeSustainableGrowth, inferBusinessModel, dcfSeedRates, type BusinessModelInference, type ValuationInput } from './services/valuationService';
+import { getRecommendedModel, getRecommendedFairValue, getSectorConfigs, computeAll, computeSustainableGrowth, inferBusinessModel, dcfSeedRates, valuationPeriod, type BusinessModelInference, type ValuationInput } from './services/valuationService';
 import { getMappedCommodity } from './data/commodityMap';
 import { requireAuth, requireAdmin, verifyToken, type AuthRequest } from './middleware/jwt';
 import { parsePagination, paginate } from './utils/pagination';
@@ -608,7 +608,8 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
 
     const results = computeAll(input, configs, company.sector, company.industry, dcfOverride);
     const recommended = getRecommendedFairValue(results, input, company.sector, company.industry);
-    const businessModel = recommended.businessModel ?? getRecommendedModel(input, company.sector, company.industry).businessModel ?? null;
+    const preferred = getRecommendedModel(input, company.sector, company.industry);
+    const businessModel = recommended.businessModel ?? preferred.businessModel ?? null;
     const currentPrice = stock.currentPrice ?? 0;
     const verdict: { verdict: 'buy' | 'hold' | 'sell' | 'na'; upside: number | null; label: string } = (() => {
       const fv = recommended.fairValue;
@@ -625,8 +626,10 @@ app.get('/api/companies/:ticker/valuation', async (req, res) => {
       currentPrice,
       results,
       recommended,
+      preferredModel: preferred.id,
       businessModel,
       verdict,
+      period: valuationPeriod(input),
       configs,
     };
     setCachedValuation(cacheKey, payload);

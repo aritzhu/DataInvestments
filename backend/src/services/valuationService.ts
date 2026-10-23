@@ -72,6 +72,9 @@ export interface TTMData {
   balanceSheet: Balance | undefined;
   isTTM: boolean;
   annualFields: string[];
+  isAnnualFallback: boolean;
+  periodYear: number | null;
+  periodQuarter: number | null;
 }
 
 function sumField<T>(items: T[], field: keyof T): number {
@@ -95,55 +98,39 @@ function ttmSumOrAnnual<T extends { year: number; quarter?: number | null }>(las
   return (annual?.[field] as number | null | undefined) ?? null;
 }
 
-const YTD_FIELDS: Array<keyof Financial> = [
-  'revenue',
-  'netIncome',
-  'ebitda',
-  'ebit',
-  'operatingCashFlow',
-  'freeCashFlow',
-  'capex',
-  'depreciation',
-  'sgaExpense',
-  'rdExpense',
-  'interestExpense',
-  'taxExpense',
-  'costOfRevenue',
-  'grossProfit',
-  'operatingExpenses',
-  'dividendsPaid',
-  'shareRepurchases',
-];
-
+// Las filas trimestrales de la SEC ya se desacumulan al importar (sec.ts) y las de
+// yfinance son trimestres discretos; el único indicio fiable de YTD es que la suma de
+// los trimestres de un año supere claramente su cifra anual. El antiguo test por campo
+// se eliminó: daba falsos positivos con partidas irregulares (impuestos, intereses,
+// flujo de caja) y hundía a cientos de empresas al ejercicio anual.
 function hasCumulativeYtd(last4: Financial[], all?: Financial[]): boolean {
-  const byYear = new Map<number, Financial[]>();
-  for (const f of last4) {
-    if ((f.quarter ?? 0) === 0) continue;
-    if (!byYear.has(f.year)) byYear.set(f.year, []);
-    byYear.get(f.year)!.push(f);
-  }
-  for (const rows of byYear.values()) {
-    const year = rows[0].year;
-    if (rows.length < 2) continue;
-    const annual = all?.find((f) => f.year === year && (f.quarter ?? 0) === 0);
-    if (annual?.revenue != null && annual.revenue > 0) {
-      const allQuarterRows = (all ?? []).filter((f) => f.year === year && (f.quarter ?? 0) !== 0);
-      const sumQuarters = allQuarterRows.reduce((acc, r) => acc + ((r.revenue ?? 0) as number), 0);
-      if (sumQuarters / annual.revenue > 1.25) return true;
+  const rows = all ?? last4;
+  const quarterRows = rows.filter((f) => (f.quarter ?? 0) > 0);
+  const yearsOfInterest = new Set(last4.filter((f) => (f.quarter ?? 0) > 0).map((f) => f.year));
+  for (const year of yearsOfInterest) {
+    const annual = rows.find((f) => f.year === year && (f.quarter ?? 0) === 0);
+    const annualRevenue = annual?.revenue;
+    if (annualRevenue == null || annualRevenue <= 0) continue;
+    const yearQuarters = quarterRows.filter((f) => f.year === year);
+    if (yearQuarters.length < 2) continue;
+    const sumQuarters = yearQuarters.reduce((acc, r) => acc + ((r.revenue ?? 0) as number), 0);
+    const dupQuarter = yearQuarters.find((r) => r.revenue != null && Math.abs(r.revenue - annualRevenue) / annualRevenue < 0.01);
+    if (dupQuarter) {
+      // Hay un trimestre duplicado con el anual. Si el resto de trimestres cuadra con el
+      // anual, el anual es bueno y el trimestre duplicado es el dato corrupto (p. ej.
+      // CRM/WMT, que emiten la cifra anual también como Q1). Si el resto sigue muy por
+      // encima, el anual es en realidad un trimestre (p. ej. ACN/ALL) y no sirve de
+      // referencia: se ignora y se usan los trimestres.
+      if ((sumQuarters - (dupQuarter.revenue as number)) / annualRevenue <= 1.25) return true;
+      continue;
     }
-    const maxQrow = [...rows].sort((a, b) => (b.quarter ?? 0) - (a.quarter ?? 0))[0];
-    const maxQ = maxQrow.quarter ?? 0;
-    if (maxQ <= 0) continue;
-    const lower = rows.filter((r) => (r.quarter ?? 0) < maxQ);
-    for (const field of YTD_FIELDS) {
-      const rowValue = maxQrow[field] as number | null | undefined;
-      if (rowValue == null || rowValue <= 0) continue;
-      const sumLower = lower.reduce((acc, r) => acc + ((r[field] as number) ?? 0), 0);
-      if (sumLower > 0 && rowValue >= sumLower * 1.5) return true;
-    }
+    if (yearQuarters.length < 3) continue;
+    if (sumQuarters / annualRevenue > 1.25) return true;
   }
   return false;
 }
+
+const TRACKED_TTM_FIELDS = ['ebitda', 'ebit', 'operatingCashFlow', 'freeCashFlow', 'dividendsPaid', 'shareRepurchases'] as const;
 
 export function trailing12Months(financials: Financial[], balanceSheets: Balance[]): TTMData | null {
   const sorted = [...financials].sort((a, b) => {
@@ -181,7 +168,10 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
       shareRepurchases: f.shareRepurchases ?? null,
       balanceSheet: bs,
       isTTM: false,
-      annualFields: ['*'],
+      annualFields: [...TRACKED_TTM_FIELDS],
+      isAnnualFallback: true,
+      periodYear: f.year,
+      periodQuarter: null,
     };
   };
 
@@ -207,7 +197,6 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
 
   const bs = latest(balanceSheets);
   const annual = latestAnnual(financials);
-  const TRACKED_TTM_FIELDS = ['ebitda', 'ebit', 'operatingCashFlow', 'freeCashFlow', 'dividendsPaid', 'shareRepurchases'] as const;
   const annualFields: string[] = [];
   for (const field of TRACKED_TTM_FIELDS) {
     const presentCount = last4.filter((x) => (x[field] as number | null) != null).length;
@@ -235,6 +224,28 @@ export function trailing12Months(financials: Financial[], balanceSheets: Balance
     balanceSheet: bs,
     isTTM: true,
     annualFields,
+    isAnnualFallback: false,
+    periodYear: latestQ.year,
+    periodQuarter: latestQ.quarter ?? null,
+  };
+}
+
+export function valuationPeriod(input: ValuationInput): { isTTM: boolean; year: number | null; quarter: number | null; label: string } {
+  const ttm = trailing12Months(input.financials, input.balanceSheets);
+  if (!ttm) return { isTTM: false, year: null, quarter: null, label: '—' };
+  if (ttm.isTTM && ttm.periodYear != null) {
+    return {
+      isTTM: true,
+      year: ttm.periodYear,
+      quarter: ttm.periodQuarter,
+      label: `TTM — ${ttm.periodQuarter != null ? `Q${ttm.periodQuarter} ` : ''}${ttm.periodYear}`,
+    };
+  }
+  return {
+    isTTM: false,
+    year: ttm.periodYear,
+    quarter: null,
+    label: ttm.periodYear != null ? `Ejercicio ${ttm.periodYear}` : '—',
   };
 }
 
@@ -292,7 +303,16 @@ function fmtB(n: number, currency?: string): string {
 const SANITY_MULTIPLE = 6;
 function applySanityBound(result: ValuationResult, currentPrice: number): ValuationResult {
   if (result.fairValue == null || currentPrice <= 0) return result;
-  if (result.fairValue > SANITY_MULTIPLE * currentPrice || result.fairValue < 0) {
+  if (result.fairValue <= 0) {
+    const what = result.fairValue === 0 ? 'Valor intrínseco nulo (0.00)' : `Valor intrínseco negativo (${result.fairValue.toFixed(2)})`;
+    return {
+      ...result,
+      fairValue: null,
+      confidence: 'na' as const,
+      confidenceReason: `${what}: el método no es aplicable con los datos actuales`,
+    };
+  }
+  if (result.fairValue > SANITY_MULTIPLE * currentPrice) {
     return { ...result, confidence: 'na' as const, confidenceReason: `Valor (${result.fairValue.toFixed(0)}) > ${SANITY_MULTIPLE}x precio actual — método excluido del promedio (no fiable)` };
   }
   return result;
@@ -1048,6 +1068,18 @@ export function computeEVEBITDA(input: ValuationInput, config: { targetMultiple:
   const ebitda = ttm.ebitda;
   const ev = ebitda * config.targetMultiple;
   const nd = netDebt(bs);
+  if (nd >= ev) {
+    const leverage = nd / ebitda;
+    return {
+      id: 'ev_ebitda', name: 'EV/EBITDA',
+      description: 'Múltiplo de empresa sobre EBITDA',
+      explanation: 'Valora la empresa entera (deuda incluida) en función de su capacidad operativa de generar beneficios antes de intereses, impuestos y amortizaciones. Es el múltiplo preferido en fusiones y adquisiciones porque es independiente de la estructura de capital y las políticas contables.',
+      formula: `(EBITDA×${config.targetMultiple} − Net Debt) / Shares`,
+      fairValue: null, confidence: 'na',
+      confidenceReason: `Deuda neta ${fmtB(nd, input.currency)} (${leverage.toFixed(1)}x EBITDA) ≥ EV implícito a ${config.targetMultiple}x (${fmtB(ev, input.currency)}): el equity no tiene valor a este múltiplo`,
+      configurable: true, inputs: [],
+    };
+  }
   const fairValue = (ev - nd) / shares;
   const currentMult = stock.enterpriseValue && ebitda ? stock.enterpriseValue / ebitda : 0;
   const baseConf: ValuationResult['confidence'] = currentMult > 0 && currentMult < 40 ? 'high' : currentMult > 0 ? 'medium' : 'low';
@@ -1089,6 +1121,19 @@ export function computeEVEBIT(input: ValuationInput, config: { targetMultiple: n
   }
   const evEbit = ebit * config.targetMultiple;
   const ndEbit = netDebt(bs);
+  if (ndEbit >= evEbit) {
+    const leverage = ndEbit / ebit;
+    return {
+      id: 'ev_ebit', name: 'EV/EBIT',
+      description: 'Múltiplo de empresa sobre EBIT',
+      explanation: 'Similar a EV/EBITDA pero sin añadir de nuevo la depreciación. Es más conservador porque refleja la necesidad real de reinvertir en activos. Ideal para comparar empresas dentro del mismo sector con diferentes intensidades de capital.',
+      formula: `(EBIT×${config.targetMultiple} − Net Debt) / Shares`,
+      fairValue: null, confidence: 'na',
+      confidenceReason: `Deuda neta ${fmtB(ndEbit, input.currency)} (${leverage.toFixed(1)}x EBIT) ≥ EV implícito a ${config.targetMultiple}x (${fmtB(evEbit, input.currency)}): el equity no tiene valor a este múltiplo`,
+      configurable: true, inputs: [],
+      negativeInputWarning: undefined,
+    };
+  }
   const fairValue = (evEbit - ndEbit) / shares;
   const currentMultEbit = stock.enterpriseValue && ebit ? stock.enterpriseValue / ebit : 0;
   const baseConf: ValuationResult['confidence'] = currentMultEbit > 0 && currentMultEbit < 50 ? 'high' : currentMultEbit > 0 ? 'medium' : 'low';
@@ -1682,16 +1727,20 @@ export function getRecommendedModel(input: ValuationInput, sector?: string | nul
   return { id: SECTOR_RECOMMENDED_MODEL.default, businessModel: bm };
 }
 
-const RECOMMENDED_FALLBACK = ['per_norm', 'ev_ebitda', 'per', 'pb', 'fcf_yield', 'ddm'];
+const RECOMMENDED_FALLBACK = ['per_norm', 'ev_ebitda', 'per', 'pb', 'dcf', 'fcf_yield', 'ps', 'ddm'];
+
+function isUsableResult(r: ValuationResult | undefined): r is ValuationResult & { fairValue: number } {
+  return r != null && r.fairValue != null && r.fairValue > 0 && r.confidence !== 'na';
+}
 
 export function getRecommendedFairValue(results: ValuationResult[], input: ValuationInput, sector?: string | null, industry?: string | null): { model: string; fairValue: number | null; businessModel?: BusinessModelInference } {
   const { id: model, businessModel } = getRecommendedModel(input, sector, industry);
-  const fv = results.find((r) => r.id === model)?.fairValue ?? null;
-  if (fv != null) return { model, fairValue: fv, businessModel };
+  const pref = results.find((r) => r.id === model);
+  if (isUsableResult(pref)) return { model, fairValue: pref.fairValue, businessModel };
   for (const alt of RECOMMENDED_FALLBACK) {
     if (alt === model) continue;
-    const altFv = results.find((r) => r.id === alt)?.fairValue ?? null;
-    if (altFv != null) return { model: alt, fairValue: altFv, businessModel };
+    const r = results.find((x) => x.id === alt);
+    if (isUsableResult(r)) return { model: alt, fairValue: r.fairValue, businessModel };
   }
   return { model, fairValue: null, businessModel };
 }

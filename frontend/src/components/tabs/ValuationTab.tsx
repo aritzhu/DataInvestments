@@ -280,15 +280,17 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
 
   const resolved = data?.recommended ?? { model: 'dcf', fairValue: null };
   const heroModel = resolved.model;
-  const heroResult = results.find(r => r.id === heroModel) ?? applicable[0] ?? null;
+  const heroResult = results.find(r => r.id === heroModel) ?? null;
+  const preferredModel = data?.preferredModel ?? recommendedModel;
+  const preferredResult = results.find(r => r.id === preferredModel) ?? null;
   const heroRecommended = heroResult?.id === recommendedModel;
-  const recommendedFair = heroResult?.fairValue ?? null;
+  const recommendedFair = resolved.fairValue ?? null;
   const avgUpside = recommendedFair && stock.currentPrice > 0 ? (recommendedFair - stock.currentPrice) / stock.currentPrice : null;
   const { verdict, label: verdictLabel } = data?.verdict ?? { verdict: 'na', label: 'Sin datos' };
-  const periodInfo = latestFinancialPeriod(financials);
-  const periodLabel = periodInfo.isTTM
+  const periodInfo = data?.period ?? latestFinancialPeriod(financials);
+  const periodLabel = data?.period?.label ?? (periodInfo.isTTM
     ? `TTM — ${periodInfo.quarter != null ? `Q${periodInfo.quarter} ` : ''}${periodInfo.year ?? '—'}`
-    : `Ejercicio ${periodInfo.year ?? '—'}`;
+    : `Ejercicio ${periodInfo.year ?? '—'}`);
 
   const dcfGrowthLabels = ['CAGR ingresos', 'Crecimiento reciente', 'Peso ponderado'];
   const dcfRoicLabels = ['Estimador', 'NOPAT (EBIT×', 'Impuesto efectivo (ROIC)', 'Capital invertido (', 'FCF base', 'Reinversión (NOPAT', 'ROIC (NOPAT', 'Tasa de reinversión'];
@@ -396,14 +398,12 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
           </p>
         )}
         <p className="verdict-explanation">
-          {heroRecommended ? (
-            recommendedBm?.model != null ? (
-              <>La valoración se basa en el <strong>{recommendedBm.label.toLowerCase()}</strong> (modelo inferido de sus métricas), que se valora con el método <strong>{METHOD_NAMES[heroModel] || heroModel}</strong>. {recommendedBm.reason} Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
-            ) : (
-              <>La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
-            )
+          {heroModel !== preferredModel ? (
+            <>El <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[preferredModel] || preferredModel}</strong>) no es aplicable con los datos actuales{preferredResult?.confidenceReason ? ` (${preferredResult.confidenceReason})` : ''}; se muestra el <strong>mejor método disponible</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>). Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+          ) : recommendedBm?.model != null ? (
+            <>La valoración se basa en el <strong>{recommendedBm.label.toLowerCase()}</strong> (modelo inferido de sus métricas), que se valora con el método <strong>{METHOD_NAMES[heroModel] || heroModel}</strong>. {recommendedBm.reason} Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
           ) : (
-            <>La valoración se basa en el <strong>método con datos disponibles</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), el mejor ajuste para esta empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
+            <>La valoración se basa en el <strong>método recomendado para el sector</strong> (<strong>{METHOD_NAMES[heroModel] || heroModel}</strong>), que es el modelo estadísticamente más adecuado para este tipo de empresa. Los datos utilizados corresponden al <strong>{periodLabel.toLowerCase()}</strong>.</>
           )}{' '}
           Un upside &gt; 15% sugiere <strong>infravaloración</strong>; menor a -15% <strong>sobrevaloración</strong>.
         </p>
@@ -432,7 +432,7 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
                   >
                     <div className="val-method-card-header">
                       <span className="val-method-card-name">{r.name}</span>
-                      {isRecommended && <span className="val-recommended-badge">{recommendedBm?.model != null ? 'Método por modelo de negocio' : 'Método sugerido por sector'}</span>}
+                      {isRecommended && <span className="val-recommended-badge">{recommendedBm?.model != null ? 'Método por modelo de negocio' : r.id === preferredModel ? 'Método sugerido por sector' : 'Mejor método disponible'}</span>}
                       <span className="val-confidence-dot" style={{ background: CONFIDENCE_DOT[r.confidence] }} />
                     </div>
                     <span className="val-method-card-value">
@@ -444,7 +444,7 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
             </div>
             {applicable.length < results.length && (
               <p className="verdict-explanation">
-                <strong>No aplican a esta empresa por su modelo de negocio:</strong>{' '}
+                <strong>No aplican o no son fiables con los datos actuales:</strong>{' '}
                 {results.filter(r => !applicable.includes(r)).map(r => `${r.name} (${r.confidenceReason || 'sin datos'})`).join('; ')}.
               </p>
             )}

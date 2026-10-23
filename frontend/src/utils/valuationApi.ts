@@ -17,8 +17,10 @@ export interface ValuationApiResponse {
   currentPrice: number;
   results: ValuationResult[];
   recommended: { model: string; fairValue: number | null; businessModel?: BusinessModelInference };
+  preferredModel?: string;
   businessModel: BusinessModelInference | null;
   verdict: { verdict: 'buy' | 'hold' | 'sell' | 'na'; upside: number | null; label: string };
+  period?: { isTTM: boolean; year: number | null; quarter: number | null; label: string };
   configs: ValuationConfigs;
 }
 
