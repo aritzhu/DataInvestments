@@ -14,6 +14,9 @@
   align-items: center;
   background-size: cover;
   background-position: center;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 [data-theme="light"] .hero {
@@ -246,6 +249,8 @@
   position: relative;
   z-index: 2;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   display: flex;
   align-items: stretch;
   background: var(--glass-strong-bg);
@@ -283,6 +288,7 @@
   overflow: hidden;
   flex: 1;
   min-width: 0;
+  max-width: 100%;
 }
 
 .market-tape-track {
@@ -855,6 +861,22 @@
   .valuation-metric-value {
     font-size: 0.75rem;
   }
+
+  .screener-row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .screener-input {
+    flex-shrink: 0;
+  }
+
+  .screener-select {
+    flex-shrink: 0;
+  }
 }
 
 /* --- Features --- */
@@ -1407,11 +1429,14 @@
   position: relative;
   display: flex;
   align-items: center;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .book-carousel-viewport {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -1556,6 +1581,9 @@
 /* --- Root wrapper --- */
 .landing-root {
   flex: 1;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* --- Features header --- */
@@ -1638,7 +1666,7 @@
 
 .companies-search-wrapper {
   flex: 1 1 280px;
-  min-width: 280px;
+  min-width: 0;
 }
 
 .country-filter-wrapper {
@@ -2170,6 +2198,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  max-width: 100%;
+  overflow-x: visible;
 }
 
 .sector-pills--loading {
@@ -2215,6 +2245,13 @@
   .search-row {
     flex-direction: column;
     align-items: stretch;
+    width: 100%;
+  }
+
+  .companies-search-wrapper {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
   }
 
   .sort-btn {

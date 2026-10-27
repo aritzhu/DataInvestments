@@ -272,6 +272,7 @@ export function Landing() {
     setLandingCache(cacheKey, { heroSettings: siteSettings, valuationLimits: limits });
   }, [siteSettings, cacheKey]);
 
+  const fetchKeyRef = useRef<string>('');
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams();
@@ -292,16 +293,22 @@ export function Landing() {
     const cached = getLandingCache(cacheKey);
     if (cached) {
       setCompanies(cached.companies);
-      setTotal(cached.total);
+      const cachedTotal = typeof cached.total === 'number' ? cached.total : 0;
+      const cachedTotalPages = Math.max(1, Math.ceil(cachedTotal / pageSize));
+      if (page <= cachedTotalPages) {
+        setTotal(cachedTotal);
+      }
       setIsLoading(false);
     } else {
       setIsLoading(true);
     }
 
+    fetchKeyRef.current = cacheKey;
     const headers = user ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : undefined;
     fetch(`/api/companies?${params.toString()}`, { headers, signal: controller.signal })
       .then((res) => res.json())
       .then((d) => {
+        if (fetchKeyRef.current !== cacheKey || controller.signal.aborted) return;
         const nextCompanies = Array.isArray(d.data) ? d.data : [];
         const nextTotal = typeof d.total === 'number' ? d.total : 0;
         setCompanies(nextCompanies);
@@ -393,10 +400,9 @@ export function Landing() {
       isFirstRender.current = false;
       return;
     }
-    // Only reset when the page is actually off 1; on the same value React already
-    // bails out, but stating it keeps this from re-entering the fetch effect.
+    // Only reset when the page is actually off 1
     if (page !== 1) setPage(1);
-  }, [debouncedSearch, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, pageSize]);
+  }, [debouncedSearch, selectedCountry, selectedSector, selectedBusinessModel, sortOrder, showFavoritesOnly, pageSize, screenMinMargin, screenMaxPe, screenMinFcf, screenMaxNd, sortBy]);
 
   useEffect(() => {
     if (didInitialScroll.current) return;
@@ -478,9 +484,20 @@ export function Landing() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pageStart = (page - 1) * pageSize + 1;
   const pageEnd = Math.min(page * pageSize, total);
+  const totalRef = useRef(total);
+  const pageRef = useRef(page);
+  useEffect(() => {
+    totalRef.current = total;
+  }, [total]);
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
+    if (pageRef.current !== page) return;
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
   }, [page, totalPages]);
 
   const handleCompanyClick = (ticker: string) => {
