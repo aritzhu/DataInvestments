@@ -25,8 +25,8 @@ Mostrar la evolución de los principales índices bursátiles del mundo con un s
 
 | Periodo | range | interval |
 |---|---|---|
-| 1D | `1d` | `5m` |
-| 1S | `5d` | `30m` |
+| 1D | `1d` | `1m` |
+| 1S | `5d` | `15m` |
 | 1M | `1mo` | `1d` |
 | 3M | `3mo` | `1d` |
 | 6M | `6mo` | `1d` |
@@ -35,7 +35,7 @@ Mostrar la evolución de los principales índices bursátiles del mundo con un s
 | 5A | `5y` | `1wk` |
 
 - La variación de `1D` se calcula contra `chartPreviousClose`; el resto contra el primer cierre del rango.
-- Las series se reducen a un máximo de 48 puntos para las minigráficas.
+- Las series se reducen a un máximo de 200 puntos para las minigráficas.
 - Caché en memoria por periodo: 3 minutos.
 - Si falla la actualización, se sirve la caché anterior durante un máximo de 15 minutos y se marca como `stale`.
 

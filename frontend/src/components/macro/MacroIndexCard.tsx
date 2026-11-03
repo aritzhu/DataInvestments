@@ -1,5 +1,5 @@
 import { TrendingDown, TrendingUp } from 'lucide-react';
-import { Area, AreaChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 import type { MacroIndex, MacroPeriod, MacroPoint } from '../../services/macroService';
 
 interface Props {
@@ -63,6 +63,12 @@ export function MacroIndexCard({ index, period }: Props) {
   const lineColor = changeValue == null ? 'var(--text-tertiary)' : up ? 'var(--blue-light)' : 'var(--red)';
   const gradientId = `macro-grad-${index.symbol.replace(/[^a-zA-Z0-9]/g, '')}`;
   const changeLabel = period === '1d' ? 'Var. diaria' : 'Var. periodo';
+  const values = index.points.map((point) => point.c);
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue = values.length > 0 ? Math.max(...values) : 0;
+  const spread = maxValue - minValue;
+  const padding = spread > 0 ? spread * 0.08 : Math.max(Math.abs(maxValue) * 0.001, 0.01);
+  const yDomain: [number, number] = [minValue - padding, maxValue + padding];
 
   return (
     <article className={`macro-card ${!index.available ? 'macro-card--unavailable' : ''}`}>
@@ -96,7 +102,7 @@ export function MacroIndexCard({ index, period }: Props) {
 
       <div className="macro-card-chart">
         {index.available && index.points.length > 1 ? (
-          <ResponsiveContainer width="100%" height={64}>
+          <ResponsiveContainer width="100%" height={80}>
             <AreaChart data={index.points} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -104,9 +110,10 @@ export function MacroIndexCard({ index, period }: Props) {
                   <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
+              <YAxis hide domain={yDomain} />
               <Tooltip content={<MacroTooltip period={period} />} />
               <Area
-                type="monotone"
+                type="linear"
                 dataKey="c"
                 stroke={lineColor}
                 strokeWidth={1.8}

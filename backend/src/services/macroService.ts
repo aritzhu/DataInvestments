@@ -64,8 +64,8 @@ export const MACRO_INDICES: MacroIndexDefinition[] = [
 ];
 
 export const MACRO_PERIODS: Record<MacroPeriod, PeriodConfig> = {
-  '1d': { range: '1d', interval: '5m' },
-  '1w': { range: '5d', interval: '30m' },
+  '1d': { range: '1d', interval: '1m' },
+  '1w': { range: '5d', interval: '15m' },
   '1m': { range: '1mo', interval: '1d' },
   '3m': { range: '3mo', interval: '1d' },
   '6m': { range: '6mo', interval: '1d' },
@@ -76,7 +76,7 @@ export const MACRO_PERIODS: Record<MacroPeriod, PeriodConfig> = {
 
 const CACHE_TTL_MS = 3 * 60 * 1000;
 const STALE_TTL_MS = 15 * 60 * 1000;
-const MAX_CHART_POINTS = 48;
+const MAX_CHART_POINTS = 200;
 const FETCH_CONCURRENCY = 4;
 
 const cache = new Map<MacroPeriod, { at: number; data: MacroResponse }>();
