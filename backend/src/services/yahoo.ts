@@ -11,7 +11,7 @@ export interface YahooQuote {
   exchange: string;
 }
 
-interface YahooChartMeta {
+export interface YahooChartMeta {
   symbol?: string;
   longName?: string;
   shortName?: string;
@@ -45,6 +45,46 @@ async function fetchYahooChartMeta(ticker: string): Promise<YahooChartMeta | nul
     const result = response.data?.chart?.result?.[0];
     if (!result) return null;
     return result.meta ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export interface YahooChartSeries {
+  meta: YahooChartMeta;
+  points: Array<{ time: number; close: number }>;
+}
+
+export async function fetchYahooChartSeries(
+  ticker: string,
+  range: string,
+  interval: string,
+): Promise<YahooChartSeries | null> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`;
+    const response = await axios.get(url, {
+      params: { range, interval },
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      timeout: 15000,
+    });
+
+    const result = response.data?.chart?.result?.[0];
+    if (!result?.timestamp || !result?.indicators?.quote?.[0]?.close) return null;
+
+    const timestamps: number[] = result.timestamp;
+    const closes: Array<number | null> = result.indicators.quote[0].close;
+    const points: Array<{ time: number; close: number }> = [];
+
+    for (let i = 0; i < timestamps.length; i++) {
+      const close = closes[i];
+      if (typeof close === 'number' && Number.isFinite(close) && close > 0) {
+        points.push({ time: timestamps[i] * 1000, close });
+      }
+    }
+
+    return { meta: result.meta ?? {}, points };
   } catch {
     return null;
   }

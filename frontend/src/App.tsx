@@ -21,6 +21,7 @@ const FormacionPage = lazy(() => import('./pages/FormacionPage').then(m => ({ de
 const CursoDetallePage = lazy(() => import('./pages/CursoDetallePage').then(m => ({ default: m.CursoDetallePage })));
 const PlanSelectionPage = lazy(() => import('./pages/PlanSelectionPage').then(m => ({ default: m.PlanSelectionPage })));
 const CheckoutResultPage = lazy(() => import('./pages/CheckoutResultPage').then(m => ({ default: m.CheckoutResultPage })));
+const MacroPage = lazy(() => import('./pages/MacroPage').then(m => ({ default: m.MacroPage })));
 
 function App() {
   useInitAnalytics();
@@ -65,6 +66,7 @@ function AppRoutes() {
                   <Route path="/legal/:slug" element={<LegalPage />} />
                   <Route path="/formacion" element={<FormacionPage />} />
                   <Route path="/formacion/:id" element={<CursoDetallePage />} />
+                  <Route path="/macro" element={<MacroPage />} />
                   <Route path="/plans" element={<PlanSelectionPage />} />
                   <Route path="/subscription/result" element={<CheckoutResultPage />} />
                 </Routes>

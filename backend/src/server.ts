@@ -25,6 +25,7 @@ import coursesRoutes from './routes/courses';
 import analyticsRoutes from './routes/analytics.routes';
 import subscriptionRoutes from './routes/subscription';
 import commodityRoutes from './routes/commodities';
+import macroRoutes from './routes/macro';
 import stripeWebhookRoutes from './routes/stripeWebhook';
 import { fetchYahooQuote, fetchMarketTape, type MarketTapeItem } from './services/yahoo';
 import { getMarketAverages } from './services/marketAverages';
@@ -871,6 +872,7 @@ app.use('/api/courses', coursesRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/commodities', commodityRoutes);
+app.use('/api/macro', macroRoutes);
 
 app.get('/api/commodities/mapping', async (req, res) => {
   try {

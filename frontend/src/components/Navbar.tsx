@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap } from 'lucide-react';
+import { Settings, Menu, X, Home, BarChart3, LogOut, Heart, Clock, Briefcase, User, Sun, Moon, Search, GraduationCap, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getTheme, toggleTheme } from '../utils/theme';
 import { useSiteSettings } from '../hooks/useSiteSettings';
@@ -149,6 +149,13 @@ export function Navbar() {
               <GraduationCap size={14} />
               Formación
             </Link>
+            <Link to="/macro" className="navbar-link" title="Datos macro (Premium)">
+              <Globe size={14} />
+              Macro
+              {(!user || (user.subscriptionTier !== 'premium' && user.role !== 'admin')) && (
+                <span className="navbar-premium-badge">Premium</span>
+              )}
+            </Link>
             <Link to="/empresa/AAPL" className="navbar-cta">
               Analizar
             </Link>
@@ -268,6 +275,13 @@ export function Navbar() {
             <Link to="/formacion" className="navbar-mobile-link">
               <GraduationCap size={20} />
               Formación
+            </Link>
+            <Link to="/macro" className="navbar-mobile-link">
+              <Globe size={20} />
+              Datos macro
+              {(!user || (user.subscriptionTier !== 'premium' && user.role !== 'admin')) && (
+                <span className="navbar-premium-badge">Premium</span>
+              )}
             </Link>
             <Link to="/empresa/AAPL" className="navbar-mobile-link navbar-mobile-link--cta">
               <BarChart3 size={20} />

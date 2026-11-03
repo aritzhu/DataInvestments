@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, X, BarChart3, Heart, Briefcase, Download, GitCompare } from 'lucide-react';
+import { Check, X, BarChart3, Heart, Briefcase, Download, GitCompare, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/plans.css';
 
@@ -38,6 +38,7 @@ function buildFeatures(plans: PlanData[]): PlanFeature[] {
     { label: 'Screening avanzado', free: f('free')?.screening ?? false, pro: f('pro')?.screening ?? true, premium: f('premium')?.screening ?? true },
     { label: 'Comparar empresas', free: f('free')?.compare ?? false, pro: f('pro')?.compare ?? true, premium: f('premium')?.compare ?? true },
     { label: 'Exportar datos', free: f('free')?.exportData ?? false, pro: f('pro')?.exportData ?? false, premium: f('premium')?.exportData ?? true },
+    { label: 'Datos macro', free: false, pro: false, premium: true },
   ];
 }
 
@@ -77,6 +78,7 @@ export function PlanSelectionPage() {
           { label: 'Screening avanzado', free: false, pro: true, premium: true },
           { label: 'Comparar empresas', free: false, pro: true, premium: true },
           { label: 'Exportar datos', free: false, pro: false, premium: true },
+          { label: 'Datos macro', free: false, pro: false, premium: true },
         ]);
       });
   }, []);
@@ -169,6 +171,7 @@ export function PlanSelectionPage() {
     { label: 'Screening avanzado', free: false, pro: true, premium: true },
     { label: 'Comparar empresas', free: false, pro: true, premium: true },
     { label: 'Exportar datos', free: false, pro: false, premium: true },
+    { label: 'Datos macro', free: false, pro: false, premium: true },
   ];
 
   return (
@@ -260,6 +263,7 @@ export function PlanSelectionPage() {
               <li><GitCompare size={16} /> Screening avanzado</li>
               <li><GitCompare size={16} /> Comparar empresas</li>
               <li><Download size={16} /> Exportar datos</li>
+              <li><Globe size={16} /> Datos macro</li>
             </ul>
             <button
               className={`plan-btn ${currentTier === 'premium' ? 'plan-btn--current' : 'plan-btn--outline'}`}
