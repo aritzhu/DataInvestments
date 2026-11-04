@@ -78,6 +78,16 @@ const DEFAULT_SLIDERS: ValuationConfigs = {
   fcfYield: { targetYield: 8 },
 };
 
+const DCF_GROWTH_SLIDER_BASE_MIN = -20;
+const DCF_GROWTH_SLIDER_BASE_MAX = 30;
+const DCF_GROWTH_MANUAL_MIN = -50;
+const DCF_GROWTH_MANUAL_MAX = 50;
+const DCF_GROWTH_SLIDER_EXPAND = 5;
+
+function clampGrowth(value: number): number {
+  return Math.min(DCF_GROWTH_MANUAL_MAX, Math.max(DCF_GROWTH_MANUAL_MIN, value));
+}
+
 export function ValuationTab({ company, financials, stock, initialValuation, initialCommodityMapping, initialCommodityData, initialExistingAlarm }: Props) {
   const { user } = useAuth();
   const [activeMethod, setActiveMethod] = useState('dcf');
@@ -87,6 +97,8 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
   const [dcfOverride, setDcfOverride] = useState(() => ({ growth: false, discount: false }));
   const [dcfBaseGrowth, setDcfBaseGrowth] = useState(5);
   const [dcfBaseDiscount, setDcfBaseDiscount] = useState(10);
+  const [growthDraft, setGrowthDraft] = useState('');
+  const [growthEditing, setGrowthEditing] = useState(false);
   const [configs, setConfigs] = useState<ValuationConfigs>(DEFAULT_SLIDERS);
   const [data, setData] = useState<ValuationApiResponse | null>(initialValuation ?? null);
   const [queryVersion, setQueryVersion] = useState(0);
@@ -146,7 +158,13 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
         dcfDiscount: dcfOverride.discount,
         growthMethod: configs.dcf.growthMethod,
       }, { signal: controller.signal })
-        .then((d) => { if (!controller.signal.aborted) { setData(d); setConfigs(d.configs); setDcfBaseGrowth(readAppliedGrowth(d)); setDcfBaseDiscount(readAppliedDiscount(d)); } })
+        .then((d) => {
+          if (controller.signal.aborted) return;
+          setData(d);
+          setConfigs(d.configs);
+          if (!dcfOverride.growth) setDcfBaseGrowth(readAppliedGrowth(d));
+          setDcfBaseDiscount(readAppliedDiscount(d));
+        })
         .catch(() => {});
     }, 300);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -308,7 +326,25 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
       : dcfGrowthLabels.some((p) => i.label.startsWith(p)));
   const dcfWaccItems = dcfInputs.filter((i) => isWaccInput(i.label));
   const dcfOtherItems = dcfInputs.filter((i) => !dcfGrowthLabels.some((p) => i.label.startsWith(p)) && !dcfRoicLabels.some((p) => i.label.startsWith(p)) && !isWaccInput(i.label));
-  const growthSliderMax = Math.max(0.5, Math.round(dcfBaseGrowth * 1.2 * 2) / 2);
+  const parsedGrowthDraft = Number(growthDraft);
+  const growthForBounds =
+    growthEditing && growthDraft.trim() !== '' && growthDraft !== '-' && Number.isFinite(parsedGrowthDraft)
+      ? parsedGrowthDraft
+      : configs.dcf.growthRate;
+  const growthSliderMin = Math.max(
+    DCF_GROWTH_MANUAL_MIN,
+    Math.min(
+      DCF_GROWTH_SLIDER_BASE_MIN,
+      Math.floor((growthForBounds - DCF_GROWTH_SLIDER_EXPAND) / DCF_GROWTH_SLIDER_EXPAND) * DCF_GROWTH_SLIDER_EXPAND,
+    ),
+  );
+  const growthSliderMax = Math.min(
+    DCF_GROWTH_MANUAL_MAX,
+    Math.max(
+      DCF_GROWTH_SLIDER_BASE_MAX,
+      Math.ceil((growthForBounds + DCF_GROWTH_SLIDER_EXPAND) / DCF_GROWTH_SLIDER_EXPAND) * DCF_GROWTH_SLIDER_EXPAND,
+    ),
+  );
   const discountSliderMax = Math.max(20, Math.round(dcfBaseDiscount * 1.2 * 2) / 2);
 
   const terminal = active?.id === 'dcf' ? active.terminalValue : undefined;
@@ -337,6 +373,44 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
       dcf: { ...prev.dcf, growthMethod: method },
     }));
     setDcfOverride(prev => ({ ...prev, growth: false }));
+    setGrowthEditing(false);
+    setQueryVersion(v => v + 1);
+  };
+
+  const applyGrowth = (value: number) => {
+    const next = clampGrowth(value);
+    if (next === configs.dcf.growthRate) return;
+    updateConfig('dcf', 'growthRate', next);
+    setDcfOverride(prev => ({ ...prev, growth: true }));
+  };
+
+  const handleGrowthInputChange = (raw: string) => {
+    setGrowthDraft(raw);
+    const parsed = Number(raw);
+    if (raw.trim() === '' || raw === '-' || !Number.isFinite(parsed)) return;
+    if (parsed < DCF_GROWTH_MANUAL_MIN || parsed > DCF_GROWTH_MANUAL_MAX) return;
+    applyGrowth(parsed);
+  };
+
+  const handleGrowthInputBlur = () => {
+    const parsed = Number(growthDraft);
+    if (growthDraft.trim() === '' || growthDraft === '-' || !Number.isFinite(parsed)) {
+      setGrowthDraft(String(configs.dcf.growthRate));
+    } else if (parsed < DCF_GROWTH_MANUAL_MIN || parsed > DCF_GROWTH_MANUAL_MAX) {
+      const next = clampGrowth(parsed);
+      applyGrowth(next);
+      setGrowthDraft(String(next));
+    } else {
+      setGrowthDraft(String(configs.dcf.growthRate));
+    }
+    setGrowthEditing(false);
+  };
+
+  const resetGrowthOverride = () => {
+    setDcfOverride(prev => ({ ...prev, growth: false }));
+    setGrowthEditing(false);
+    setGrowthDraft(String(dcfBaseGrowth));
+    setConfigs(prev => ({ ...prev, dcf: { ...prev.dcf, growthRate: dcfBaseGrowth } }));
     setQueryVersion(v => v + 1);
   };
 
@@ -543,10 +617,43 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
                 </div>
                 <div className="val-config-grid">
                   <div className="val-config-item">
-                    <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
-                    <input type="range" min={0} max={growthSliderMax} step={0.5} value={configs.dcf.growthRate}
+                    <div className="val-config-label-row">
+                      <label className="val-config-label"><span className="info-label-row">Crecimiento anual <InfoButton content={INFO['valuation.dcfGrowth']} /></span></label>
+                      {dcfOverride.growth && <span className="val-manual-badge">Manual</span>}
+                    </div>
+                    <div className="val-growth-input-row">
+                      <input
+                        type="number"
+                        className="val-growth-input"
+                        min={DCF_GROWTH_MANUAL_MIN}
+                        max={DCF_GROWTH_MANUAL_MAX}
+                        step={0.1}
+                        value={growthEditing ? growthDraft : configs.dcf.growthRate}
+                        onFocus={() => {
+                          setGrowthEditing(true);
+                          setGrowthDraft(String(configs.dcf.growthRate));
+                        }}
+                        onChange={(e) => handleGrowthInputChange(e.target.value)}
+                        onBlur={handleGrowthInputBlur}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        aria-label="Crecimiento anual manual"
+                      />
+                      <span className="val-growth-input-unit">%</span>
+                      {dcfOverride.growth && (
+                        <button type="button" className="val-growth-reset" onClick={resetGrowthOverride}>
+                          Usar estimación
+                        </button>
+                      )}
+                    </div>
+                    <input type="range" min={growthSliderMin} max={growthSliderMax} step={0.5} value={configs.dcf.growthRate}
                       onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
                     <span className="val-config-value">{configs.dcf.growthRate}%</span>
+                    <span className="val-growth-hint">
+                      Estimado automático: {dcfBaseGrowth}%
+                      {dcfOverride.growth ? ` · Aplicado: ${configs.dcf.growthRate}%` : ''}
+                    </span>
                     {dcfGrowthItems.length > 0 && (
                       <>
                         <button type="button" className="val-config-toggle" onClick={() => setExpandedGrowth(!expandedGrowth)} aria-expanded={expandedGrowth}>
