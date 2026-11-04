@@ -347,6 +347,7 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
   );
   const discountSliderMax = Math.max(20, Math.round(dcfBaseDiscount * 1.2 * 2) / 2);
   const formatGrowthPct = (value: number) => value.toFixed(1);
+  const growthAboveDiscount = configs.dcf.growthRate >= configs.dcf.discountRate;
 
   const terminal = active?.id === 'dcf' ? active.terminalValue : undefined;
   const terminalWeightPct = terminal ? terminal.weight * 100 : 0;
@@ -655,6 +656,11 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
                       Estimado automático: {formatGrowthPct(dcfBaseGrowth)}%
                       {dcfOverride.growth ? ` · Aplicado: ${formatGrowthPct(configs.dcf.growthRate)}%` : ''}
                     </span>
+                    {growthAboveDiscount && (
+                      <span className="val-growth-warning">
+                        Crecimiento ≥ tasa de descuento: el valor del DCF es muy sensible.
+                      </span>
+                    )}
                     {dcfGrowthItems.length > 0 && (
                       <>
                         <button type="button" className="val-config-toggle" onClick={() => setExpandedGrowth(!expandedGrowth)} aria-expanded={expandedGrowth}>

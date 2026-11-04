@@ -342,6 +342,8 @@ const DCF_KD_MAX = 50;
 const DCF_TERMINAL_GROWTH = 0.03;
 const DCF_MIN_SPREAD = 0.005;
 const DCF_MIN_GROWTH_SPREAD = 0.01;
+const DCF_MANUAL_GROWTH_MIN = -0.5;
+const DCF_MANUAL_GROWTH_MAX = 0.5;
 
 export type DCFGrowthMethod = 'cagr' | 'roic';
 
@@ -475,7 +477,7 @@ function computeAutoDCFParams(input: ValuationInput, config: { growthRate: numbe
 export function dcfSeedRates(input: ValuationInput, config: { growthRate: number; discountRate: number; growthMethod?: DCFGrowthMethod }, sector: string | null | undefined, industry?: string | null): { growthRate: number; discountRate: number; growthApplied: boolean; growthMethod: DCFGrowthMethod } {
   const growthMethod: DCFGrowthMethod = config.growthMethod ?? 'cagr';
   const cc = computeAutoDCFParams(input, { ...config, growthMethod }, sector, industry);
-  const seededG = cc.g;
+  const seededG = Math.min(cc.g, cc.r - DCF_MIN_GROWTH_SPREAD);
   return { growthRate: +(seededG * 100).toFixed(2), discountRate: +(cc.r * 100).toFixed(2), growthApplied: cc.growthApplied, growthMethod: cc.growthMethod === 'manual' ? 'cagr' : cc.growthMethod };
 }
 
@@ -832,11 +834,15 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
 
   const cc = computeAutoDCFParams(input, { growthRate: config.growthRate, discountRate: config.discountRate, growthMethod: config.growthMethod }, sector, industry, dcfOverride);
   const r = cc.r;
-  // Un crecimiento >= r hace divergir el valor presente: se acota con un
-  // margen mínimo y se avisa en lugar de publicar un valor sin cooldown.
+  const isManualGrowth = dcfOverride?.growth === true;
+  // El crecimiento automático se acota para no superar la tasa de descuento.
+  // El manual se respeta (con un límite de seguridad ±50%) aunque supere r:
+  // la perpetuidad terminal ya usa su propio crecimiento, acotado a r - 0.5%.
   const gRaw = cc.g;
-  const g = Math.min(gRaw, r - DCF_MIN_GROWTH_SPREAD);
-  const growthClamped = g < gRaw;
+  const g = isManualGrowth
+    ? Math.max(DCF_MANUAL_GROWTH_MIN, Math.min(DCF_MANUAL_GROWTH_MAX, gRaw))
+    : Math.min(gRaw, r - DCF_MIN_GROWTH_SPREAD);
+  const growthClamped = Math.abs(g - gRaw) > 1e-12;
   // El spread r - tg nunca baja de 50bp: un spread narrower multiplica el
   // valor terminal y produce valoraciones desorbitadas.
   let tg = Math.min(DCF_TERMINAL_GROWTH, r - DCF_MIN_SPREAD);
@@ -861,8 +867,14 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
   const terminalWarning = terminalWeight >= 0.6
     ? `El ${(terminalWeight * 100).toFixed(0)}% del valor justo proviene del valor terminal (perpetuidad al ${(tg * 100).toFixed(1)}%): habitual en empresas de alto crecimiento, pero el resultado depende mucho de esa hipótesis de largo plazo${terminalWeight >= 0.75 ? '; un horizonte más largo reparte el peso hacia los flujos proyectados' : ''}.`
     : undefined;
-  const growthCapWarning = growthClamped
+  const autoGrowthCapWarning = !isManualGrowth && growthClamped
     ? `El crecimiento estimado (${(gRaw * 100).toFixed(1)}%) iguala o supera la tasa de descuento (${(r * 100).toFixed(1)}%): se aplica un crecimiento acotado al ${(g * 100).toFixed(1)}% para evitar que el valor presente diverja.`
+    : undefined;
+  const manualGrowthCapWarning = isManualGrowth && growthClamped
+    ? `El crecimiento manual (${(gRaw * 100).toFixed(1)}%) se acotó al ${(g * 100).toFixed(1)}% por el límite de seguridad de ±50%.`
+    : undefined;
+  const manualGrowthSensitivityWarning = isManualGrowth && !growthClamped && g >= r
+    ? `Crecimiento manual (${(g * 100).toFixed(1)}%) ≥ tasa de descuento (${(r * 100).toFixed(1)}%): el valor presente de los flujos explícitos crece muy rápido y la valoración es muy sensible. El crecimiento terminal sigue limitado por debajo de la tasa de descuento.`
     : undefined;
   const terminalSpreadWarning = tgCapped
     ? `El crecimiento terminal se limitó al ${(tg * 100).toFixed(1)}% para mantener un margen mínimo del 0.5% sobre la tasa de descuento.`
@@ -879,7 +891,7 @@ export function computeDCF(input: ValuationInput, config: { growthRate: number; 
         cc.wacc.debtAssumedZero ? 'No se registró deuda; se asume financiación 100% equity (WACC = coste del equity).' : null,
       ].filter((w): w is string => Boolean(w)).join(' ') || undefined
     : undefined;
-  const dataWarning = [partialWarning, marketCapWarning, terminalWarning, growthCapWarning, terminalSpreadWarning, roicFallbackWarning, waccEstimateWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
+  const dataWarning = [partialWarning, marketCapWarning, terminalWarning, autoGrowthCapWarning, manualGrowthCapWarning, manualGrowthSensitivityWarning, terminalSpreadWarning, roicFallbackWarning, waccEstimateWarning].filter((w): w is string => Boolean(w)).join(' ') || undefined;
   const currency = input.currency;
 
   return {

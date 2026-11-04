@@ -627,6 +627,14 @@
   color: var(--text-tertiary);
 }
 
+.val-growth-warning {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: var(--amber);
+}
+
 .val-growth-method {
   margin-bottom: 0.75rem;
 }
