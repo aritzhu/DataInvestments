@@ -346,6 +346,7 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
     ),
   );
   const discountSliderMax = Math.max(20, Math.round(dcfBaseDiscount * 1.2 * 2) / 2);
+  const formatGrowthPct = (value: number) => value.toFixed(1);
 
   const terminal = active?.id === 'dcf' ? active.terminalValue : undefined;
   const terminalWeightPct = terminal ? terminal.weight * 100 : 0;
@@ -395,13 +396,13 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
   const handleGrowthInputBlur = () => {
     const parsed = Number(growthDraft);
     if (growthDraft.trim() === '' || growthDraft === '-' || !Number.isFinite(parsed)) {
-      setGrowthDraft(String(configs.dcf.growthRate));
+      setGrowthDraft(formatGrowthPct(configs.dcf.growthRate));
     } else if (parsed < DCF_GROWTH_MANUAL_MIN || parsed > DCF_GROWTH_MANUAL_MAX) {
       const next = clampGrowth(parsed);
       applyGrowth(next);
       setGrowthDraft(String(next));
     } else {
-      setGrowthDraft(String(configs.dcf.growthRate));
+      setGrowthDraft(formatGrowthPct(configs.dcf.growthRate));
     }
     setGrowthEditing(false);
   };
@@ -409,7 +410,7 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
   const resetGrowthOverride = () => {
     setDcfOverride(prev => ({ ...prev, growth: false }));
     setGrowthEditing(false);
-    setGrowthDraft(String(dcfBaseGrowth));
+    setGrowthDraft(formatGrowthPct(dcfBaseGrowth));
     setConfigs(prev => ({ ...prev, dcf: { ...prev.dcf, growthRate: dcfBaseGrowth } }));
     setQueryVersion(v => v + 1);
   };
@@ -628,10 +629,10 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
                         min={DCF_GROWTH_MANUAL_MIN}
                         max={DCF_GROWTH_MANUAL_MAX}
                         step={0.1}
-                        value={growthEditing ? growthDraft : configs.dcf.growthRate}
+                        value={growthEditing ? growthDraft : formatGrowthPct(configs.dcf.growthRate)}
                         onFocus={() => {
                           setGrowthEditing(true);
-                          setGrowthDraft(String(configs.dcf.growthRate));
+                          setGrowthDraft(formatGrowthPct(configs.dcf.growthRate));
                         }}
                         onChange={(e) => handleGrowthInputChange(e.target.value)}
                         onBlur={handleGrowthInputBlur}
@@ -649,10 +650,10 @@ export function ValuationTab({ company, financials, stock, initialValuation, ini
                     </div>
                     <input type="range" min={growthSliderMin} max={growthSliderMax} step={0.5} value={configs.dcf.growthRate}
                       onChange={(e) => { updateConfig('dcf', 'growthRate', parseFloat(e.target.value)); setDcfOverride((prev) => ({ ...prev, growth: true })); }} className="val-config-slider" />
-                    <span className="val-config-value">{configs.dcf.growthRate}%</span>
+                    <span className="val-config-value">{formatGrowthPct(configs.dcf.growthRate)}%</span>
                     <span className="val-growth-hint">
-                      Estimado automático: {dcfBaseGrowth}%
-                      {dcfOverride.growth ? ` · Aplicado: ${configs.dcf.growthRate}%` : ''}
+                      Estimado automático: {formatGrowthPct(dcfBaseGrowth)}%
+                      {dcfOverride.growth ? ` · Aplicado: ${formatGrowthPct(configs.dcf.growthRate)}%` : ''}
                     </span>
                     {dcfGrowthItems.length > 0 && (
                       <>
